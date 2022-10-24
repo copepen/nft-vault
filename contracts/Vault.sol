@@ -16,7 +16,6 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IVault.sol";
 
 /// @title Storage for Vault
-
 abstract contract VaultStorageV1 {
     /// @notice Redemption state for account
     /// @param pending Pending redemption amount
@@ -29,16 +28,13 @@ abstract contract VaultStorageV1 {
         uint256 redemptionQueueTarget;
     }
 
-    /// @dev Asset token
-
+    /// @notice Asset token
     IERC20Upgradeable internal _asset;
 
-    /// @dev Token decimals;
-
+    /// @notice Token decimals;
     uint8 internal _decimals;
 
-    /// @dev Mapping of account to redemption state
-
+    /// @notice Mapping of account to redemption state
     mapping(address => Redemption) internal _redemptions;
 
     uint256 internal _totalCashBalance;
@@ -46,34 +42,27 @@ abstract contract VaultStorageV1 {
     uint256 internal _totalWithdrawalBalance;
 
     /// @notice Realized value
-
     uint256 public realizedValue;
 
     /// @notice Pending redemptions
-
     uint256 public pendingRedemptions;
 
     /// @notice Current redemption queue (tail)
-
     uint256 public redemptionQueue;
 
     /// @notice Processed redemption queue (head)
-
     uint256 public processedRedemptionQueue;
 
     /// @notice Mapping of time bucket to pending returns
-
     mapping(uint256 => uint256) public pendingReturns;
 }
 
 /// @title Storage for Vault, aggregated
-
 abstract contract VaultStorage is VaultStorageV1 {
 
 }
 
 /// @title Vault
-
 contract Vault is
     Initializable,
     ERC20Upgradeable,
@@ -148,17 +137,17 @@ contract Vault is
     /// Getters ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @dev See {IERC20Metadata-decimals}.
+    /// @notice See {IERC20Metadata-decimals}.
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
-    /// @dev See {IERC4626-asset}.
+    /// @notice See {IERC4626-asset}.
     function asset() public view returns (address) {
         return address(_asset);
     }
 
-    /// @dev See {IERC4626-convertToShares}.
+    /// @notice See {IERC4626-convertToShares}.
     function convertToShares(uint256 assets)
         public
         view
@@ -167,7 +156,7 @@ contract Vault is
         return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
-    /// @dev See {IERC4626-convertToAssets}.
+    /// @notice See {IERC4626-convertToAssets}.
     function convertToAssets(uint256 shares)
         public
         view
@@ -224,6 +213,7 @@ contract Vault is
     /// User Functions ///
     /////////////////////////////////////////////////////////////////////////
 
+    /// @inheritdoc IVault
     function deposit(uint256 assets) external whenNotPaused nonReentrant {
         // Validate amount
         if (assets == 0) revert ParameterOutOfBounds();
@@ -234,6 +224,7 @@ contract Vault is
         _asset.safeTransferFrom(msg.sender, address(this), assets);
     }
 
+    /// @inheritdoc IVault
     function redeem(uint256 shares) public whenNotPaused nonReentrant {
         // Validate shares
         if (shares == 0) revert ParameterOutOfBounds();
@@ -262,6 +253,7 @@ contract Vault is
         emit Redeemed(msg.sender, shares, redemptionAmount);
     }
 
+    /// @inheritdoc IVault
     function withdraw(uint256 maxAssets) public whenNotPaused nonReentrant {
         // Calculate amount available to withdraw
         uint256 assets = Math.min(redemptionAvailable(msg.sender), maxAssets);
@@ -284,9 +276,7 @@ contract Vault is
     /// Internal Helper Functions ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @dev Internal conversion function (from assets to shares) with support for rounding direction.
-    /// Will revert if assets > 0, totalSupply > 0 and totalAssets = 0. That corresponds to a case where any asset
-    /// would represent an infinite amount of shares.
+    /// @notice Internal conversion function (from assets to shares) with support for rounding direction.
     function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
         internal
         view
@@ -299,8 +289,7 @@ contract Vault is
                 : assets.mulDiv(supply, realizedValue, rounding);
     }
 
-    /// @dev Internal conversion function (from assets to shares) to apply when the vault is empty.
-    /// NOTE: Make sure to keep this function consistent with {_initialConvertToAssets} when overriding it.
+    /// @notice Internal conversion function (from assets to shares) to apply when the vault is empty.
     function _initialConvertToShares(
         uint256 assets,
         MathUpgradeable.Rounding /*rounding*/
@@ -308,7 +297,7 @@ contract Vault is
         return assets;
     }
 
-    /// @dev Internal conversion function (from shares to assets) with support for rounding direction.
+    /// @notice Internal conversion function (from shares to assets) with support for rounding direction.
     function _convertToAssets(uint256 shares, MathUpgradeable.Rounding rounding)
         internal
         view
@@ -322,8 +311,7 @@ contract Vault is
                 : shares.mulDiv(realizedValue, supply, rounding);
     }
 
-    /// @dev Internal conversion function (from shares to assets) to apply when the vault is empty.
-    /// NOTE: Make sure to keep this function consistent with {_initialConvertToShares} when overriding it.
+    /// @notice Internal conversion function (from shares to assets) to apply when the vault is empty.
     function _initialConvertToAssets(
         uint256 shares,
         MathUpgradeable.Rounding /*rounding*/
@@ -331,7 +319,7 @@ contract Vault is
         return shares;
     }
 
-    /// @dev Get the total loan balance, computed indirectly from tranche
+    /// @notice Get the total loan balance, computed indirectly from vault
     /// realized values and cash balances
     /// @return Total loan balance in UD60x18
     function _totalLoanBalance() internal view returns (uint256) {
@@ -377,13 +365,13 @@ contract Vault is
         }
     }
 
-    /// @dev Check if a vault is solvent
+    /// @notice Check if a vault is solvent
     /// @return Vault is solvent
     function _isSolvent() internal view returns (bool) {
         return realizedValue > pendingRedemptions || totalSupply() == 0;
     }
 
-    /// @dev Process redemptions for vault
+    /// @notice Process redemptions for vault
     /// @param proceeds Proceeds in asset tokens
     function _processRedemptions(uint256 proceeds) internal returns (uint256) {
         // Compute maximum redemption possible
@@ -392,7 +380,7 @@ contract Vault is
             Math.min(pendingRedemptions, proceeds)
         );
 
-        // Update tranche redemption state
+        // Update vault redemption state
         pendingRedemptions -= redemptionAmount;
         processedRedemptionQueue += redemptionAmount;
         realizedValue -= redemptionAmount;
@@ -404,7 +392,7 @@ contract Vault is
         return proceeds - redemptionAmount;
     }
 
-    /// @dev Process new proceeds by applying them to redemptions and undeployed
+    /// @notice Process new proceeds by applying them to redemptions and undeployed
     /// cash
     /// @param proceeds Proceeds in currency tokens
     function _processProceeds(uint256 proceeds) internal {
@@ -414,7 +402,7 @@ contract Vault is
         _totalCashBalance += proceeds;
     }
 
-    /// @dev Update vault state with currency deposit and mint receipt tokens to
+    /// @notice Update vault state with currency deposit and mint receipt tokens to
     /// depositer
     /// @param assets Amount of currency tokens
     function _deposit(uint256 assets) internal {

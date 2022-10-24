@@ -29,4 +29,27 @@ interface IVault {
     /////////////////////////////////////////////////////////////////////////
     /// User Functions ///
     /////////////////////////////////////////////////////////////////////////
+
+    /// @notice Deposit asset into a vault in exchange for receipt tokens
+    ///
+    /// Emits a {Deposited} event.
+    ///
+    /// @param assets Amount of asset tokens
+    function deposit(uint256 assets) external;
+
+    /// @notice Redeem receipt tokens in exchange for asset tokens. Asset
+    /// tokens can be withdrawn with the `withdraw()` method, once the
+    /// redemption is processed.
+    ///
+    /// Emits a {Redeemed} event.
+    ///
+    /// @param shares Amount of receipt tokens
+    function redeem(uint256 shares) external;
+
+    /// @notice Withdraw redeemed asset tokens
+    ///
+    /// Emits a {Withdrawn} event.
+    ///
+    /// @param maxAssets Maximum amount of asset tokens to withdraw
+    function withdraw(uint256 maxAssets) external;
 }
