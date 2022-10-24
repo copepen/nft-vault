@@ -740,4 +740,18 @@ contract Vault is
 
         emit AdminFeesWithdrawn(recipient, amount);
     }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Admin API ///
+    /////////////////////////////////////////////////////////////////////////
+
+    /// @notice Approves asset to spender
+    /// @param spender Spender address
+    /// @param amount Approve amount
+    function approveAsset(address spender, uint256 amount)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _asset.safeApprove(spender, amount);
+    }
 }
