@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -108,6 +109,7 @@ abstract contract VaultStorage is VaultStorageV1 {
 contract Vault is
     Initializable,
     ERC20Upgradeable,
+    IERC4626Upgradeable,
     AccessControlUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -152,6 +154,9 @@ contract Vault is
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
+
+    /// @notice Unauthorized
+    error Unauthorized();
 
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
@@ -242,13 +247,73 @@ contract Vault is
     /////////////////////////////////////////////////////////////////////////
 
     /// @notice See {IERC20Metadata-decimals}.
-    function decimals() public view override returns (uint8) {
+    function decimals()
+        public
+        view
+        override(ERC20Upgradeable, IERC20MetadataUpgradeable)
+        returns (uint8)
+    {
         return _decimals;
     }
 
     /// @notice See {IERC4626-asset}.
-    function asset() public view returns (address) {
+    function asset() external view returns (address) {
         return address(_asset);
+    }
+
+    /// @notice See {IERC4626-totalAssets}
+    function totalAssets() external view returns (uint256) {
+        return realizedValue;
+    }
+
+    /// @notice See {IERC4626-convertToShares}
+    function convertToShares(uint256 assets) external view returns (uint256) {
+        return _convertToShares(assets);
+    }
+
+    /// @notice See {IERC4626-convertToAssets}
+    function convertToAssets(uint256 shares) external view returns (uint256) {
+        return _convertToAssets(shares);
+    }
+
+    /// @notice See {IERC4626-maxDeposit}
+    function maxDeposit(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /// @notice See {IERC4626-maxMint}
+    function maxMint(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /// @notice See {IERC4626-maxWithdraw}
+    function maxWithdraw(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /// @notice See {IERC4626-maxRedeem}
+    function maxRedeem(address) external pure returns (uint256) {
+        return type(uint256).max;
+    }
+
+    /// @notice See {IERC4626-previewDeposit}
+    function previewDeposit(uint256 assets) external view returns (uint256) {
+        return _convertToShares(assets);
+    }
+
+    /// @notice See {IERC4626-previewMint}
+    function previewMint(uint256 shares) external view returns (uint256) {
+        return _convertToAssets(shares);
+    }
+
+    /// @notice See {IERC4626-previewWithdraw}
+    function previewWithdraw(uint256 assets) external view returns (uint256) {
+        return _convertToRedemptionShares(assets);
+    }
+
+    /// @notice See {IERC4626-previewRedeem}
+    function previewRedeem(uint256 shares) external view returns (uint256) {
+        return _convertToRedemptionAssets(shares);
     }
 
     /// @notice Get redemption state for account
@@ -299,33 +364,61 @@ contract Vault is
     /// User Functions ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @inheritdoc IVault
-    function deposit(uint256 assets) external whenNotPaused nonReentrant {
+    /// See {IERC4626-deposit}.
+    function deposit(uint256 assets, address receiver)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint256 shares)
+    {
         // Validate amount
         if (assets == 0) revert ParameterOutOfBounds();
 
-        _deposit(assets);
+        /// Compute number of shares to mint from current vault share price
+        shares = _convertToShares(assets);
+
+        _deposit(assets, shares, receiver);
 
         // Transfer cash from user to vault
         _asset.safeTransferFrom(msg.sender, address(this), assets);
     }
 
-    /// @inheritdoc IVault
-    function redeem(uint256 shares) public whenNotPaused nonReentrant {
+    /// See {IERC4626-mint}.
+    function mint(uint256 shares, address receiver)
+        external
+        whenNotPaused
+        nonReentrant
+        returns (uint256 assets)
+    {
+        // Validate amount
+        if (shares == 0) revert ParameterOutOfBounds();
+
+        /// Compute number of shares to mint from current vault share price
+        assets = _convertToAssets(shares);
+
+        _deposit(assets, shares, receiver);
+
+        // Transfer cash from user to vault
+        _asset.safeTransferFrom(msg.sender, address(this), assets);
+    }
+
+    /// See {IERC4626-redeem}.
+    function redeem(
+        uint256 shares,
+        address,
+        address owner
+    ) public whenNotPaused nonReentrant returns (uint256 assets) {
+        // Can't withdraw other user's assets
+        if (msg.sender != owner) revert Unauthorized();
+
         // Validate shares
         if (shares == 0) revert ParameterOutOfBounds();
 
         // Check vault is solvent
         if (!_isSolvent()) revert Insolvent();
 
-        // Compute current redemption share price
-        uint256 currentRedemptionSharePrice = _computeRedemptionSharePrice();
-
         // Compute redemption amount
-        uint256 redemptionAmount = PRBMathUD60x18.mul(
-            shares,
-            currentRedemptionSharePrice
-        );
+        uint256 redemptionAmount = _convertToRedemptionAssets(shares);
 
         // Schedule redemption with user's token state and burn receipt tokens
         _redeem(msg.sender, shares, redemptionAmount, redemptionQueue);
@@ -342,13 +435,21 @@ contract Vault is
         _totalCashBalance -= immediateRedemptionAmount;
         _processProceeds(immediateRedemptionAmount);
 
+        emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
         emit Redeemed(msg.sender, shares, redemptionAmount);
     }
 
-    /// @inheritdoc IVault
-    function withdraw(uint256 maxAssets) public whenNotPaused nonReentrant {
+    /// See {IERC4626-withdraw}.
+    function withdraw(
+        uint256 maxAssets,
+        address receiver,
+        address owner
+    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+        // Can't withdraw other user's assets
+        if (msg.sender != owner) revert Unauthorized();
+
         // Calculate amount available to withdraw
-        uint256 assets = Math.min(redemptionAvailable(msg.sender), maxAssets);
+        uint256 assets = Math.min(redemptionAvailable(owner), maxAssets);
 
         if (assets != 0) {
             // Update user's token state with redemption
@@ -358,10 +459,10 @@ contract Vault is
             _totalWithdrawalBalance -= assets;
 
             // Transfer cash from vault to user
-            _asset.safeTransfer(msg.sender, assets);
+            _asset.safeTransfer(receiver, assets);
         }
 
-        emit Withdrawn(msg.sender, assets);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -462,6 +563,66 @@ contract Vault is
     /////////////////////////////////////////////////////////////////////////
     /// Internal Helper Functions ///
     /////////////////////////////////////////////////////////////////////////
+
+    /// @dev Get estimated share amount for assets
+    /// @param assets Asset token amount
+    /// @return shares Share amount
+    function _convertToShares(uint256 assets)
+        internal
+        view
+        returns (uint256 shares)
+    {
+        /// Compute current share price
+        uint256 currentSharePrice = _computeSharePrice();
+
+        /// Compute number of shares to mint from current vault share price
+        shares = PRBMathUD60x18.div(assets, currentSharePrice);
+    }
+
+    /// @dev Get estimated share amount for assets
+    /// @param shares Share amount
+    /// @return assets Asset token amount
+    function _convertToAssets(uint256 shares)
+        internal
+        view
+        returns (uint256 assets)
+    {
+        /// Compute current share price
+        uint256 currentSharePrice = _computeSharePrice();
+
+        /// Compute number of assets to deposit from current vault share price
+        assets = PRBMathUD60x18.mul(shares, currentSharePrice);
+    }
+
+    /// @dev Get estimated redemption amount for shares
+    /// @param shares Share amount
+    /// @return assets Asset token amount
+    function _convertToRedemptionAssets(uint256 shares)
+        internal
+        view
+        returns (uint256 assets)
+    {
+        // Compute current redemption share price
+        uint256 currentRedemptionSharePrice = _computeRedemptionSharePrice();
+
+        // Compute redemption amount
+        assets = PRBMathUD60x18.mul(shares, currentRedemptionSharePrice);
+    }
+
+    /// @dev Get estimated redemption amount for shares
+    /// @param assets Asset token amount
+    /// @return shares Share amount
+    function _convertToRedemptionShares(uint256 assets)
+        internal
+        view
+        returns (uint256 shares)
+    {
+        // Compute current redemption share price
+        uint256 currentRedemptionSharePrice = _computeRedemptionSharePrice();
+
+        // Compute redemption amount
+        shares = PRBMathUD60x18.div(assets, currentRedemptionSharePrice);
+    }
 
     /// @dev Get the total loan balance, computed indirectly from vault
     /// realized values and cash balances
@@ -642,17 +803,17 @@ contract Vault is
     }
 
     /// @dev Update vault state with currency deposit and mint receipt tokens to
-    /// depositer
-    /// @param assets Amount of currency tokens
-    function _deposit(uint256 assets) internal {
+    /// receiver
+    /// @param assets Amount of asset tokens
+    /// @param shares Amount of shares to mint
+    /// @param receiver Recipient address
+    function _deposit(
+        uint256 assets,
+        uint256 shares,
+        address receiver
+    ) internal {
         // Check vault is solvent
         if (!_isSolvent()) revert Insolvent();
-
-        /// Compute current share price
-        uint256 currentSharePrice = _computeSharePrice();
-
-        /// Compute number of shares to mint from current vault share price
-        uint256 shares = PRBMathUD60x18.div(assets, currentSharePrice);
 
         // Increase realized value of vault
         realizedValue += assets;
@@ -660,10 +821,10 @@ contract Vault is
         // Process new proceeds
         _processProceeds(assets);
 
-        // Mint receipt tokens to user
-        _mint(msg.sender, shares);
+        // Mint receipt tokens to receiver
+        _mint(receiver, shares);
 
-        emit Deposited(msg.sender, assets, shares);
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /////////////////////////////////////////////////////////////////////////
