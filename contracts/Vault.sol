@@ -141,10 +141,6 @@ contract Vault is
     /// Access Control Roles ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice Collateral liquidator role
-    bytes32 public constant COLLATERAL_LIQUIDATOR_ROLE =
-        keccak256("COLLATERAL_LIQUIDATOR");
-
     /// @notice Emergency administrator role
     bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN");
 
@@ -236,10 +232,10 @@ contract Vault is
             decimals_ = value;
         } catch {
             decimals_ = super.decimals();
-
-            _asset = asset_;
-            _decimals = decimals_;
         }
+
+        _asset = asset_;
+        _decimals = decimals_;
     }
 
     /////////////////////////////////////////////////////////////////////////
