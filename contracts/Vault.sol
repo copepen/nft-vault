@@ -124,6 +124,9 @@ contract Vault is
     /// Constants ///
     /////////////////////////////////////////////////////////////////////////
 
+    /// @notice Implementation version
+    string public constant IMPLEMENTATION_VERSION = "1.0";
+
     /// @notice Time bucket duration in seconds
     uint256 public constant TIME_BUCKET_DURATION = 7 days;
 
