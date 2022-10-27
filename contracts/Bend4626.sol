@@ -10,8 +10,8 @@ import "prb-math/contracts/PRBMathUD60x18.sol";
 
 import "./interfaces/IBendLendPool.sol";
 
-/// @title Storage for BendLendPool
-abstract contract BendLendPoolStorage {
+/// @title Storage for Bend4626
+abstract contract Bend4626Storage {
     /// @notice LendPool address
     address public poolAddress;
 
@@ -23,11 +23,11 @@ abstract contract BendLendPoolStorage {
 }
 
 /// @title ERC4626 Wrapper for BendLendPool
-contract BendLendPool is
+contract Bend4626 is
     Initializable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
-    BendLendPoolStorage
+    Bend4626Storage
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
@@ -54,7 +54,7 @@ contract BendLendPool is
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice BendLendPool constructor (for proxy)
+    /// @notice Bend4626 constructor (for proxy)
     /// @param name_ Receipt token name
     /// @param symbol_ Receipt token symbol
     /// @param poolAddress_ LendPool address
