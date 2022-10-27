@@ -9,26 +9,23 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "prb-math/contracts/PRBMathUD60x18.sol";
 
 import "./interfaces/IWETH.sol";
-import "./interfaces/IBendLendPool.sol";
+import "./interfaces/ICEther.sol";
 
-/// @title Storage for Bend4626
-abstract contract Bend4626Storage {
-    /// @notice LendPool address
-    address public poolAddress;
-
-    /// @notice BToken address
+/// @title Storage for Drops4626
+abstract contract Drops4626Storage {
+    /// @notice CEther address
     address public lpTokenAddress;
 
     /// @dev Token decimals
     uint8 internal _decimals;
 }
 
-/// @title ERC4626 Wrapper for BendLendPool
-contract Bend4626 is
+/// @title ERC4626 Wrapper for Drops CEther
+contract Drops4626 is
     Initializable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
-    Bend4626Storage
+    Drops4626Storage
 {
     /////////////////////////////////////////////////////////////////////////
     /// Constants ///
@@ -36,8 +33,6 @@ contract Bend4626 is
 
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
-    uint256 public constant ONE_RAY = 1e27;
 
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///
@@ -53,23 +48,18 @@ contract Bend4626 is
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice Bend4626 constructor (for proxy)
+    /// @notice Drops4626 constructor (for proxy)
     /// @param name_ Receipt token name
     /// @param symbol_ Receipt token symbol
-    /// @param poolAddress_ LendPool address
     /// @param lpTokenAddress_ BToken address
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        address poolAddress_,
         address lpTokenAddress_
     ) external initializer {
-        if (poolAddress_ == address(0)) revert InvalidAddress();
         if (lpTokenAddress_ == address(0)) revert InvalidAddress();
 
         __ERC20_init(name_, symbol_);
-
-        poolAddress = poolAddress_;
 
         uint8 decimals_;
         try
@@ -162,7 +152,7 @@ contract Bend4626 is
     /// User Functions ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice Deposits weth into Bend pool and receive receipt tokens
+    /// @notice Deposits weth into CEther and receive receipt tokens
     /// @param assets The amount of weth being deposited
     /// @param receiver The account that will receive the receipt tokens
     /// @return shares The amount of receipt tokens minted
@@ -177,7 +167,7 @@ contract Bend4626 is
         _deposit(assets, shares, receiver);
     }
 
-    /// @notice Deposits weth into Bend pool and receive receipt tokens
+    /// @notice Deposits weth into CEther and receive receipt tokens
     /// @param shares The amount of receipt tokens to mint
     /// @param receiver The account that will receive the receipt tokens
     /// @return assets The amount of weth deposited
@@ -238,11 +228,11 @@ contract Bend4626 is
         view
         returns (uint256 shares)
     {
-        uint256 liquidityIndex = _getLiquidityIndex();
+        uint256 exchangeRate = _getExchangeRate();
 
         shares = PRBMathUD60x18.div(
-            PRBMathUD60x18.mul(assets, ONE_RAY),
-            liquidityIndex
+            PRBMathUD60x18.mul(assets, 1e10),
+            exchangeRate
         );
     }
 
@@ -254,23 +244,17 @@ contract Bend4626 is
         view
         returns (uint256 assets)
     {
-        uint256 liquidityIndex = _getLiquidityIndex();
+        uint256 exchangeRate = _getExchangeRate();
 
         assets = PRBMathUD60x18.div(
-            PRBMathUD60x18.mul(shares, liquidityIndex),
-            ONE_RAY
+            PRBMathUD60x18.mul(shares, exchangeRate),
+            1e10
         );
     }
 
-    /// @dev Get Liquidity Index
-    function _getLiquidityIndex()
-        internal
-        view
-        returns (uint256 liquidityIndex)
-    {
-        liquidityIndex = uint256(
-            IBendLendPool(poolAddress).getReserveData(WETH).liquidityIndex
-        );
+    /// @dev Get Exchange Rate
+    function _getExchangeRate() internal view returns (uint256) {
+        return ICEther(lpTokenAddress).exchangeRateStored();
     }
 
     /// @dev Deposit/mint common workflow.
@@ -285,11 +269,14 @@ contract Bend4626 is
         // receive weth from msg.sender
         weth.transferFrom(msg.sender, address(this), assets);
 
-        // approve weth deposit into underlying marketplace
-        weth.approve(poolAddress, assets);
+        // transfer weth to eth
+        weth.withdraw(assets);
 
-        // deposit into underlying marketplace
-        IBendLendPool(poolAddress).deposit(WETH, assets, address(this), 0);
+        // get cether contract
+        ICEther cEther = ICEther(lpTokenAddress);
+
+        // mint ctoken
+        cEther.mint{value: assets}();
 
         // Mint receipt tokens to receiver
         _mint(receiver, shares);
@@ -312,14 +299,20 @@ contract Bend4626 is
         // Burn receipt tokens from owner
         _burn(owner, shares);
 
-        // get lp token contract
-        IERC20Upgradeable bToken = IERC20Upgradeable(lpTokenAddress);
+        // load weth
+        IWETH weth = IWETH(WETH);
 
-        // approve AToken's withdraw from the pool
-        bToken.approve(poolAddress, shares);
+        // get cether contract
+        ICEther cEther = ICEther(lpTokenAddress);
 
-        // withdraw weth from the pool and send it to `receiver`
-        IBendLendPool(poolAddress).withdraw(WETH, shares, receiver);
+        // trade ctokens for eth
+        cEther.redeem(shares);
+
+        // trade eth from weth
+        weth.deposit{value: assets}();
+
+        // transfer weth to receiver
+        weth.transfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
