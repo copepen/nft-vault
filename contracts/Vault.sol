@@ -3,6 +3,7 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
@@ -73,6 +74,9 @@ contract Vault is
     /// @notice Keeper role
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
 
+    /// @notice Liquidator role
+    bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
+
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///
     /////////////////////////////////////////////////////////////////////////
@@ -125,6 +129,7 @@ contract Vault is
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(KEEPER_ROLE, msg.sender);
+        _grantRole(LIQUIDATOR_ROLE, msg.sender);
 
         uint8 decimals_;
         try IERC20MetadataUpgradeable(address(asset_)).decimals() returns (
@@ -442,5 +447,18 @@ contract Vault is
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
         _asset.safeApprove(spender, amount);
+    }
+
+    /// @notice Transfer NFT out of vault
+    /// @param nft NFT contract address
+    /// @param nftId NFT token ID
+    function transferNFT(address nft, uint256 nftId)
+        external
+        onlyRole(LIQUIDATOR_ROLE)
+    {
+        IERC721Upgradeable token = IERC721Upgradeable(nft);
+        require(token.ownerOf(nftId) == address(this));
+
+        token.safeTransferFrom(address(this), msg.sender, nftId);
     }
 }
