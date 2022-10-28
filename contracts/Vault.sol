@@ -10,11 +10,7 @@ import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "./interfaces/IVault.sol";
 
@@ -58,7 +54,6 @@ contract Vault is
     IVault
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    using EnumerableSet for EnumerableSet.AddressSet;
     using MathUpgradeable for uint256;
 
     /////////////////////////////////////////////////////////////////////////
