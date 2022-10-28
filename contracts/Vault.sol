@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -27,10 +27,8 @@ abstract contract VaultStorageV1 {
     /// @dev Token decimals;
     uint8 internal _decimals;
 
-    /// @dev Admin fee rate in UD60x18 fraction of interest
-    uint256 internal _adminFeeRate;
-
-    uint256 internal _totalAdminFeeBalance;
+    /// @dev withdrawal fees per 10_000 units
+    uint256 internal _withdrawalFees;
 
     /// @notice Total assets value
     uint256 internal _totalAssets;
@@ -46,7 +44,7 @@ contract Vault is
     Initializable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
-    AccessControlUpgradeable,
+    AccessControlEnumerableUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     UUPSUpgradeable,
@@ -64,9 +62,6 @@ contract Vault is
     /// @notice Implementation version
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
-    /// @notice One in UD60x18
-    uint256 private constant ONE_UD60X18 = 1e18;
-
     /////////////////////////////////////////////////////////////////////////
     /// Access Control Roles ///
     /////////////////////////////////////////////////////////////////////////
@@ -76,6 +71,10 @@ contract Vault is
 
     /// @notice Liquidator role
     bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
+
+    /// @notice Asset receiver role
+    bytes32 public constant ASSET_RECEIVER_ROLE =
+        keccak256("ASSET_RECEIVER_ROLE");
 
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///
@@ -94,14 +93,9 @@ contract Vault is
     /// Events ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice Emitted when admin fee rate is updated
-    /// @param rate New admin fee rate in UD60x18 fraction of interest
-    event AdminFeeRateUpdated(uint256 rate);
-
-    /// @notice Emitted when admin fees are withdrawn
-    /// @param account Recipient account
-    /// @param amount Amount of currency tokens withdrawn
-    event AdminFeesWithdrawn(address indexed account, uint256 amount);
+    /// @notice Emitted when withdrawal fee rate is updated
+    /// @param withdrawalFees New withdrawal fees per 10_000 units
+    event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
 
     /// @notice Emitted when totalAssets is updated
     /// @param totalAssets Total assets
@@ -127,7 +121,10 @@ contract Vault is
         __Pausable_init();
         __ReentrancyGuard_init();
 
+        _withdrawalFees = 700;
+
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ASSET_RECEIVER_ROLE, msg.sender);
         _grantRole(KEEPER_ROLE, msg.sender);
         _grantRole(LIQUIDATOR_ROLE, msg.sender);
 
@@ -196,13 +193,13 @@ contract Vault is
     }
 
     /// @notice See {IERC4626-maxWithdraw}
-    function maxWithdraw(address) external pure returns (uint256) {
-        return type(uint256).max;
+    function maxWithdraw(address owner) external view returns (uint256) {
+        return _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Up);
     }
 
     /// @notice See {IERC4626-maxRedeem}
-    function maxRedeem(address) external pure returns (uint256) {
-        return type(uint256).max;
+    function maxRedeem(address owner) external view returns (uint256) {
+        return balanceOf(owner);
     }
 
     /// @notice See {IERC4626-previewDeposit}
@@ -217,12 +214,20 @@ contract Vault is
 
     /// @notice See {IERC4626-previewWithdraw}
     function previewWithdraw(uint256 assets) public view returns (uint256) {
-        return _convertToShares(assets, MathUpgradeable.Rounding.Up);
+        return
+            _convertToShares(
+                assets.mulDiv(10_000 + _withdrawalFees, 10_000),
+                MathUpgradeable.Rounding.Up
+            );
     }
 
     /// @notice See {IERC4626-previewRedeem}
     function previewRedeem(uint256 shares) public view returns (uint256) {
-        return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
+        return
+            _convertToAssets(
+                shares.mulDiv(10_000 - _withdrawalFees, 10_000),
+                MathUpgradeable.Rounding.Down
+            );
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -276,10 +281,14 @@ contract Vault is
         if (receiver == address(0)) revert InvalidAddress();
         if (shares == 0) revert ParameterOutOfBounds();
 
-        // Compute redemption amount
+        // compute redemption amount
         assets = previewRedeem(shares);
 
-        _withdraw(msg.sender, receiver, owner, assets, shares);
+        // compute fee
+        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
+            assets;
+
+        _withdraw(msg.sender, receiver, owner, assets, shares, fees);
     }
 
     /// See {IERC4626-withdraw}.
@@ -294,7 +303,13 @@ contract Vault is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        _withdraw(msg.sender, receiver, owner, assets, shares);
+        // compute fee
+        uint256 fees = _convertToAssets(
+            shares - _convertToShares(assets, MathUpgradeable.Rounding.Up),
+            MathUpgradeable.Rounding.Down
+        );
+
+        _withdraw(msg.sender, receiver, owner, assets, shares, fees);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -346,7 +361,8 @@ contract Vault is
         address receiver,
         address owner,
         uint256 assets,
-        uint256 shares
+        uint256 shares,
+        uint256 fees
     ) internal {
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
@@ -358,6 +374,9 @@ contract Vault is
         _burn(owner, shares);
 
         _asset.safeTransfer(receiver, assets);
+
+        address feesAddr = getRoleMember(ASSET_RECEIVER_ROLE, 0);
+        _asset.safeTransfer(feesAddr, fees);
 
         uint256 totalAssets_ = _totalAssets;
         totalAssets_ = totalAssets_ < assets ? 0 : totalAssets_ - assets;
@@ -372,16 +391,16 @@ contract Vault is
 
     /// @notice Set the admin fee rate
     ///
-    /// Emits a {AdminFeeRateUpdated} event.
+    /// Emits a {WithdrawalFeeRateUpdated} event.
     ///
-    /// @param rate Rate in UD60x18 fraction of interest
-    function setAdminFeeRate(uint256 rate)
+    /// @param withdrawalFees Withdrawal fees per 10_000 units
+    function setWithdrawalFees(uint256 withdrawalFees)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (rate == 0 || rate >= ONE_UD60X18) revert ParameterOutOfBounds();
-        _adminFeeRate = rate;
-        emit AdminFeeRateUpdated(rate);
+        if (withdrawalFees == 0 || withdrawalFees >= 10_000) revert ParameterOutOfBounds();
+        _withdrawalFees = withdrawalFees;
+        emit WithdrawalFeeRateUpdated(withdrawalFees);
     }
 
     /// @notice Set total assets
@@ -406,33 +425,6 @@ contract Vault is
     /// @notice Unpause contract
     function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
-    }
-
-    /////////////////////////////////////////////////////////////////////////
-    /// Admin Fees API ///
-    /////////////////////////////////////////////////////////////////////////
-
-    /// @notice Withdraw admin fees
-    ///
-    /// Emits a {AdminFeesWithdrawn} event.
-    ///
-    /// @param recipient Recipient account
-    /// @param amount Amount to withdraw
-    function withdrawAdminFees(address recipient, uint256 amount)
-        external
-        nonReentrant
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        if (recipient == address(0)) revert InvalidAddress();
-        if (amount > _totalAdminFeeBalance) revert ParameterOutOfBounds();
-
-        // Update admin fees balance
-        _totalAdminFeeBalance -= amount;
-
-        // Transfer cash from vault to recipient
-        _asset.safeTransfer(recipient, amount);
-
-        emit AdminFeesWithdrawn(recipient, amount);
     }
 
     /////////////////////////////////////////////////////////////////////////
