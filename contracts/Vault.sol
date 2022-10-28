@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
@@ -34,8 +35,8 @@ abstract contract VaultStorageV1 {
 
     uint256 internal _totalAdminFeeBalance;
 
-    /// @notice Realized value
-    uint256 public realizedValue;
+    /// @notice Total assets value
+    uint256 internal _totalAssets;
 }
 
 /// @title Storage for Vault, aggregated
@@ -51,6 +52,7 @@ contract Vault is
     AccessControlUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
+    UUPSUpgradeable,
     VaultStorage,
     ERC721Holder,
     IVault
@@ -73,8 +75,8 @@ contract Vault is
     /// Access Control Roles ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice Emergency administrator role
-    bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN");
+    /// @notice Keeper role
+    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
 
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///
@@ -102,6 +104,10 @@ contract Vault is
     /// @param amount Amount of currency tokens withdrawn
     event AdminFeesWithdrawn(address indexed account, uint256 amount);
 
+    /// @notice Emitted when totalAssets is updated
+    /// @param totalAssets Total assets
+    event TotalAssets(uint256 totalAssets);
+
     /////////////////////////////////////////////////////////////////////////
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
@@ -123,7 +129,7 @@ contract Vault is
         __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(EMERGENCY_ADMIN_ROLE, msg.sender);
+        _grantRole(KEEPER_ROLE, msg.sender);
 
         uint8 decimals_;
         try IERC20MetadataUpgradeable(address(asset_)).decimals() returns (
@@ -137,6 +143,13 @@ contract Vault is
         _asset = asset_;
         _decimals = decimals_;
     }
+
+    /// @inheritdoc UUPSUpgradeable
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        override
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {}
 
     /////////////////////////////////////////////////////////////////////////
     /// Getters ///
@@ -159,7 +172,7 @@ contract Vault is
 
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() public view returns (uint256) {
-        return realizedValue;
+        return _totalAssets;
     }
 
     /// @notice See {IERC4626-convertToShares}
@@ -318,8 +331,8 @@ contract Vault is
         uint256 shares,
         address receiver
     ) internal {
-        // Increase realized value of vault
-        realizedValue += assets;
+        // Increase total assets value of vault
+        _totalAssets += assets;
 
         // Mint receipt tokens to receiver
         _mint(receiver, shares);
@@ -339,11 +352,16 @@ contract Vault is
             _spendAllowance(owner, caller, shares);
         }
 
-        if (_asset.balanceOf(address(this)) < assets) revert InsufficientBalance();
+        if (_asset.balanceOf(address(this)) < assets)
+            revert InsufficientBalance();
 
         _burn(owner, shares);
 
         _asset.safeTransfer(receiver, assets);
+
+        uint256 totalAssets_ = _totalAssets;
+        totalAssets_ = totalAssets_ < assets ? 0 : totalAssets_ - assets;
+        _totalAssets = totalAssets_;
 
         emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
     }
@@ -366,13 +384,27 @@ contract Vault is
         emit AdminFeeRateUpdated(rate);
     }
 
+    /// @notice Set total assets
+    ///
+    /// Emits a {TotalAssets} event.
+    ///
+    /// @param totalAssets_ New total assets value
+    function setTotalAssets(uint256 totalAssets_)
+        external
+        onlyRole(KEEPER_ROLE)
+    {
+        _totalAssets = totalAssets_;
+
+        emit TotalAssets(totalAssets_);
+    }
+
     /// @notice Pause contract
-    function pause() external onlyRole(EMERGENCY_ADMIN_ROLE) {
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
     /// @notice Unpause contract
-    function unpause() external onlyRole(EMERGENCY_ADMIN_ROLE) {
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
     }
 
