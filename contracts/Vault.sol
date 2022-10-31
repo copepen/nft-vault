@@ -72,6 +72,15 @@ contract Vault is
     /// @notice Liquidator role
     bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
 
+    /// @notice Bidder role
+    bytes32 public constant BIDDER_ROLE = keccak256("BIDDER_ROLE");
+
+    /// @notice Whitelist role
+    bytes32 public constant WHITELIST_ROLE = keccak256("WHITELIST_ROLE");
+
+    /// @notice Marketplace role
+    bytes32 public constant MARKETPLACE_ROLE = keccak256("MARKETPLACE_ROLE");
+
     /// @notice Asset receiver role
     bytes32 public constant ASSET_RECEIVER_ROLE =
         keccak256("ASSET_RECEIVER_ROLE");
@@ -88,6 +97,9 @@ contract Vault is
 
     /// @notice Insufficient balance
     error InsufficientBalance();
+
+    /// @notice Not whitelisted
+    error NotWhitelisted();
 
     /////////////////////////////////////////////////////////////////////////
     /// Events ///
@@ -127,6 +139,7 @@ contract Vault is
         _grantRole(ASSET_RECEIVER_ROLE, msg.sender);
         _grantRole(KEEPER_ROLE, msg.sender);
         _grantRole(LIQUIDATOR_ROLE, msg.sender);
+        _grantRole(WHITELIST_ROLE, msg.sender);
 
         uint8 decimals_;
         try IERC20MetadataUpgradeable(address(asset_)).decimals() returns (
@@ -247,7 +260,7 @@ contract Vault is
         /// Compute number of shares to mint from current vault share price
         shares = previewDeposit(assets);
 
-        _deposit(assets, shares, receiver);
+        _deposit(msg.sender, assets, shares, receiver);
 
         // Transfer cash from user to vault
         _asset.safeTransferFrom(msg.sender, address(this), assets);
@@ -266,7 +279,7 @@ contract Vault is
         /// Compute number of shares to mint from current vault share price
         assets = previewMint(shares);
 
-        _deposit(assets, shares, receiver);
+        _deposit(msg.sender, assets, shares, receiver);
 
         // Transfer cash from user to vault
         _asset.safeTransferFrom(msg.sender, address(this), assets);
@@ -342,10 +355,17 @@ contract Vault is
 
     /// @dev Deposit/mint common workflow.
     function _deposit(
+        address caller,
         uint256 assets,
         uint256 shares,
         address receiver
     ) internal {
+        // Check caller role
+        if (
+            getRoleMemberCount(WHITELIST_ROLE) > 0 &&
+            !hasRole(WHITELIST_ROLE, caller)
+        ) revert NotWhitelisted();
+
         // Increase total assets value of vault
         _totalAssets += assets;
 
@@ -398,7 +418,8 @@ contract Vault is
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (withdrawalFees == 0 || withdrawalFees >= 10_000) revert ParameterOutOfBounds();
+        if (withdrawalFees == 0 || withdrawalFees >= 10_000)
+            revert ParameterOutOfBounds();
         _withdrawalFees = withdrawalFees;
         emit WithdrawalFeeRateUpdated(withdrawalFees);
     }
@@ -434,10 +455,12 @@ contract Vault is
     /// @notice Approves asset to spender
     /// @param spender Spender address
     /// @param amount Approve amount
-    function approveAsset(address spender, uint256 amount)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function approveAsset(address spender, uint256 amount) external {
+        require(
+            hasRole(BIDDER_ROLE, msg.sender) ||
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
+        );
+        _checkRole(MARKETPLACE_ROLE, spender);
         _asset.safeApprove(spender, amount);
     }
 
