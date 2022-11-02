@@ -398,9 +398,7 @@ contract Vault is
         address feesAddr = getRoleMember(ASSET_RECEIVER_ROLE, 0);
         _asset.safeTransfer(feesAddr, fees);
 
-        uint256 totalAssets_ = _totalAssets;
-        totalAssets_ = totalAssets_ < assets ? 0 : totalAssets_ - assets;
-        _totalAssets = totalAssets_;
+        _totalAssets = _totalAssets - assets;
 
         emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
     }
@@ -461,7 +459,7 @@ contract Vault is
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
         );
         _checkRole(MARKETPLACE_ROLE, spender);
-        _asset.safeApprove(spender, amount);
+        _asset.approve(spender, amount);
     }
 
     /// @notice Transfer NFT out of vault
