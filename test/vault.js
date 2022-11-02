@@ -216,7 +216,9 @@ describe("Vault", function () {
           expect(await vault.totalAssets()).to.be.eq(totalAssets);
 
           shares = await vault.previewDeposit(assets);
-          expect(shares).to.be.eq((await vault.totalSupply()).mul(assets).div(totalAssets));
+          expect(shares).to.be.eq(
+            (await vault.totalSupply()).mul(assets).div(totalAssets)
+          );
         });
 
         it("Multi users deposit", async function () {
@@ -290,6 +292,17 @@ describe("Vault", function () {
           await checkRole(bob.address, whitelistRole, true);
           await checkRole(carol.address, whitelistRole, true);
           await checkRole(dave.address, whitelistRole, true);
+        });
+
+        it("When paused", async function () {
+          await vault.connect(owner).pause();
+          expect(await vault.paused()).to.be.eq(true);
+
+          const assets = ethers.utils.parseEther("100");
+
+          await expect(
+            vault.connect(alice).mint(assets, alice.address)
+          ).to.be.revertedWith("Pausable: paused");
         });
 
         it("When mints 0 shares", async function () {
@@ -372,7 +385,9 @@ describe("Vault", function () {
           expect(await vault.totalAssets()).to.be.eq(totalAssets);
 
           assets = await vault.previewMint(shares);
-          expect(assets).to.be.eq((totalAssets).mul(shares).div(await vault.totalSupply()));
+          expect(assets).to.be.eq(
+            totalAssets.mul(shares).div(await vault.totalSupply())
+          );
         });
 
         it("Multi users mint", async function () {
@@ -425,9 +440,127 @@ describe("Vault", function () {
       });
     });
 
-    describe("Withdraw", function () {});
+    describe("Withdraw", function () {
+      beforeEach(async function () {
+        await vault.connect(owner).grantRole(whitelistRole, alice.address);
 
-    describe("Redeem", function () {});
+        const assets = ethers.utils.parseEther("100");
+        await token.connect(alice).approve(vault.address, assets);
+        await vault.connect(alice).deposit(assets, alice.address);
+      });
+
+      it("When receiver is 0x0", async function () {
+        await expect(
+          vault
+            .connect(alice)
+            .withdraw(0, ethers.constants.AddressZero, alice.address)
+        ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+      });
+
+      it("When withdraw 0 amount", async function () {
+        await expect(
+          vault.connect(alice).withdraw(0, bob.address, alice.address)
+        ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When allowance is not enough", async function () {
+        const assets = ethers.utils.parseEther("50");
+
+        await expect(
+          vault.connect(bob).withdraw(assets, bob.address, alice.address)
+        ).to.be.revertedWith("ERC20: insufficient allowance");
+      });
+
+      it("When balance is not enough", async function () {
+        const assets = ethers.utils.parseEther("100");
+
+        await expect(
+          vault.connect(alice).withdraw(assets, bob.address, alice.address)
+        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+      });
+
+      it("Withdraw assets", async function () {
+        const assets = ethers.utils.parseEther("50");
+        const shares = await vault.previewWithdraw(assets);
+        expect(shares).to.be.eq(assets.mul(10700).div(10000));
+        const fees = shares.sub(await vault.convertToShares(assets));
+
+        const beforeFeeBalance = await token.balanceOf(owner.address);
+        const beforeAssetBalance = await token.balanceOf(bob.address);
+        const beforeShareBalance = await vault.balanceOf(alice.address);
+
+        await vault.connect(alice).withdraw(assets, bob.address, alice.address);
+
+        const afterFeeBalance = await token.balanceOf(owner.address);
+        const afterAssetBalance = await token.balanceOf(bob.address);
+        const afterShareBalance = await vault.balanceOf(alice.address);
+
+        expect(afterFeeBalance).to.be.eq(beforeFeeBalance.add(fees));
+        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
+        expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
+      });
+    });
+
+    describe("Redeem", function () {
+      beforeEach(async function () {
+        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+
+        const assets = ethers.utils.parseEther("100");
+        await token.connect(alice).approve(vault.address, assets);
+        await vault.connect(alice).deposit(assets, alice.address);
+      });
+
+      it("When receiver is 0x0", async function () {
+        await expect(
+          vault
+            .connect(alice)
+            .redeem(0, ethers.constants.AddressZero, alice.address)
+        ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+      });
+
+      it("When redeem 0 amount", async function () {
+        await expect(
+          vault.connect(alice).redeem(0, bob.address, alice.address)
+        ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When allowance is not enough", async function () {
+        const shares = ethers.utils.parseEther("50");
+
+        await expect(
+          vault.connect(bob).redeem(shares, bob.address, alice.address)
+        ).to.be.revertedWith("ERC20: insufficient allowance");
+      });
+
+      it("When balance is not enough", async function () {
+        const shares = ethers.utils.parseEther("101");
+
+        await expect(
+          vault.connect(alice).redeem(shares, bob.address, alice.address)
+        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+      });
+
+      it("Redeem assets", async function () {
+        const shares = ethers.utils.parseEther("50");
+        const assets = await vault.previewRedeem(shares);
+        expect(assets).to.be.eq(shares.mul(9300).div(10000));
+        const fees = (await vault.convertToAssets(shares)).sub(assets);
+
+        const beforeFeeBalance = await token.balanceOf(owner.address);
+        const beforeAssetBalance = await token.balanceOf(bob.address);
+        const beforeShareBalance = await vault.balanceOf(alice.address);
+
+        await vault.connect(alice).redeem(shares, bob.address, alice.address);
+
+        const afterFeeBalance = await token.balanceOf(owner.address);
+        const afterAssetBalance = await token.balanceOf(bob.address);
+        const afterShareBalance = await vault.balanceOf(alice.address);
+
+        expect(afterFeeBalance).to.be.eq(beforeFeeBalance.add(fees));
+        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
+        expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
+      });
+    });
   });
 
   describe("Admin Actions", function () {});
