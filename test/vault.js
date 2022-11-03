@@ -1,12 +1,13 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("./helpers/snapshot");
+require("./helpers/units");
 
 describe("Vault", function () {
   let vault;
   let token;
   let nft;
-  let owner, alice, bob, carol, dave;
+  let admin, alice, bob, carol, dave;
   let snapshotId;
 
   let defaultAdminRole,
@@ -40,11 +41,11 @@ describe("Vault", function () {
   }
 
   before("Deploy", async function () {
-    [owner, alice, bob, carol, dave] = await ethers.getSigners();
+    [admin, alice, bob, carol, dave] = await ethers.getSigners();
 
     const amount = ethers.utils.parseEther("1000000");
     token = await deployTokenAndAirdrop(
-      [owner, alice, bob, carol, dave],
+      [admin, alice, bob, carol, dave],
       amount
     );
 
@@ -84,30 +85,30 @@ describe("Vault", function () {
   });
 
   describe("Deployment", function () {
-    it("Should set the right name", async function () {
+    it("Should set the correct name", async function () {
       expect(await vault.name()).to.equal("Spice Vault Test Token");
     });
 
-    it("Should set the right symbol", async function () {
+    it("Should set the correct symbol", async function () {
       expect(await vault.symbol()).to.equal("svTT");
     });
 
-    it("Should set the right decimal", async function () {
+    it("Should set the correct decimal", async function () {
       expect(await vault.decimals()).to.equal(await token.decimals());
     });
 
-    it("Should set the right asset", async function () {
+    it("Should set the correct asset", async function () {
       expect(await vault.asset()).to.equal(token.address);
     });
 
-    it("Should set the right role", async function () {
-      await checkRole(owner.address, defaultAdminRole, true);
-      await checkRole(owner.address, assetReceiverRole, true);
-      await checkRole(owner.address, keeperRole, true);
-      await checkRole(owner.address, liquidatorRole, true);
-      await checkRole(owner.address, whitelistRole, true);
-      await checkRole(owner.address, bidderRole, false);
-      await checkRole(owner.address, marketplaceRole, false);
+    it("Should set the correct role", async function () {
+      await checkRole(admin.address, defaultAdminRole, true);
+      await checkRole(admin.address, assetReceiverRole, true);
+      await checkRole(admin.address, keeperRole, true);
+      await checkRole(admin.address, liquidatorRole, true);
+      await checkRole(admin.address, whitelistRole, true);
+      await checkRole(admin.address, bidderRole, false);
+      await checkRole(admin.address, marketplaceRole, false);
 
       await checkRole(alice.address, defaultAdminRole, false);
       await checkRole(alice.address, assetReceiverRole, false);
@@ -118,7 +119,7 @@ describe("Vault", function () {
       await checkRole(alice.address, marketplaceRole, false);
     });
 
-    it("Should set the right implementation version", async function () {
+    it("Should set the correct implementation version", async function () {
       expect(await vault.IMPLEMENTATION_VERSION()).to.equal("1.0");
     });
 
@@ -137,7 +138,7 @@ describe("Vault", function () {
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
       );
 
-      Vault = await ethers.getContractFactory("Vault", owner);
+      Vault = await ethers.getContractFactory("Vault", admin);
 
       await upgrades.upgradeProxy(vault.address, Vault);
     });
@@ -154,7 +155,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
@@ -173,7 +174,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
@@ -192,7 +193,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
@@ -211,7 +212,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
@@ -230,7 +231,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
@@ -249,7 +250,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
@@ -259,24 +260,24 @@ describe("Vault", function () {
     });
 
     it("maxDeposit", async function () {
-      expect(await vault.maxDeposit(owner.address)).to.be.eq(
+      expect(await vault.maxDeposit(admin.address)).to.be.eq(
         ethers.constants.MaxUint256
       );
     });
 
     it("maxMint", async function () {
-      expect(await vault.maxMint(owner.address)).to.be.eq(
+      expect(await vault.maxMint(admin.address)).to.be.eq(
         ethers.constants.MaxUint256
       );
     });
 
     describe("maxWithdraw", function () {
       it("When balance is zero", async function () {
-        expect(await vault.maxWithdraw(owner.address)).to.be.eq(0);
+        expect(await vault.maxWithdraw(admin.address)).to.be.eq(0);
       });
 
       it("When balance is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
@@ -287,11 +288,11 @@ describe("Vault", function () {
 
     describe("maxRedeem", function () {
       it("When balance is zero", async function () {
-        expect(await vault.maxRedeem(owner.address)).to.be.eq(0);
+        expect(await vault.maxRedeem(admin.address)).to.be.eq(0);
       });
 
       it("When balance is non-zero", async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
@@ -313,10 +314,10 @@ describe("Vault", function () {
 
       describe("When user is whitelisted", function () {
         beforeEach(async function () {
-          await vault.connect(owner).grantRole(whitelistRole, alice.address);
-          await vault.connect(owner).grantRole(whitelistRole, bob.address);
-          await vault.connect(owner).grantRole(whitelistRole, carol.address);
-          await vault.connect(owner).grantRole(whitelistRole, dave.address);
+          await vault.connect(admin).grantRole(whitelistRole, alice.address);
+          await vault.connect(admin).grantRole(whitelistRole, bob.address);
+          await vault.connect(admin).grantRole(whitelistRole, carol.address);
+          await vault.connect(admin).grantRole(whitelistRole, dave.address);
 
           await checkRole(alice.address, whitelistRole, true);
           await checkRole(bob.address, whitelistRole, true);
@@ -325,7 +326,7 @@ describe("Vault", function () {
         });
 
         it("When paused", async function () {
-          await vault.connect(owner).pause();
+          await vault.connect(admin).pause();
           expect(await vault.paused()).to.be.eq(true);
 
           const assets = ethers.utils.parseEther("100");
@@ -482,10 +483,10 @@ describe("Vault", function () {
 
       describe("When user is whitelisted", function () {
         beforeEach(async function () {
-          await vault.connect(owner).grantRole(whitelistRole, alice.address);
-          await vault.connect(owner).grantRole(whitelistRole, bob.address);
-          await vault.connect(owner).grantRole(whitelistRole, carol.address);
-          await vault.connect(owner).grantRole(whitelistRole, dave.address);
+          await vault.connect(admin).grantRole(whitelistRole, alice.address);
+          await vault.connect(admin).grantRole(whitelistRole, bob.address);
+          await vault.connect(admin).grantRole(whitelistRole, carol.address);
+          await vault.connect(admin).grantRole(whitelistRole, dave.address);
 
           await checkRole(alice.address, whitelistRole, true);
           await checkRole(bob.address, whitelistRole, true);
@@ -494,13 +495,13 @@ describe("Vault", function () {
         });
 
         it("When paused", async function () {
-          await vault.connect(owner).pause();
+          await vault.connect(admin).pause();
           expect(await vault.paused()).to.be.eq(true);
 
-          const assets = ethers.utils.parseEther("100");
+          const shares = ethers.utils.parseEther("100");
 
           await expect(
-            vault.connect(alice).mint(assets, alice.address)
+            vault.connect(alice).mint(shares, alice.address)
           ).to.be.revertedWith("Pausable: paused");
         });
 
@@ -511,19 +512,19 @@ describe("Vault", function () {
         });
 
         it("When asset is not approved", async function () {
-          const assets = ethers.utils.parseEther("100");
+          const shares = ethers.utils.parseEther("100");
 
           await expect(
-            vault.connect(alice).mint(assets, alice.address)
+            vault.connect(alice).mint(shares, alice.address)
           ).to.be.revertedWith("ERC20: insufficient allowance");
         });
 
         it("When balance is not enough", async function () {
-          const assets = await token.balanceOf(alice.address);
-          await token.connect(alice).approve(vault.address, assets.add(1));
+          const shares = await token.balanceOf(alice.address);
+          await token.connect(alice).approve(vault.address, shares.add(1));
 
           await expect(
-            vault.connect(alice).mint(assets.add(1), alice.address)
+            vault.connect(alice).mint(shares.add(1), alice.address)
           ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
         });
 
@@ -641,7 +642,7 @@ describe("Vault", function () {
 
     describe("Withdraw", function () {
       beforeEach(async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
 
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
@@ -649,7 +650,7 @@ describe("Vault", function () {
       });
 
       it("When paused", async function () {
-        await vault.connect(owner).pause();
+        await vault.connect(admin).pause();
         expect(await vault.paused()).to.be.eq(true);
 
         const assets = ethers.utils.parseEther("100");
@@ -693,7 +694,7 @@ describe("Vault", function () {
         const assets = ethers.utils.parseEther("200");
 
         await vault
-          .connect(owner)
+          .connect(admin)
           .setTotalAssets(ethers.utils.parseEther("200"));
 
         await expect(
@@ -707,13 +708,13 @@ describe("Vault", function () {
         expect(shares).to.be.eq(assets.mul(10700).div(10000));
         const fees = shares.sub(await vault.convertToShares(assets));
 
-        const beforeFeeBalance = await token.balanceOf(owner.address);
+        const beforeFeeBalance = await token.balanceOf(admin.address);
         const beforeAssetBalance = await token.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(alice.address);
 
         await vault.connect(alice).withdraw(assets, bob.address, alice.address);
 
-        const afterFeeBalance = await token.balanceOf(owner.address);
+        const afterFeeBalance = await token.balanceOf(admin.address);
         const afterAssetBalance = await token.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(alice.address);
 
@@ -725,7 +726,7 @@ describe("Vault", function () {
 
     describe("Redeem", function () {
       beforeEach(async function () {
-        await vault.connect(owner).grantRole(whitelistRole, alice.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
 
         const assets = ethers.utils.parseEther("100");
         await token.connect(alice).approve(vault.address, assets);
@@ -733,7 +734,7 @@ describe("Vault", function () {
       });
 
       it("When paused", async function () {
-        await vault.connect(owner).pause();
+        await vault.connect(admin).pause();
         expect(await vault.paused()).to.be.eq(true);
 
         const assets = ethers.utils.parseEther("100");
@@ -773,11 +774,11 @@ describe("Vault", function () {
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
       });
 
-      it("When asset balance is not enough", async function () {
+      it("When shares balance is not enough", async function () {
         const shares = ethers.utils.parseEther("100");
 
         await vault
-          .connect(owner)
+          .connect(admin)
           .setTotalAssets(ethers.utils.parseEther("200"));
 
         await expect(
@@ -785,19 +786,19 @@ describe("Vault", function () {
         ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
       });
 
-      it("Redeem assets", async function () {
+      it("Redeem shares", async function () {
         const shares = ethers.utils.parseEther("50");
         const assets = await vault.previewRedeem(shares);
         expect(assets).to.be.eq(shares.mul(9300).div(10000));
         const fees = (await vault.convertToAssets(shares)).sub(assets);
 
-        const beforeFeeBalance = await token.balanceOf(owner.address);
+        const beforeFeeBalance = await token.balanceOf(admin.address);
         const beforeAssetBalance = await token.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(alice.address);
 
         await vault.connect(alice).redeem(shares, bob.address, alice.address);
 
-        const afterFeeBalance = await token.balanceOf(owner.address);
+        const afterFeeBalance = await token.balanceOf(admin.address);
         const afterAssetBalance = await token.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(alice.address);
 
@@ -817,13 +818,13 @@ describe("Vault", function () {
       );
 
       await expect(
-        vault.connect(owner).setWithdrawalFees(0)
+        vault.connect(admin).setWithdrawalFees(0)
       ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
       await expect(
-        vault.connect(owner).setWithdrawalFees(10000)
+        vault.connect(admin).setWithdrawalFees(10000)
       ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
 
-      const tx = await vault.connect(owner).setWithdrawalFees(1000);
+      const tx = await vault.connect(admin).setWithdrawalFees(1000);
 
       await expect(tx)
         .to.emit(vault, "WithdrawalFeeRateUpdated")
@@ -838,7 +839,7 @@ describe("Vault", function () {
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${keeperRole}`
       );
 
-      const tx = await vault.connect(owner).setTotalAssets(totalAssets);
+      const tx = await vault.connect(admin).setTotalAssets(totalAssets);
 
       await expect(tx).to.emit(vault, "TotalAssets").withArgs(totalAssets);
 
@@ -852,15 +853,15 @@ describe("Vault", function () {
 
       expect(await vault.paused()).to.be.eq(false);
 
-      const tx = await vault.connect(owner).pause();
+      const tx = await vault.connect(admin).pause();
 
-      await expect(tx).to.emit(vault, "Paused").withArgs(owner.address);
+      await expect(tx).to.emit(vault, "Paused").withArgs(admin.address);
 
       expect(await vault.paused()).to.be.eq(true);
     });
 
     it("Unpause", async function () {
-      await vault.connect(owner).pause();
+      await vault.connect(admin).pause();
 
       await expect(vault.connect(alice).unpause()).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
@@ -868,9 +869,9 @@ describe("Vault", function () {
 
       expect(await vault.paused()).to.be.eq(true);
 
-      const tx = await vault.connect(owner).unpause();
+      const tx = await vault.connect(admin).unpause();
 
-      await expect(tx).to.emit(vault, "Unpaused").withArgs(owner.address);
+      await expect(tx).to.emit(vault, "Unpaused").withArgs(admin.address);
 
       expect(await vault.paused()).to.be.eq(false);
     });
@@ -885,7 +886,7 @@ describe("Vault", function () {
         vault.connect(alice).approveAsset(spender, amount)
       ).to.be.revertedWithoutReason();
 
-      await vault.connect(owner).grantRole(bidderRole, alice.address);
+      await vault.connect(admin).grantRole(bidderRole, alice.address);
 
       await expect(
         vault.connect(alice).approveAsset(spender, amount)
@@ -893,9 +894,9 @@ describe("Vault", function () {
         `AccessControl: account ${spender.toLowerCase()} is missing role ${marketplaceRole}`
       );
 
-      await vault.connect(owner).grantRole(marketplaceRole, spender);
+      await vault.connect(admin).grantRole(marketplaceRole, spender);
       await vault
-        .connect(owner)
+        .connect(admin)
         .grantRole(marketplaceRole, ethers.constants.AddressZero);
 
       await expect(
@@ -910,7 +911,7 @@ describe("Vault", function () {
 
       expect(await token.allowance(vault.address, spender)).to.be.eq(amount);
 
-      await vault.connect(owner).approveAsset(spender, amount);
+      await vault.connect(admin).approveAsset(spender, amount);
     });
 
     it("Transfer NFT out of Vault", async function () {
@@ -924,16 +925,16 @@ describe("Vault", function () {
       );
 
       await expect(
-        vault.connect(owner).transferNFT(nft.address, 1)
+        vault.connect(admin).transferNFT(nft.address, 1)
       ).to.be.revertedWithoutReason();
 
       await expect(
-        vault.connect(owner).transferNFT(token.address, 1)
+        vault.connect(admin).transferNFT(token.address, 1)
       ).to.be.revertedWithoutReason();
 
-      await vault.connect(owner).transferNFT(nft.address, 2);
+      await vault.connect(admin).transferNFT(nft.address, 2);
 
-      expect(await nft.ownerOf(2)).to.be.eq(owner.address);
+      expect(await nft.ownerOf(2)).to.be.eq(admin.address);
     });
   });
 });

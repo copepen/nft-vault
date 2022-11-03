@@ -5,8 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "prb-math/contracts/PRBMathUD60x18.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "./interfaces/IWETH.sol";
 import "./interfaces/IBendLendPool.sol";
@@ -30,6 +29,8 @@ contract Bend4626 is
     IERC4626Upgradeable,
     Bend4626Storage
 {
+    using MathUpgradeable for uint256;
+
     /////////////////////////////////////////////////////////////////////////
     /// Constants ///
     /////////////////////////////////////////////////////////////////////////
@@ -104,18 +105,18 @@ contract Bend4626 is
     }
 
     /// @notice See {IERC4626-totalAssets}
-    function totalAssets() external view returns (uint256) {
-        return _convertToAssets(totalSupply());
+    function totalAssets() public view returns (uint256) {
+        return IERC20Upgradeable(lpTokenAddress).balanceOf(address(this));
     }
 
     /// @notice See {IERC4626-convertToShares}
     function convertToShares(uint256 assets) external view returns (uint256) {
-        return _convertToShares(assets);
+        return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-convertToAssets}
     function convertToAssets(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(shares);
+        return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-maxDeposit}
@@ -130,7 +131,8 @@ contract Bend4626 is
 
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
-        return _convertToAssets(balanceOf(owner));
+        return
+            _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-maxRedeem}
@@ -139,23 +141,23 @@ contract Bend4626 is
     }
 
     /// @notice See {IERC4626-previewDeposit}
-    function previewDeposit(uint256 assets) external view returns (uint256) {
-        return _convertToShares(assets);
+    function previewDeposit(uint256 assets) public view returns (uint256) {
+        return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-previewMint}
-    function previewMint(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(shares);
+    function previewMint(uint256 shares) public view returns (uint256) {
+        return _convertToAssets(shares, MathUpgradeable.Rounding.Up);
     }
 
     /// @notice See {IERC4626-previewWithdraw}
-    function previewWithdraw(uint256 assets) external view returns (uint256) {
-        return _convertToShares(assets);
+    function previewWithdraw(uint256 assets) public view returns (uint256) {
+        return _convertToShares(assets, MathUpgradeable.Rounding.Up);
     }
 
     /// @notice See {IERC4626-previewRedeem}
-    function previewRedeem(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(shares);
+    function previewRedeem(uint256 shares) public view returns (uint256) {
+        return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -172,7 +174,7 @@ contract Bend4626 is
     {
         if (assets == 0) revert ParameterOutOfBounds();
 
-        shares = _convertToShares(assets);
+        shares = previewDeposit(assets);
 
         _deposit(assets, shares, receiver);
     }
@@ -187,7 +189,7 @@ contract Bend4626 is
     {
         if (shares == 0) revert ParameterOutOfBounds();
 
-        assets = _convertToAssets(shares);
+        assets = previewMint(shares);
 
         _deposit(assets, shares, receiver);
     }
@@ -204,7 +206,7 @@ contract Bend4626 is
         if (receiver == address(0)) revert InvalidAddress();
         if (assets == 0) revert ParameterOutOfBounds();
 
-        shares = _convertToShares(assets);
+        shares = previewWithdraw(assets);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
     }
@@ -221,7 +223,7 @@ contract Bend4626 is
         if (receiver == address(0)) revert InvalidAddress();
         if (shares == 0) revert ParameterOutOfBounds();
 
-        assets = _convertToAssets(shares);
+        assets = previewRedeem(shares);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
     }
@@ -232,45 +234,34 @@ contract Bend4626 is
 
     /// @dev Get estimated share amount for assets
     /// @param assets Asset token amount
+    /// @param rounding Rounding mode
     /// @return shares Share amount
-    function _convertToShares(uint256 assets)
+    function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
         internal
         view
         returns (uint256 shares)
     {
-        uint256 liquidityIndex = _getLiquidityIndex();
-
-        shares = PRBMathUD60x18.div(
-            PRBMathUD60x18.mul(assets, ONE_RAY),
-            liquidityIndex
-        );
+        uint256 supply = totalSupply();
+        return
+            (assets == 0 || supply == 0)
+                ? assets
+                : assets.mulDiv(supply, totalAssets(), rounding);
     }
 
     /// @dev Get estimated share amount for assets
     /// @param shares Share amount
+    /// @param rounding Rounding mode
     /// @return assets Asset token amount
-    function _convertToAssets(uint256 shares)
+    function _convertToAssets(uint256 shares, MathUpgradeable.Rounding rounding)
         internal
         view
         returns (uint256 assets)
     {
-        uint256 liquidityIndex = _getLiquidityIndex();
-
-        assets = PRBMathUD60x18.div(
-            PRBMathUD60x18.mul(shares, liquidityIndex),
-            ONE_RAY
-        );
-    }
-
-    /// @dev Get Liquidity Index
-    function _getLiquidityIndex()
-        internal
-        view
-        returns (uint256 liquidityIndex)
-    {
-        liquidityIndex = uint256(
-            IBendLendPool(poolAddress).getReserveData(WETH).liquidityIndex
-        );
+        uint256 supply = totalSupply();
+        return
+            (supply == 0)
+                ? shares
+                : shares.mulDiv(totalAssets(), supply, rounding);
     }
 
     /// @dev Deposit/mint common workflow.
@@ -316,10 +307,10 @@ contract Bend4626 is
         IERC20Upgradeable bToken = IERC20Upgradeable(lpTokenAddress);
 
         // approve AToken's withdraw from the pool
-        bToken.approve(poolAddress, shares);
+        bToken.approve(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`
-        IBendLendPool(poolAddress).withdraw(WETH, shares, receiver);
+        IBendLendPool(poolAddress).withdraw(WETH, assets, receiver);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
