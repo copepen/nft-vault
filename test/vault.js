@@ -1,7 +1,6 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("./helpers/snapshot");
-require("./helpers/units");
 
 describe("Vault", function () {
   let vault;
@@ -151,7 +150,8 @@ describe("Vault", function () {
       });
 
       it("Non-zero assets when supply is zero", async function () {
-        expect(await vault.convertToShares(100)).to.be.eq(100);
+        const assets = ethers.utils.parseEther("100");
+        expect(await vault.convertToShares(assets)).to.be.eq(assets);
       });
 
       it("Non-zero assets when supply is non-zero", async function () {

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "prb-math/contracts/PRBMathUD60x18.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "./interfaces/IWETH.sol";
 import "./interfaces/ICEther.sol";
@@ -26,12 +26,16 @@ contract Drops4626 is
     IERC4626Upgradeable,
     Drops4626Storage
 {
+    using MathUpgradeable for uint256;
+
     /////////////////////////////////////////////////////////////////////////
     /// Constants ///
     /////////////////////////////////////////////////////////////////////////
 
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    uint256 public constant ONE_WAD = 1e18;
 
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///
@@ -94,17 +98,17 @@ contract Drops4626 is
 
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() external view returns (uint256) {
-        return _convertToAssets(totalSupply());
+        return _convertToAssets(totalSupply(), MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-convertToShares}
     function convertToShares(uint256 assets) external view returns (uint256) {
-        return _convertToShares(assets);
+        return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-convertToAssets}
     function convertToAssets(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(shares);
+        return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-maxDeposit}
@@ -119,7 +123,8 @@ contract Drops4626 is
 
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
-        return _convertToAssets(balanceOf(owner));
+        return
+            _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-maxRedeem}
@@ -128,23 +133,23 @@ contract Drops4626 is
     }
 
     /// @notice See {IERC4626-previewDeposit}
-    function previewDeposit(uint256 assets) external view returns (uint256) {
-        return _convertToShares(assets);
+    function previewDeposit(uint256 assets) public view returns (uint256) {
+        return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-previewMint}
-    function previewMint(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(shares);
+    function previewMint(uint256 shares) public view returns (uint256) {
+        return _convertToAssets(shares, MathUpgradeable.Rounding.Up);
     }
 
     /// @notice See {IERC4626-previewWithdraw}
-    function previewWithdraw(uint256 assets) external view returns (uint256) {
-        return _convertToShares(assets);
+    function previewWithdraw(uint256 assets) public view returns (uint256) {
+        return _convertToShares(assets, MathUpgradeable.Rounding.Up);
     }
 
     /// @notice See {IERC4626-previewRedeem}
-    function previewRedeem(uint256 shares) external view returns (uint256) {
-        return _convertToAssets(shares);
+    function previewRedeem(uint256 shares) public view returns (uint256) {
+        return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -161,9 +166,7 @@ contract Drops4626 is
     {
         if (assets == 0) revert ParameterOutOfBounds();
 
-        shares = _convertToShares(assets);
-
-        _deposit(assets, shares, receiver);
+        shares = _deposit(assets, receiver);
     }
 
     /// @notice Deposits weth into CEther and receive receipt tokens
@@ -176,9 +179,9 @@ contract Drops4626 is
     {
         if (shares == 0) revert ParameterOutOfBounds();
 
-        assets = _convertToAssets(shares);
+        assets = previewMint(shares);
 
-        _deposit(assets, shares, receiver);
+        _deposit(assets, receiver);
     }
 
     /// @notice Withdraw weth from the pool
@@ -193,9 +196,9 @@ contract Drops4626 is
         if (receiver == address(0)) revert InvalidAddress();
         if (assets == 0) revert ParameterOutOfBounds();
 
-        shares = _convertToShares(assets);
+        shares = previewWithdraw(assets);
 
-        _withdraw(msg.sender, receiver, owner, assets, shares);
+        _withdraw(msg.sender, receiver, owner, shares);
     }
 
     /// @notice Withdraw weth from the pool
@@ -210,9 +213,7 @@ contract Drops4626 is
         if (receiver == address(0)) revert InvalidAddress();
         if (shares == 0) revert ParameterOutOfBounds();
 
-        assets = _convertToAssets(shares);
-
-        _withdraw(msg.sender, receiver, owner, assets, shares);
+        assets = _withdraw(msg.sender, receiver, owner, shares);
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -221,34 +222,30 @@ contract Drops4626 is
 
     /// @dev Get estimated share amount for assets
     /// @param assets Asset token amount
+    /// @param rounding Rounding mode
     /// @return shares Share amount
-    function _convertToShares(uint256 assets)
+    function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
         internal
         view
         returns (uint256 shares)
     {
         uint256 exchangeRate = _getExchangeRate();
 
-        shares = PRBMathUD60x18.div(
-            PRBMathUD60x18.mul(assets, 1e10),
-            exchangeRate
-        );
+        return assets.mulDiv(ONE_WAD, exchangeRate, rounding);
     }
 
     /// @dev Get estimated share amount for assets
     /// @param shares Share amount
+    /// @param rounding Rounding mode
     /// @return assets Asset token amount
-    function _convertToAssets(uint256 shares)
+    function _convertToAssets(uint256 shares, MathUpgradeable.Rounding rounding)
         internal
         view
         returns (uint256 assets)
     {
         uint256 exchangeRate = _getExchangeRate();
 
-        assets = PRBMathUD60x18.div(
-            PRBMathUD60x18.mul(shares, exchangeRate),
-            1e10
-        );
+        return shares.mulDiv(exchangeRate, ONE_WAD, rounding);
     }
 
     /// @dev Get Exchange Rate
@@ -257,11 +254,10 @@ contract Drops4626 is
     }
 
     /// @dev Deposit/mint common workflow.
-    function _deposit(
-        uint256 assets,
-        uint256 shares,
-        address receiver
-    ) internal {
+    function _deposit(uint256 assets, address receiver)
+        internal
+        returns (uint256 shares)
+    {
         // load weth
         IWETH weth = IWETH(WETH);
 
@@ -274,8 +270,16 @@ contract Drops4626 is
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
 
+        uint256 beforeBalance = IERC20Upgradeable(lpTokenAddress).balanceOf(
+            address(this)
+        );
+
         // mint ctoken
         cEther.mint{value: assets}();
+
+        shares =
+            IERC20Upgradeable(lpTokenAddress).balanceOf(address(this)) -
+            beforeBalance;
 
         // Mint receipt tokens to receiver
         _mint(receiver, shares);
@@ -288,9 +292,8 @@ contract Drops4626 is
         address caller,
         address receiver,
         address owner,
-        uint256 assets,
         uint256 shares
-    ) internal {
+    ) internal returns (uint256 assets) {
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
         }
@@ -307,6 +310,8 @@ contract Drops4626 is
         // trade ctokens for eth
         cEther.redeem(shares);
 
+        assets = address(this).balance;
+
         // trade eth from weth
         weth.deposit{value: assets}();
 
@@ -315,4 +320,10 @@ contract Drops4626 is
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Fallbacks ///
+    /////////////////////////////////////////////////////////////////////////
+
+    receive() external payable {}
 }

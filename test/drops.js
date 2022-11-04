@@ -4,7 +4,7 @@ const { takeSnapshot, revertToSnapshot } = require("./helpers/snapshot");
 const { impersonateAccount } = require("./helpers/account");
 const constants = require("./constants");
 
-describe("Bend4626", function () {
+describe("Drops4626", function () {
   let vault;
   let token;
   let weth;
@@ -12,8 +12,13 @@ describe("Bend4626", function () {
   let whale;
   let snapshotId;
 
-  const name = "Spice interest bearing WETH";
-  const symbol = "spiceETH";
+  const name = "Spice CEther";
+  const symbol = "SCEther";
+  const ONE_WAD = ethers.utils.parseUnits("1", 18);
+
+  const getExchangeRate = async () => {
+    return await token.exchangeRateStored();
+  };
 
   before("Deploy", async function () {
     // mainnet fork
@@ -32,39 +37,29 @@ describe("Bend4626", function () {
     whale = await ethers.getSigner(constants.accounts.Whale1);
 
     token = await ethers.getContractAt(
-      "TestERC20",
-      constants.tokens.BendWETH,
+      "ICEther",
+      constants.tokens.DropsETH,
       admin
     );
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
-    const Bend4626 = await ethers.getContractFactory("Bend4626");
+    const Drops4626 = await ethers.getContractFactory("Drops4626");
 
     await expect(
-      upgrades.deployProxy(Bend4626, [
+      upgrades.deployProxy(Drops4626, [
         name,
         symbol,
         ethers.constants.AddressZero,
-        constants.tokens.BendWETH,
       ])
-    ).to.be.revertedWithCustomError(Bend4626, "InvalidAddress");
-    await expect(
-      upgrades.deployProxy(Bend4626, [
-        name,
-        symbol,
-        constants.contracts.BendPool,
-        ethers.constants.AddressZero,
-      ])
-    ).to.be.revertedWithCustomError(Bend4626, "InvalidAddress");
+    ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
 
-    vault = await upgrades.deployProxy(Bend4626, [
+    vault = await upgrades.deployProxy(Drops4626, [
       name,
       symbol,
-      constants.contracts.BendPool,
-      constants.tokens.BendWETH,
+      constants.tokens.DropsETH,
     ]);
 
-    await impersonateAccount(constants.accounts.Whale1);
+    await impersonateAccount(whale.address);
   });
 
   beforeEach(async () => {
@@ -94,12 +89,7 @@ describe("Bend4626", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        vault.initialize(
-          name,
-          symbol,
-          constants.contracts.BendPool,
-          constants.tokens.BendWETH
-        )
+        vault.initialize(name, symbol, constants.tokens.DropsETH)
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
   });
@@ -112,7 +102,10 @@ describe("Bend4626", function () {
 
       it("Non-zero assets", async function () {
         const assets = ethers.utils.parseEther("100");
-        expect(await vault.convertToShares(assets)).to.be.eq(assets);
+        const exchangeRate = await getExchangeRate();
+        expect(await vault.convertToShares(assets)).to.be.eq(
+          assets.mul(ONE_WAD).div(exchangeRate)
+        );
       });
     });
 
@@ -123,7 +116,10 @@ describe("Bend4626", function () {
 
       it("Non-zero shares", async function () {
         const shares = ethers.utils.parseEther("100");
-        expect(await vault.convertToAssets(shares)).to.be.eq(shares);
+        const exchangeRate = await getExchangeRate();
+        expect(await vault.convertToAssets(shares)).to.be.eq(
+          shares.mul(exchangeRate).div(ONE_WAD)
+        );
       });
     });
 
@@ -134,7 +130,10 @@ describe("Bend4626", function () {
 
       it("Non-zero assets", async function () {
         const assets = ethers.utils.parseEther("100");
-        expect(await vault.previewDeposit(assets)).to.be.eq(assets);
+        const exchangeRate = await getExchangeRate();
+        expect(await vault.previewDeposit(assets)).to.be.eq(
+          assets.mul(ONE_WAD).div(exchangeRate)
+        );
       });
     });
 
@@ -145,7 +144,10 @@ describe("Bend4626", function () {
 
       it("Non-zero shares", async function () {
         const shares = ethers.utils.parseEther("100");
-        expect(await vault.previewMint(shares)).to.be.eq(shares);
+        const exchangeRate = await getExchangeRate();
+        expect(await vault.previewMint(shares)).to.be.eq(
+          shares.mul(exchangeRate).div(ONE_WAD)
+        );
       });
     });
 
@@ -156,7 +158,11 @@ describe("Bend4626", function () {
 
       it("Non-zero assets", async function () {
         const assets = ethers.utils.parseEther("100");
-        expect(await vault.previewWithdraw(assets)).to.be.eq(assets);
+        const exchangeRate = await getExchangeRate();
+        expect(await vault.previewWithdraw(assets)).to.be.closeTo(
+          assets.mul(ONE_WAD).div(exchangeRate),
+          1
+        );
       });
     });
 
@@ -167,7 +173,11 @@ describe("Bend4626", function () {
 
       it("Non-zero shares", async function () {
         const shares = ethers.utils.parseEther("100");
-        expect(await vault.previewRedeem(shares)).to.be.eq(shares);
+        const exchangeRate = await getExchangeRate();
+        expect(await vault.previewRedeem(shares)).to.be.closeTo(
+          shares.mul(exchangeRate).div(ONE_WAD),
+          1
+        );
       });
     });
 
@@ -249,12 +259,13 @@ describe("Bend4626", function () {
         await weth.connect(whale).approve(vault.address, assets);
 
         const beforeAssetBalance = await weth.balanceOf(whale.address);
-        const beforeShareBalance = await vault.balanceOf(bob.address);
 
         const tx = await vault.connect(whale).deposit(assets, bob.address);
 
-        expect(await vault.balanceOf(bob.address)).to.be.eq(
-          beforeShareBalance.add(shares)
+        const shareBalance = await vault.balanceOf(bob.address);
+        expect(shareBalance).to.be.closeTo(
+          shares,
+          assets.div(ethers.utils.parseUnits("1", 12))
         );
         expect(await weth.balanceOf(whale.address)).to.be.eq(
           beforeAssetBalance.sub(assets)
@@ -262,14 +273,14 @@ describe("Bend4626", function () {
 
         await expect(tx)
           .to.emit(vault, "Deposit")
-          .withArgs(whale.address, bob.address, assets, shares);
+          .withArgs(whale.address, bob.address, assets, shareBalance);
         await expect(tx)
           .to.emit(vault, "Transfer")
-          .withArgs(ethers.constants.AddressZero, bob.address, shares);
+          .withArgs(ethers.constants.AddressZero, bob.address, shareBalance);
 
-        expect(await vault.totalSupply()).to.be.eq(shares);
+        expect(await vault.totalSupply()).to.be.eq(shareBalance);
         expect(await vault.totalAssets()).to.be.eq(
-          await vault.convertToAssets(shares)
+          await vault.convertToAssets(shareBalance)
         );
       });
     });
@@ -282,7 +293,7 @@ describe("Bend4626", function () {
       });
 
       it("When asset is not approved", async function () {
-        const shares = ethers.utils.parseEther("100");
+        const shares = ethers.utils.parseUnits("1000", 6);
 
         await expect(
           vault.connect(whale).mint(shares, whale.address)
@@ -290,7 +301,7 @@ describe("Bend4626", function () {
       });
 
       it("When balance is not enough", async function () {
-        const shares = ethers.utils.parseEther("100");
+        const shares = ethers.utils.parseUnits("1000", 6);
 
         await weth.connect(alice).approve(vault.address, shares);
 
@@ -300,18 +311,19 @@ describe("Bend4626", function () {
       });
 
       it("Take assets and mint shares", async function () {
-        const shares = ethers.utils.parseEther("100");
+        const shares = ethers.utils.parseUnits("1000", 6);
         const assets = await vault.previewMint(shares);
 
-        await weth.connect(whale).approve(vault.address, assets);
+        await weth.connect(whale).approve(vault.address, assets.mul(2));
 
         const beforeAssetBalance = await weth.balanceOf(whale.address);
-        const beforeShareBalance = await vault.balanceOf(bob.address);
 
         const tx = await vault.connect(whale).mint(shares, bob.address);
 
-        expect(await vault.balanceOf(bob.address)).to.be.eq(
-          beforeShareBalance.add(shares)
+        const shareBalance = await vault.balanceOf(bob.address);
+        expect(shareBalance).to.be.closeTo(
+          shares,
+          assets.div(ethers.utils.parseUnits("1", 12))
         );
         expect(await weth.balanceOf(whale.address)).to.be.eq(
           beforeAssetBalance.sub(assets)
@@ -319,14 +331,14 @@ describe("Bend4626", function () {
 
         await expect(tx)
           .to.emit(vault, "Deposit")
-          .withArgs(whale.address, bob.address, assets, shares);
+          .withArgs(whale.address, bob.address, assets, shareBalance);
         await expect(tx)
           .to.emit(vault, "Transfer")
-          .withArgs(ethers.constants.AddressZero, bob.address, shares);
+          .withArgs(ethers.constants.AddressZero, bob.address, shareBalance);
 
-        expect(await vault.totalSupply()).to.be.eq(shares);
+        expect(await vault.totalSupply()).to.be.eq(shareBalance);
         expect(await vault.totalAssets()).to.be.eq(
-          await vault.convertToAssets(shares)
+          await vault.convertToAssets(shareBalance)
         );
       });
     });
@@ -370,21 +382,24 @@ describe("Bend4626", function () {
 
       it("Withdraw assets", async function () {
         const assets = ethers.utils.parseEther("50");
+        const shares = await vault.previewWithdraw(assets);
 
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault
-          .connect(whale)
-          .withdraw(assets, bob.address, whale.address);
+        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
 
-        const shares = await vault.previewWithdraw(assets);
-
-        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
-        expect(beforeShareBalance).to.be.closeTo(afterShareBalance.add(shares), 5);
+        expect(afterAssetBalance).to.be.closeTo(
+          beforeAssetBalance.add(assets),
+          assets.div(1000000)
+        );
+        expect(beforeShareBalance).to.be.closeTo(
+          afterShareBalance.add(shares),
+          shares.div(100000)
+        );
       });
     });
 
@@ -410,7 +425,7 @@ describe("Bend4626", function () {
       });
 
       it("When allowance is not enough", async function () {
-        const shares = ethers.utils.parseEther("50");
+        const shares = ethers.utils.parseUnits("100", 6);
 
         await expect(
           vault.connect(alice).redeem(shares, alice.address, whale.address)
@@ -418,7 +433,7 @@ describe("Bend4626", function () {
       });
 
       it("When shares balance is not enough", async function () {
-        const shares = ethers.utils.parseEther("200");
+        const shares = (await vault.balanceOf(whale.address)).add(1);
 
         await expect(
           vault.connect(whale).redeem(shares, bob.address, whale.address)
@@ -426,7 +441,8 @@ describe("Bend4626", function () {
       });
 
       it("Redeem shares", async function () {
-        const shares = ethers.utils.parseEther("50");
+        const shares = ethers.utils.parseUnits("100", 6);
+        const assets = await vault.previewRedeem(shares);
 
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
@@ -436,9 +452,10 @@ describe("Bend4626", function () {
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
 
-        const assets = await vault.previewRedeem(shares);
-
-        expect(afterAssetBalance).to.be.closeTo(beforeAssetBalance.add(assets), 5);
+        expect(afterAssetBalance).to.be.closeTo(
+          beforeAssetBalance.add(assets),
+          assets.div(1000000)
+        );
         expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
     });
