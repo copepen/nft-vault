@@ -1,52 +1,104 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.16;
+pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
-import "./SFMulticallUpgradeable.sol";
 
+/// @title Storage for SpiceFi4626
+abstract contract SpiceFi4626Storage {
+    /// @notice Spice role
+    bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
+
+    /// @notice withdrawal fees per 10_000 units
+    uint256 public withdrawalFees;
+
+    /// @notice Max Total Supply
+    uint256 public maxTotalSupply;
+
+    /// @notice Indicates whether the vault is verified or not
+    bool public verified;
+}
+
+/// @title SpiceFi4626
 contract SpiceFi4626 is
     ERC4626Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
     UUPSUpgradeable,
-    SFMulticallUpgradeable
+    SpiceFi4626Storage
 {
+    using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
 
-    /// @dev rebalances vault assets using ERC4626 client interface
+    /////////////////////////////////////////////////////////////////////////
+    /// Constants ///
+    /////////////////////////////////////////////////////////////////////////
+
+    /// @notice Spice Multisig
+    address public constant multisig =
+        address(0x7B15f2B26C25e1815Dc4FB8957cE76a0C5319582);
+
+    /// @notice Rebalance vault assets using ERC4626 client interface
     bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
-    /// @dev contracts that funds can be sent to
+
+    /// @notice Contracts that funds can be sent to
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
-    /// @dev contracts that can be listed as "receiver" of shares in ERC4626 client calls
+
+    /// @notice Contracts that can be listed as "receiver" of shares in ERC4626 client calls
     bytes32 public constant VAULT_RECEIVER_ROLE =
         keccak256("VAULT_RECEIVER_ROLE");
-    /// @dev contracts that receive fees
+
+    /// @notice Contracts that receive fees
     bytes32 public constant ASSET_RECEIVER_ROLE =
         keccak256("ASSET_RECEIVER_ROLE");
-    /// @dev contracts allowed to deposit
+
+    /// @notice Contracts allowed to deposit
     bytes32 public constant USER_ROLE = keccak256("USER_ROLE");
 
-    /// @dev storage
-    /// @notice withdrawal fees per 10_000 units
-    uint256 public withdrawalFees;
-    uint256 public maxTotalSupply;
+    /////////////////////////////////////////////////////////////////////////
+    /// Errors ///
+    /////////////////////////////////////////////////////////////////////////
 
-    /// @notice initialize proxy
-    function initialize(address asset_) public initializer {
+    /// @notice Invalid address (e.g. zero address)
+    error InvalidAddress();
+
+    /// @notice Parameter out of bounds
+    error ParameterOutOfBounds();
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Constructor ///
+    /////////////////////////////////////////////////////////////////////////
+
+    /// @notice SpiceFi4626 constructor (for proxy)
+    /// @param asset_ Asset token address
+    /// @param strategist_ Default strategist address
+    /// @param assetReceiver_ Default asset receiver address
+    /// @param withdrawalFees_ Default withdrawal fees
+    function initialize(
+        address asset_,
+        address strategist_,
+        address assetReceiver_,
+        uint256 withdrawalFees_
+    ) public initializer {
+        if (asset_ == address(0)) revert InvalidAddress();
+        if (strategist_ == address(0)) revert InvalidAddress();
+        if (assetReceiver_ == address(0)) revert InvalidAddress();
+        if (withdrawalFees_ > 10_000) revert ParameterOutOfBounds();
+
         __ERC4626_init(IERC20MetadataUpgradeable(asset_));
         __ERC20_init("SpiceToken", "SPICE");
-        withdrawalFees = 700;
+
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(
-            DEFAULT_ADMIN_ROLE,
-            address(0x7B15f2B26C25e1815Dc4FB8957cE76a0C5319582)
-        );
-        _setupRole(USER_ROLE, _msgSender());
-        _setupRole(ASSET_RECEIVER_ROLE, _msgSender());
+        _setupRole(DEFAULT_ADMIN_ROLE, multisig);
         _setupRole(VAULT_RECEIVER_ROLE, address(this));
+
+        _setupRole(STRATEGIST_ROLE, strategist_);
+        _setupRole(ASSET_RECEIVER_ROLE, assetReceiver_);
+
+        withdrawalFees = withdrawalFees_;
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -67,6 +119,8 @@ contract SpiceFi4626 is
         public
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
+        if (withdrawalFees_ > 10_000) revert ParameterOutOfBounds();
+
         withdrawalFees = withdrawalFees_;
     }
 
@@ -77,6 +131,12 @@ contract SpiceFi4626 is
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
         maxTotalSupply = maxTotalSupply_;
+    }
+
+    /// @notice set verified
+    /// @param verified_ new verified value
+    function setVerified(bool verified_) public onlyRole(SPICE_ROLE) {
+        verified = verified_;
     }
 
     /// @notice trigger paused state
@@ -200,14 +260,22 @@ contract SpiceFi4626 is
         uint256 assets,
         uint256 shares
     ) internal override {
-        address feesAddr = getRoleMember(ASSET_RECEIVER_ROLE, 0);
+        address feesAddr1 = getRoleMember(ASSET_RECEIVER_ROLE, 0);
+        address feesAddr2 = getRoleMember(SPICE_ROLE, 0);
         uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
             assets;
+        uint256 fees1 = fees.div(2);
+
         super._withdraw(caller, receiver, owner, assets, shares);
         SafeERC20Upgradeable.safeTransfer(
             IERC20MetadataUpgradeable(asset()),
-            feesAddr,
-            fees
+            feesAddr1,
+            fees1
+        );
+        SafeERC20Upgradeable.safeTransfer(
+            IERC20MetadataUpgradeable(asset()),
+            feesAddr2,
+            fees.sub(fees1)
         );
     }
 
