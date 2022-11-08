@@ -51,32 +51,27 @@ contract SpiceFiFactory is AccessControl {
 
     /// @notice Creates new SpiceFi4626 vault
     /// @param asset Asset address for SpiceFi4626
+    /// @param assetReceiver Default asset receiver
+    /// @param vaults Default vault addresses
+    /// @param withdrawalFees Default withdrawal fees
     /// @return vault Created vault address
     function createVault(
         address asset,
-        address[] calldata assetReceivers,
+        address assetReceiver,
         address[] calldata vaults,
         uint256 withdrawalFees
     ) external returns (SpiceFi4626 vault) {
-        if (assetReceivers.length == 0) revert ParameterOutOfBounds();
+        if (assetReceiver == address(0)) revert InvalidAddress();
 
         vault = SpiceFi4626(address(implementation).clone());
-        vault.initialize(asset, msg.sender, assetReceivers[0], withdrawalFees);
+        vault.initialize(asset, msg.sender, assetReceiver, withdrawalFees);
 
-        bytes32 ASSET_RECEIVER_ROLE = vault.ASSET_RECEIVER_ROLE();
         bytes32 VAULT_ROLE_ = vault.VAULT_ROLE();
 
-        uint256 i;
-        for (; i != vaults.length; ++i) {
+        for (uint256 i; i != vaults.length; ++i) {
             _checkRole(VAULT_ROLE, vaults[i]);
 
             vault.grantRole(VAULT_ROLE_, vaults[i]);
-        }
-
-        for (i = 1; i != assetReceivers.length; ++i) {
-            if (assetReceivers[i] == address(0)) revert InvalidAddress();
-
-            vault.grantRole(ASSET_RECEIVER_ROLE, assetReceivers[i]);
         }
 
         emit VaultCreated(msg.sender, address(vault));
