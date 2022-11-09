@@ -42,7 +42,9 @@ contract SpiceFiFactory is AccessControl {
     /// @notice Constructor
     /// @param implementation_ SpiceFi4626 implementation address
     constructor(SpiceFi4626 implementation_) {
-        if (address(implementation_) == address(0)) revert InvalidAddress();
+        if (address(implementation_) == address(0)) {
+            revert InvalidAddress();
+        }
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
@@ -61,17 +63,23 @@ contract SpiceFiFactory is AccessControl {
         address[] calldata vaults,
         uint256 withdrawalFees
     ) external returns (SpiceFi4626 vault) {
-        if (assetReceiver == address(0)) revert InvalidAddress();
+        if (assetReceiver == address(0)) {
+            revert InvalidAddress();
+        }
 
         vault = SpiceFi4626(address(implementation).clone());
         vault.initialize(asset, msg.sender, assetReceiver, withdrawalFees);
 
+        uint256 length = vaults.length;
         bytes32 VAULT_ROLE_ = vault.VAULT_ROLE();
 
-        for (uint256 i; i != vaults.length; ++i) {
+        for (uint256 i; i != length; ) {
             _checkRole(VAULT_ROLE, vaults[i]);
-
             vault.grantRole(VAULT_ROLE_, vaults[i]);
+
+            unchecked {
+                ++i;
+            }
         }
 
         emit VaultCreated(msg.sender, address(vault));

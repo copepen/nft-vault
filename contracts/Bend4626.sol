@@ -65,8 +65,12 @@ contract Bend4626 is
         address poolAddress_,
         address lpTokenAddress_
     ) external initializer {
-        if (poolAddress_ == address(0)) revert InvalidAddress();
-        if (lpTokenAddress_ == address(0)) revert InvalidAddress();
+        if (poolAddress_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (lpTokenAddress_ == address(0)) {
+            revert InvalidAddress();
+        }
 
         __ERC20_init(name_, symbol_);
 
@@ -172,7 +176,9 @@ contract Bend4626 is
         external
         returns (uint256 shares)
     {
-        if (assets == 0) revert ParameterOutOfBounds();
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         shares = previewDeposit(assets);
 
@@ -187,7 +193,9 @@ contract Bend4626 is
         external
         returns (uint256 assets)
     {
-        if (shares == 0) revert ParameterOutOfBounds();
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         assets = previewMint(shares);
 
@@ -203,8 +211,12 @@ contract Bend4626 is
         address receiver,
         address owner
     ) external returns (uint256 shares) {
-        if (receiver == address(0)) revert InvalidAddress();
-        if (assets == 0) revert ParameterOutOfBounds();
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         shares = previewWithdraw(assets);
 
@@ -220,8 +232,12 @@ contract Bend4626 is
         address receiver,
         address owner
     ) external returns (uint256 assets) {
-        if (receiver == address(0)) revert InvalidAddress();
-        if (shares == 0) revert ParameterOutOfBounds();
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         assets = previewRedeem(shares);
 

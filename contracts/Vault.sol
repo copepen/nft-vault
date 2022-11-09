@@ -122,7 +122,9 @@ contract Vault is
         string calldata symbol_,
         IERC20Upgradeable asset_
     ) external initializer {
-        if (address(asset_) == address(0)) revert InvalidAddress();
+        if (address(asset_) == address(0)) {
+            revert InvalidAddress();
+        }
 
         __ERC20_init(name_, symbol_);
         __AccessControl_init();
@@ -251,7 +253,9 @@ contract Vault is
         returns (uint256 shares)
     {
         // Validate amount
-        if (assets == 0) revert ParameterOutOfBounds();
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         /// Compute number of shares to mint from current vault share price
         shares = previewDeposit(assets);
@@ -270,7 +274,9 @@ contract Vault is
         returns (uint256 assets)
     {
         // Validate amount
-        if (shares == 0) revert ParameterOutOfBounds();
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         /// Compute number of shares to mint from current vault share price
         assets = previewMint(shares);
@@ -287,8 +293,12 @@ contract Vault is
         address receiver,
         address owner
     ) external whenNotPaused nonReentrant returns (uint256 assets) {
-        if (receiver == address(0)) revert InvalidAddress();
-        if (shares == 0) revert ParameterOutOfBounds();
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         // compute redemption amount
         assets = previewRedeem(shares);
@@ -306,8 +316,12 @@ contract Vault is
         address receiver,
         address owner
     ) external whenNotPaused nonReentrant returns (uint256 shares) {
-        if (receiver == address(0)) revert InvalidAddress();
-        if (assets == 0) revert ParameterOutOfBounds();
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         // compute share amount
         shares = previewWithdraw(assets);
@@ -360,7 +374,9 @@ contract Vault is
         if (
             getRoleMemberCount(WHITELIST_ROLE) > 0 &&
             !hasRole(WHITELIST_ROLE, caller)
-        ) revert NotWhitelisted();
+        ) {
+            revert NotWhitelisted();
+        }
 
         // Increase total assets value of vault
         _totalAssets += assets;
@@ -412,8 +428,9 @@ contract Vault is
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (withdrawalFees == 0 || withdrawalFees >= 10_000)
+        if (withdrawalFees == 0 || withdrawalFees >= 10_000) {
             revert ParameterOutOfBounds();
+        }
         _withdrawalFees = withdrawalFees;
         emit WithdrawalFeeRateUpdated(withdrawalFees);
     }

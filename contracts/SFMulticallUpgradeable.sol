@@ -24,9 +24,14 @@ abstract contract SFMulticallUpgradeable is Initializable {
         virtual
         returns (bytes[] memory results)
     {
-        results = new bytes[](data.length);
-        for (uint256 i = 0; i < data.length; i++) {
+        uint256 length = data.length;
+        results = new bytes[](length);
+        for (uint256 i; i != length; ) {
             results[i] = _sfFunctionDelegateCall(address(this), data[i]);
+
+            unchecked {
+                ++i;
+            }
         }
         return results;
     }

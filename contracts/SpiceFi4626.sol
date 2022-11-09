@@ -83,10 +83,18 @@ contract SpiceFi4626 is
         address assetReceiver_,
         uint256 withdrawalFees_
     ) public initializer {
-        if (asset_ == address(0)) revert InvalidAddress();
-        if (strategist_ == address(0)) revert InvalidAddress();
-        if (assetReceiver_ == address(0)) revert InvalidAddress();
-        if (withdrawalFees_ > 10_000) revert ParameterOutOfBounds();
+        if (asset_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (strategist_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (assetReceiver_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (withdrawalFees_ > 10_000) {
+            revert ParameterOutOfBounds();
+        }
 
         __ERC4626_init(IERC20MetadataUpgradeable(asset_));
         __ERC20_init("SpiceToken", "SPICE");
@@ -119,7 +127,9 @@ contract SpiceFi4626 is
         public
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (withdrawalFees_ > 10_000) revert ParameterOutOfBounds();
+        if (withdrawalFees_ > 10_000) {
+            revert ParameterOutOfBounds();
+        }
 
         withdrawalFees = withdrawalFees_;
     }
@@ -174,9 +184,13 @@ contract SpiceFi4626 is
             address(this)
         );
         IERC4626Upgradeable vault;
-        for (uint8 i = 0; i < getRoleMemberCount(VAULT_ROLE); i++) {
+        uint256 count = getRoleMemberCount(VAULT_ROLE);
+        for (uint8 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
             balance += vault.previewRedeem(vault.balanceOf(address(this)));
+            unchecked {
+                ++i;
+            }
         }
         return balance;
     }
