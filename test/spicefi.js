@@ -16,7 +16,14 @@ describe("SpiceFi4626", function () {
   let spiceVault;
 
   // accounts
-  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver;
+  let admin,
+    alice,
+    bob,
+    carol,
+    strategist,
+    spiceAdmin,
+    assetReceiver,
+    vaultReceiver;
   let whale;
 
   // snapshot ID
@@ -67,8 +74,16 @@ describe("SpiceFi4626", function () {
       ],
     });
 
-    [admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver] =
-      await ethers.getSigners();
+    [
+      admin,
+      alice,
+      bob,
+      carol,
+      strategist,
+      spiceAdmin,
+      assetReceiver,
+      vaultReceiver,
+    ] = await ethers.getSigners();
 
     whale = await ethers.getSigner(constants.accounts.Whale1);
     await impersonateAccount(constants.accounts.Whale1);
@@ -155,9 +170,12 @@ describe("SpiceFi4626", function () {
     spiceRole = await spiceVault.SPICE_ROLE();
 
     await spiceVault.grantRole(strategistRole, strategist.address);
+    await spiceVault.grantRole(vaultReceiverRole, vaultReceiver.address);
     await spiceVault.grantRole(vaultRole, vault.address);
     await spiceVault.grantRole(vaultRole, bend.address);
     await spiceVault.grantRole(vaultRole, drops.address);
+    await checkRole(spiceVault, strategist.address, strategistRole, true);
+    await checkRole(spiceVault, vaultReceiver.address, vaultReceiverRole, true);
     await checkRole(spiceVault, vault.address, vaultRole, true);
     await checkRole(spiceVault, bend.address, vaultRole, true);
     await checkRole(spiceVault, drops.address, vaultRole, true);
@@ -420,7 +438,9 @@ describe("SpiceFi4626", function () {
       it("When balance is non-zero", async function () {
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
-        await spiceVault.connect(whale)['deposit(uint256,address)'](assets, whale.address);
+        await spiceVault
+          .connect(whale)
+          ["deposit(uint256,address)"](assets, whale.address);
 
         expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(assets);
       });
@@ -439,11 +459,88 @@ describe("SpiceFi4626", function () {
       it("When balance is non-zero", async function () {
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
-        await spiceVault.connect(whale)['deposit(uint256,address)'](assets, whale.address);
+        await spiceVault
+          .connect(whale)
+          ["deposit(uint256,address)"](assets, whale.address);
 
         expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(assets);
       });
     });
+  });
+
+  describe("Strategist Actions", function () {
+    describe("Transfer", function () {});
+
+    describe("TransferFrom", function () {});
+
+    describe("Approve", function () {
+      it("Only strategist can call", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["approve(address,address,uint256)"](
+              vault.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only approve vault token", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["approve(address,address,uint256)"](
+              token.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only approve to vault receiver", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["approve(address,address,uint256)"](
+              vault.address,
+              carol.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("Approves correct amount", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(strategist)
+          ["approve(address,address,uint256)"](
+            vault.address,
+            vaultReceiver.address,
+            amount
+          );
+        expect(
+          await vault.allowance(spiceVault.address, vaultReceiver.address)
+        ).to.be.eq(amount);
+      });
+    });
+
+    describe("Deposit", function () {});
+
+    describe("Mint", function () {});
+
+    describe("Withdraw", function () {});
+
+    describe("Redeem", function () {});
   });
 
   describe("Admin Actions", function () {

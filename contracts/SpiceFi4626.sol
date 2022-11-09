@@ -317,6 +317,17 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).transfer(to, amount);
     }
 
+    function transferFrom(
+        address vault,
+        address from,
+        address to,
+        uint256 amount
+    ) public onlyRole(STRATEGIST_ROLE) returns (bool) {
+        _checkRole(VAULT_ROLE, vault);
+        _checkRole(VAULT_RECEIVER_ROLE, to);
+        return IERC4626Upgradeable(vault).transferFrom(from, to, amount);
+    }
+
     function approve(
         address vault,
         address spender,
@@ -327,15 +338,12 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).approve(spender, amount);
     }
 
-    function transferFrom(
+    function approveAsset(
         address vault,
-        address from,
-        address to,
         uint256 amount
     ) public onlyRole(STRATEGIST_ROLE) returns (bool) {
         _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, to);
-        return IERC4626Upgradeable(vault).transferFrom(from, to, amount);
+        return IERC20Upgradeable(asset()).approve(vault, amount);
     }
 
     function deposit(

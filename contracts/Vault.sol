@@ -428,7 +428,7 @@ contract Vault is
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (withdrawalFees == 0 || withdrawalFees >= 10_000) {
+        if (withdrawalFees > 10_000) {
             revert ParameterOutOfBounds();
         }
         _withdrawalFees = withdrawalFees;

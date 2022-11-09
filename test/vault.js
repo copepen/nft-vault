@@ -818,10 +818,7 @@ describe("Vault", function () {
       );
 
       await expect(
-        vault.connect(admin).setWithdrawalFees(0)
-      ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
-      await expect(
-        vault.connect(admin).setWithdrawalFees(10000)
+        vault.connect(admin).setWithdrawalFees(10001)
       ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
 
       const tx = await vault.connect(admin).setWithdrawalFees(1000);
