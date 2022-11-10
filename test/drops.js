@@ -265,7 +265,7 @@ describe("Drops4626", function () {
         const shareBalance = await vault.balanceOf(bob.address);
         expect(shareBalance).to.be.closeTo(
           shares,
-          assets.div(ethers.utils.parseUnits("1", 12))
+          assets.div(ethers.utils.parseUnits("1", 6))
         );
         expect(await weth.balanceOf(whale.address)).to.be.eq(
           beforeAssetBalance.sub(assets)
@@ -323,7 +323,7 @@ describe("Drops4626", function () {
         const shareBalance = await vault.balanceOf(bob.address);
         expect(shareBalance).to.be.closeTo(
           shares,
-          assets.div(ethers.utils.parseUnits("1", 12))
+          assets.div(ethers.utils.parseUnits("1", 6))
         );
         expect(await weth.balanceOf(whale.address)).to.be.eq(
           beforeAssetBalance.sub(assets)

@@ -137,7 +137,6 @@ contract Vault is
         _grantRole(ASSET_RECEIVER_ROLE, msg.sender);
         _grantRole(KEEPER_ROLE, msg.sender);
         _grantRole(LIQUIDATOR_ROLE, msg.sender);
-        _grantRole(WHITELIST_ROLE, msg.sender);
 
         uint8 decimals_;
         try IERC20MetadataUpgradeable(address(asset_)).decimals() returns (

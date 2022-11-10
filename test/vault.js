@@ -105,7 +105,7 @@ describe("Vault", function () {
       await checkRole(admin.address, assetReceiverRole, true);
       await checkRole(admin.address, keeperRole, true);
       await checkRole(admin.address, liquidatorRole, true);
-      await checkRole(admin.address, whitelistRole, true);
+      await checkRole(admin.address, whitelistRole, false);
       await checkRole(admin.address, bidderRole, false);
       await checkRole(admin.address, marketplaceRole, false);
 
@@ -305,6 +305,7 @@ describe("Vault", function () {
   describe("User Actions", function () {
     describe("Deposit", function () {
       it("When user is not whitelisted", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, bob.address);
         await expect(
           vault
             .connect(alice)
@@ -473,7 +474,7 @@ describe("Vault", function () {
 
     describe("Mint", function () {
       it("When user is not whitelisted", async function () {
-        await checkRole(alice.address, whitelistRole, false);
+        await vault.connect(admin).grantRole(whitelistRole, bob.address);
         await expect(
           vault
             .connect(alice)
