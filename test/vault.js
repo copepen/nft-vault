@@ -227,7 +227,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero assets when supply is zero", async function () {
-        expect(await vault.previewWithdraw(10000)).to.be.eq(10700);
+        expect(await vault.previewWithdraw(9300)).to.be.eq(10000);
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
@@ -236,7 +236,7 @@ describe("Vault", function () {
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
 
-        expect(await vault.previewWithdraw(10000)).to.be.eq(10700);
+        expect(await vault.previewWithdraw(9300)).to.be.eq(10000);
       });
     });
 
@@ -706,7 +706,7 @@ describe("Vault", function () {
       it("Withdraw assets", async function () {
         const assets = ethers.utils.parseEther("50");
         const shares = await vault.previewWithdraw(assets);
-        expect(shares).to.be.eq(assets.mul(10700).div(10000));
+        expect(shares).to.be.eq(assets.mul(10000).div(9300));
         const fees = shares.sub(await vault.convertToShares(assets));
 
         const beforeFeeBalance = await token.balanceOf(admin.address);

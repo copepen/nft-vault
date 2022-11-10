@@ -345,7 +345,7 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero assets when supply is zero", async function () {
-        expect(await spiceVault.previewWithdraw(10000)).to.be.eq(10700);
+        expect(await spiceVault.previewWithdraw(9300)).to.be.eq(10000);
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
@@ -355,7 +355,7 @@ describe("SpiceFi4626", function () {
           .connect(whale)
           ["deposit(uint256,address)"](assets, bob.address);
 
-        expect(await spiceVault.previewWithdraw(10000)).to.be.eq(10700);
+        expect(await spiceVault.previewWithdraw(9300)).to.be.eq(10000);
       });
     });
 
@@ -528,7 +528,7 @@ describe("SpiceFi4626", function () {
         const beforeBalance1 = await weth.balanceOf(assetReceiver.address);
         const beforeBalance2 = await weth.balanceOf(spiceAdmin.address);
         const beforeBalance3 = await weth.balanceOf(whale.address);
-        const fees = amount.mul(700).div(10000);
+        const fees = amount.mul(700).div(9300);
         const fees1 = fees.div(2);
         const fees2 = fees.sub(fees1);
 

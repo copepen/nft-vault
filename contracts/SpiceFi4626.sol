@@ -247,7 +247,7 @@ contract SpiceFi4626 is
     {
         return
             _convertToShares(
-                assets.mulDiv(10_000 + withdrawalFees, 10_000),
+                assets.mulDiv(10_000, 10_000 - withdrawalFees),
                 MathUpgradeable.Rounding.Up
             );
     }

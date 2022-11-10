@@ -226,7 +226,7 @@ contract Vault is
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         return
             _convertToShares(
-                assets.mulDiv(10_000 + _withdrawalFees, 10_000),
+                assets.mulDiv(10_000, 10_000 - _withdrawalFees),
                 MathUpgradeable.Rounding.Up
             );
     }
