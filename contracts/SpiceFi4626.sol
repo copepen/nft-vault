@@ -9,9 +9,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgrad
 
 /// @title Storage for SpiceFi4626
 abstract contract SpiceFi4626Storage {
-    /// @notice Spice role
-    bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
-
     /// @notice withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
 
@@ -57,6 +54,9 @@ contract SpiceFi4626 is
 
     /// @notice Contracts allowed to deposit
     bytes32 public constant USER_ROLE = keccak256("USER_ROLE");
+
+    /// @notice Spice role
+    bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
 
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///

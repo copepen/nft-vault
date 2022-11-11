@@ -63,6 +63,9 @@ contract SpiceFiFactory is AccessControl {
         address[] calldata vaults,
         uint256 withdrawalFees
     ) external returns (SpiceFi4626 vault) {
+        if (asset == address(0)) {
+            revert InvalidAddress();
+        }
         if (assetReceiver == address(0)) {
             revert InvalidAddress();
         }
