@@ -12,6 +12,8 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interfaces/IVault.sol";
 
@@ -485,5 +487,31 @@ contract Vault is
         require(token.ownerOf(nftId) == address(this));
 
         token.safeTransferFrom(address(this), msg.sender, nftId);
+    }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// ERC-1271 ///
+    /////////////////////////////////////////////////////////////////////////
+
+    /// See {IERC1271-isValidSignature}
+    function isValidSignature(bytes32 hash, bytes memory signature)
+        external
+        view
+        returns (bytes4 magicValue)
+    {
+        // Validate signatures
+        (address signer, ECDSA.RecoverError err) = ECDSA.tryRecover(
+            hash,
+            signature
+        );
+        if (
+            err == ECDSA.RecoverError.NoError &&
+            signer == getRoleMember(DEFAULT_ADMIN_ROLE, 0)
+        ) {
+            // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+            return 0x1626ba7e;
+        } else {
+            return 0xffffffff;
+        }
     }
 }
