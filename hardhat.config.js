@@ -19,6 +19,12 @@ module.exports = {
     ],
   },
   networks: {
+    hardhat: {
+      forking: {
+        url: process.env.MAINNET_RPC_URL || "",
+        blockNumber: 14390000
+      }
+    },
     goerli: {
       url: process.env.GOERLI_RPC_URL || "",
       accounts:
