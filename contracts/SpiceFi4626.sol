@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import "@openzeppelin/contracts/utils/Multicall.sol";
 
 /// @title Storage for SpiceFi4626
 abstract contract SpiceFi4626Storage {
@@ -19,13 +20,15 @@ abstract contract SpiceFi4626Storage {
     bool public verified;
 }
 
+// https://forum.openzeppelin.com/t/right-way-to-extend-both-multicallupgradeable-and-uupsupgradeable/14840
 /// @title SpiceFi4626
 contract SpiceFi4626 is
     ERC4626Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
     UUPSUpgradeable,
-    SpiceFi4626Storage
+  SpiceFi4626Storage,
+  Multicall
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;

@@ -104,7 +104,9 @@ describe("SpiceFiFactory", function () {
       strategist.address,
       assetReceiver.address,
       700,
-    ]);
+    ], {
+	  unsafeAllow: ['delegatecall']
+      });
 
     defaultAdminRole = await impl.DEFAULT_ADMIN_ROLE();
     strategistRole = await impl.STRATEGIST_ROLE();
