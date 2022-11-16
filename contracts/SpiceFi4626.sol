@@ -307,6 +307,10 @@ ERC4626Upgradeable,
             getRoleMemberCount(USER_ROLE) == 0 || hasRole(USER_ROLE, caller),
             "caller is not enabled"
 	    );
+    require(
+            shares > 0,
+            "shares is 0"
+	    );
     super._deposit(caller, receiver, assets, shares);
   }
 
