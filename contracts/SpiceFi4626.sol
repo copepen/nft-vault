@@ -384,7 +384,6 @@ ERC4626Upgradeable,
 		    ) public onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
     _checkRole(VAULT_ROLE, vault);
     _checkRole(VAULT_RECEIVER_ROLE, receiver);
-    require (IERC4626Upgradeable(vault).approve(address(this), assets), 'Approval failed'); // todo: why?
     return IERC4626Upgradeable(vault).withdraw(assets, receiver, owner);
   }
 
