@@ -874,44 +874,6 @@ describe("Vault", function () {
       expect(await vault.paused()).to.be.eq(false);
     });
 
-    it("Approve asset", async function () {
-      const spender = dave.address;
-      const amount = ethers.utils.parseEther("1000");
-
-      expect(await token.allowance(vault.address, spender)).to.be.eq(0);
-
-      await expect(
-        vault.connect(alice).approveAsset(spender, amount)
-      ).to.be.revertedWithoutReason();
-
-      await vault.connect(admin).grantRole(bidderRole, alice.address);
-
-      await expect(
-        vault.connect(alice).approveAsset(spender, amount)
-      ).to.be.revertedWith(
-        `AccessControl: account ${spender.toLowerCase()} is missing role ${marketplaceRole}`
-      );
-
-      await vault.connect(admin).grantRole(marketplaceRole, spender);
-      await vault
-        .connect(admin)
-        .grantRole(marketplaceRole, ethers.constants.AddressZero);
-
-      await expect(
-        vault.connect(alice).approveAsset(ethers.constants.AddressZero, amount)
-      ).to.be.revertedWith("ERC20: approve to the zero address");
-
-      const tx = await vault.connect(alice).approveAsset(spender, amount);
-
-      await expect(tx)
-        .to.emit(token, "Approval")
-        .withArgs(vault.address, spender, amount);
-
-      expect(await token.allowance(vault.address, spender)).to.be.eq(amount);
-
-      await vault.connect(admin).approveAsset(spender, amount);
-    });
-
     it("Transfer NFT out of Vault", async function () {
       await nft.mint(alice.address, 1);
       await nft.mint(vault.address, 2);

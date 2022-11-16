@@ -662,36 +662,6 @@ describe("SpiceFi4626", function () {
       });
     });
 
-    describe("Approve Asset", function () {
-      it("Only strategist can call", async function () {
-        const amount = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault.connect(alice).approveAsset(vault.address, amount)
-        ).to.be.revertedWith(
-          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
-        );
-      });
-
-      it("Only approve to vault", async function () {
-        const amount = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault.connect(strategist).approveAsset(carol.address, amount)
-        ).to.be.revertedWith(
-          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultRole}`
-        );
-      });
-
-      it("Approves correct amount", async function () {
-        const amount = ethers.utils.parseEther("100");
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, amount);
-        expect(
-          await weth.allowance(spiceVault.address, vault.address)
-        ).to.be.eq(amount);
-      });
-    });
-
     describe("Deposit", function () {
       it("Only strategist can call", async function () {
         const assets = ethers.utils.parseEther("100");
@@ -744,9 +714,6 @@ describe("SpiceFi4626", function () {
         await spiceVault
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, ethers.constants.MaxUint256);
 
         await spiceVault
           .connect(strategist)
@@ -812,9 +779,6 @@ describe("SpiceFi4626", function () {
         await spiceVault
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, ethers.constants.MaxUint256);
 
         const shares = ethers.utils.parseEther("100");
         await spiceVault
@@ -836,9 +800,6 @@ describe("SpiceFi4626", function () {
         await spiceVault
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, ethers.constants.MaxUint256);
 
         const shares = ethers.utils.parseEther("100");
         await spiceVault
@@ -922,9 +883,6 @@ describe("SpiceFi4626", function () {
         await spiceVault
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, ethers.constants.MaxUint256);
 
         const shares = ethers.utils.parseEther("100");
         await spiceVault
@@ -1008,9 +966,6 @@ describe("SpiceFi4626", function () {
         await spiceVault
           .connect(whale)
           ["deposit(uint256,address)"](amount, whale.address);
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, ethers.constants.MaxUint256);
 
         const assets = ethers.utils.parseEther("30");
         await spiceVault
@@ -1110,9 +1065,6 @@ describe("SpiceFi4626", function () {
         await spiceVault
           .connect(whale)
           ["deposit(uint256,address)"](amount, whale.address);
-        await spiceVault
-          .connect(strategist)
-          .approveAsset(vault.address, ethers.constants.MaxUint256);
 
         const assets = ethers.utils.parseEther("30");
         await spiceVault
