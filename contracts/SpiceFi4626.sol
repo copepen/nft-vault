@@ -356,6 +356,7 @@ contract SpiceFi4626 is
     ) public onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
         _checkRole(VAULT_ROLE, vault);
         _checkRole(VAULT_RECEIVER_ROLE, receiver);
+        require (IERC20Upgradeable(asset()).approve(vault, assets), 'Approval failed');
         return IERC4626Upgradeable(vault).deposit(assets, receiver);
     }
 
@@ -377,6 +378,7 @@ contract SpiceFi4626 is
     ) public onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
         _checkRole(VAULT_ROLE, vault);
         _checkRole(VAULT_RECEIVER_ROLE, receiver);
+        require (IERC4626Upgradeable(vault).approve(address(this), assets), 'Approval failed');
         return IERC4626Upgradeable(vault).withdraw(assets, receiver, owner);
     }
 
