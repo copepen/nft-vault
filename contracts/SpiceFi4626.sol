@@ -186,11 +186,27 @@ contract SpiceFi4626 is
         uint256 balance = IERC20MetadataUpgradeable(asset()).balanceOf(
             address(this)
         );
+        uint256 vaultReceiverCount = getRoleMemberCount(VAULT_RECEIVER_ROLE);
+        address[] memory vaultReceivers = new address[](vaultReceiverCount);
+        for (uint8 i; i != vaultReceiverCount; ) {
+            vaultReceivers[i] = getRoleMember(VAULT_RECEIVER_ROLE, i);
+            unchecked {
+                ++i;
+            }
+        }
+
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
         for (uint8 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
-            balance += vault.previewRedeem(vault.balanceOf(address(this)));
+            for (uint8 j; j != vaultReceiverCount; ) {
+                balance += vault.previewRedeem(
+                    vault.balanceOf(vaultReceivers[j])
+                );
+                unchecked {
+                    ++j;
+                }
+            }
             unchecked {
                 ++i;
             }
