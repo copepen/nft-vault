@@ -30,6 +30,15 @@ abstract contract SpiceFiNFT4626Storage {
 
     /// @notice Token ID Pointer
     uint256 internal _tokenIdPointer;
+
+    /// @notice Preview Metadata URI
+    string internal _previewUri;
+
+    /// @notice Metadata URI
+    string internal _baseUri;
+
+    /// @notice Revealed;
+    bool internal _revealed;
 }
 
 /// @title SpiceFiNFT4626
@@ -45,6 +54,7 @@ contract SpiceFiNFT4626 is
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
+    using StringsUpgradeable for uint256;
 
     /////////////////////////////////////////////////////////////////////////
     /// Constants ///
@@ -102,6 +112,12 @@ contract SpiceFiNFT4626 is
     /// @notice User not owning token
     error InvalidTokenId();
 
+    /// @notice Metadata revealed
+    error MetadataRevealed();
+
+    /// @notice Withdraw before reveal
+    error WithdrawBeforeReveal();
+
     /////////////////////////////////////////////////////////////////////////
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
@@ -152,7 +168,7 @@ contract SpiceFiNFT4626 is
     /// @notice set withdrawal fees
     /// @param withdrawalFees_ withdrawal fees
     function setWithdrawalFees(uint256 withdrawalFees_)
-        public
+        external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
         if (withdrawalFees_ >= 10_000) {
@@ -162,19 +178,42 @@ contract SpiceFiNFT4626 is
         withdrawalFees = withdrawalFees_;
     }
 
+    /// @notice Sets preview uri
+    /// @param previewUri New preview uri
+    function setPreviewURI(string memory previewUri)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_revealed) {
+            revert MetadataRevealed();
+        }
+
+        _previewUri = previewUri;
+    }
+
+    /// @notice Sets base uri and reveal
+    /// @param baseUri Metadata base uri
+    function setBaseURI(string memory baseUri)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _revealed = true;
+        _baseUri = baseUri;
+    }
+
     /// @notice set verified
     /// @param verified_ new verified value
-    function setVerified(bool verified_) public onlyRole(SPICE_ROLE) {
+    function setVerified(bool verified_) external onlyRole(SPICE_ROLE) {
         verified = verified_;
     }
 
     /// @notice trigger paused state
-    function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
     /// @notice return to normal state
-    function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
     }
 
@@ -292,6 +331,28 @@ contract SpiceFiNFT4626 is
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /**
+     * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        _requireMinted(tokenId);
+
+        if (!_revealed) {
+            return _previewUri;
+        }
+
+        string memory baseURI = _baseUri;
+        return
+            bytes(baseURI).length > 0
+                ? string(abi.encodePacked(baseURI, tokenId.toString()))
+                : "";
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -444,6 +505,9 @@ contract SpiceFiNFT4626 is
         uint256 shares,
         uint256 fees
     ) internal {
+        if (!_revealed) {
+            revert WithdrawBeforeReveal();
+        }
         if (ownerOf(tokenId) != caller) {
             revert InvalidTokenId();
         }
