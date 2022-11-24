@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "./interfaces/IWETH.sol";
 import "./interfaces/ISpiceFiNFT4626.sol";
+import "./interfaces/IAggregatorVault.sol";
 
 /// @title Storage for SpiceFiNFT4626
 abstract contract SpiceFiNFT4626Storage {
@@ -50,6 +51,7 @@ contract SpiceFiNFT4626 is
     UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
     SpiceFiNFT4626Storage,
+    IAggregatorVault,
     Multicall
 {
     using SafeMathUpgradeable for uint256;
@@ -551,6 +553,7 @@ contract SpiceFiNFT4626 is
         emit Deposit(caller, tokenId, assets, shares);
     }
 
+    /// See {IAggregatorVault-transfer}
     function transfer(
         address vault,
         address to,
@@ -561,6 +564,7 @@ contract SpiceFiNFT4626 is
         return IERC4626Upgradeable(vault).transfer(to, amount);
     }
 
+    /// See {IAggregatorVault-transferFrom}
     function transferFrom(
         address vault,
         address from,
@@ -572,6 +576,7 @@ contract SpiceFiNFT4626 is
         return IERC4626Upgradeable(vault).transferFrom(from, to, amount);
     }
 
+    /// See {IAggregatorVault-approve}
     function approve(
         address vault,
         address spender,
@@ -582,6 +587,7 @@ contract SpiceFiNFT4626 is
         return IERC4626Upgradeable(vault).approve(spender, amount);
     }
 
+    /// See {IAggregatorVault-deposit}
     function deposit(
         address vault,
         uint256 assets,
@@ -597,6 +603,7 @@ contract SpiceFiNFT4626 is
         return IERC4626Upgradeable(vault).deposit(assets, receiver);
     }
 
+    /// See {IAggregatorVault-mint}
     function mint(
         address vault,
         uint256 shares,
@@ -613,6 +620,7 @@ contract SpiceFiNFT4626 is
         return IERC4626Upgradeable(vault).mint(shares, receiver);
     }
 
+    /// See {IAggregatorVault-withdraw}
     function withdraw(
         address vault,
         uint256 assets,
@@ -624,6 +632,7 @@ contract SpiceFiNFT4626 is
         return IERC4626Upgradeable(vault).withdraw(assets, receiver, owner);
     }
 
+    /// See {IAggregatorVault-redeem}
     function redeem(
         address vault,
         uint256 shares,

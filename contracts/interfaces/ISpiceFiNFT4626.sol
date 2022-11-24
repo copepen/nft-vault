@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.17;
 
-/// @title SpiceFiNFT4626 Interface
+/// @title ISpiceFiNFT4626
 interface ISpiceFiNFT4626 {
     event Deposit(
         address indexed sender,
