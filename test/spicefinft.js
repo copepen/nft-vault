@@ -396,5 +396,151 @@ describe("SpiceFiNFT4626", function () {
           .withArgs(whale.address, 1, amount, amount);
       });
     });
+
+    describe("Mint", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        await expect(
+          spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount)
+        ).to.be.revertedWith("Pausable: paused");
+      });
+
+      it("When there are no accounts with USER_ROLE", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount);
+      });
+
+      it("When there is account with USER_ROLE", async function () {
+        await spiceVault.grantRole(userRole, alice.address);
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        await expect(
+          spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount)
+        ).to.be.revertedWith("caller is not enabled");
+      });
+
+      it("Only mint new NFT and deposit nothing", async function () {
+        await spiceVault.grantRole(userRole, alice.address);
+        await spiceVault.grantRole(userRole, whale.address);
+
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        const beforeBalance = await weth.balanceOf(whale.address);
+
+        const tx = await spiceVault
+          .connect(whale)
+          ["mint(uint256,uint256)"](0, 0);
+
+        expect(await spiceVault.ownerOf(1)).to.be.eq(whale.address);
+        expect(await weth.balanceOf(whale.address)).to.be.eq(
+          beforeBalance.sub(mintPrice)
+        );
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(whale.address, 1, 0, 0);
+      });
+
+      it("Mint new NFT and deposit", async function () {
+        await spiceVault.grantRole(userRole, alice.address);
+        await spiceVault.grantRole(userRole, whale.address);
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        const beforeBalance = await weth.balanceOf(whale.address);
+
+        const tx = await spiceVault
+          .connect(whale)
+          ["mint(uint256,uint256)"](0, amount);
+
+        expect(await spiceVault.ownerOf(1)).to.be.eq(whale.address);
+        expect(await weth.balanceOf(whale.address)).to.be.eq(
+          beforeBalance.sub(amount).sub(mintPrice)
+        );
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(whale.address, 1, amount, amount);
+      });
+
+      it("Can't mint twice on same wallet", async function () {
+        await spiceVault.grantRole(userRole, alice.address);
+        await spiceVault.grantRole(userRole, whale.address);
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        await spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount);
+
+        await expect(
+          spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount)
+        ).to.be.revertedWithCustomError(spiceVault, "MoreThanOne");
+      });
+
+      it("When not owning NFT", async function () {
+        await spiceVault.grantRole(userRole, whale.address);
+
+        const amount = ethers.utils.parseEther("10");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        await spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount);
+
+        await spiceVault
+          .connect(whale)
+          ["safeTransferFrom(address,address,uint256)"](
+            whale.address,
+            alice.address,
+            1
+          );
+
+        await expect(
+          spiceVault.connect(whale)["mint(uint256,uint256)"](1, amount)
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidTokenId");
+      });
+
+      it("Deposit using NFT", async function () {
+        await spiceVault.grantRole(userRole, whale.address);
+
+        const amount = ethers.utils.parseEther("10");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        await spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount);
+
+        const beforeBalance = await weth.balanceOf(whale.address);
+
+        const tx = await spiceVault
+          .connect(whale)
+          ["mint(uint256,uint256)"](1, amount);
+
+        expect(await weth.balanceOf(whale.address)).to.be.eq(
+          beforeBalance.sub(amount)
+        );
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(whale.address, 1, amount, amount);
+      });
+    });
   });
 });
