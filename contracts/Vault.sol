@@ -258,7 +258,7 @@ contract Vault is
             revert ParameterOutOfBounds();
         }
 
-        /// Compute number of shares to mint from current vault share price
+        // Compute number of shares to mint from current vault share price
         shares = previewDeposit(assets);
 
         _deposit(msg.sender, assets, shares, receiver);
@@ -279,7 +279,7 @@ contract Vault is
             revert ParameterOutOfBounds();
         }
 
-        /// Compute number of shares to mint from current vault share price
+        // Compute number of shares to mint from current vault share price
         assets = previewMint(shares);
 
         _deposit(msg.sender, assets, shares, receiver);
