@@ -124,54 +124,59 @@ describe("SpiceFi4626", function () {
     const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
 
     await expect(
-      upgrades.deployProxy(SpiceFi4626, [
-        ethers.constants.AddressZero,
-        strategist.address,
-        assetReceiver.address,
-        700,
-      ], {
-	  unsafeAllow: ['delegatecall']
-      })
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [
+          ethers.constants.AddressZero,
+          strategist.address,
+          assetReceiver.address,
+          700,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+        }
+      )
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(SpiceFi4626, [
-        weth.address,
-        ethers.constants.AddressZero,
-        assetReceiver.address,
-        700,
-      ], {
-	  unsafeAllow: ['delegatecall']
-      })
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [
+          weth.address,
+          ethers.constants.AddressZero,
+          assetReceiver.address,
+          700,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+        }
+      )
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(SpiceFi4626, [
-        weth.address,
-        strategist.address,
-        ethers.constants.AddressZero,
-        700,
-      ], {
-	  unsafeAllow: ['delegatecall']
-      })
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [weth.address, strategist.address, ethers.constants.AddressZero, 700],
+        {
+          unsafeAllow: ["delegatecall"],
+        }
+      )
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(SpiceFi4626, [
-        weth.address,
-        strategist.address,
-        assetReceiver.address,
-        10001,
-      ], {
-	  unsafeAllow: ['delegatecall']
-      })
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [weth.address, strategist.address, assetReceiver.address, 10001],
+        {
+          unsafeAllow: ["delegatecall"],
+        }
+      )
     ).to.be.revertedWithCustomError(SpiceFi4626, "ParameterOutOfBounds");
 
-    spiceVault = await upgrades.deployProxy(SpiceFi4626, [
-      weth.address,
-      strategist.address,
-      assetReceiver.address,
-      700,
-    ], {
-	  unsafeAllow: ['delegatecall']
-      });
+    spiceVault = await upgrades.deployProxy(
+      SpiceFi4626,
+      [weth.address, strategist.address, assetReceiver.address, 700],
+      {
+        unsafeAllow: ["delegatecall"],
+      }
+    );
 
     await spiceVault.setMaxTotalSupply(ethers.constants.MaxUint256);
 
@@ -257,8 +262,8 @@ describe("SpiceFi4626", function () {
 
       await expect(
         upgrades.upgradeProxy(spiceVault.address, SpiceFi4626, {
-	  unsafeAllow: ['delegatecall']
-      })
+          unsafeAllow: ["delegatecall"],
+        })
       ).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
       );
@@ -266,7 +271,7 @@ describe("SpiceFi4626", function () {
       SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626", admin);
 
       await upgrades.upgradeProxy(spiceVault.address, SpiceFi4626, {
-	  unsafeAllow: ['delegatecall']
+        unsafeAllow: ["delegatecall"],
       });
     });
   });
