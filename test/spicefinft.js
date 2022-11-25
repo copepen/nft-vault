@@ -103,6 +103,7 @@ describe("SpiceFiNFT4626", function () {
       vaultName,
       vaultSymbol,
       weth.address,
+      700,
     ]);
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
