@@ -78,6 +78,7 @@ describe("SpiceFiFactory", function () {
       vaultName,
       vaultSymbol,
       weth.address,
+      0,
     ]);
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
@@ -99,14 +100,13 @@ describe("SpiceFiFactory", function () {
 
     const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
 
-    impl = await upgrades.deployProxy(SpiceFi4626, [
-      constants.tokens.WETH,
-      strategist.address,
-      assetReceiver.address,
-      700,
-    ], {
-	  unsafeAllow: ['delegatecall']
-      });
+    impl = await upgrades.deployProxy(
+      SpiceFi4626,
+      [constants.tokens.WETH, strategist.address, assetReceiver.address, 700],
+      {
+        unsafeAllow: ["delegatecall"],
+      }
+    );
 
     defaultAdminRole = await impl.DEFAULT_ADMIN_ROLE();
     strategistRole = await impl.STRATEGIST_ROLE();
@@ -122,7 +122,9 @@ describe("SpiceFiFactory", function () {
       SpiceFiFactory.deploy(ethers.constants.AddressZero)
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
 
-    const implAddr = await upgrades.erc1967.getImplementationAddress(impl.address);
+    const implAddr = await upgrades.erc1967.getImplementationAddress(
+      impl.address
+    );
     factory = await SpiceFiFactory.deploy(implAddr);
 
     expect(await factory.implementation()).to.be.eq(implAddr);

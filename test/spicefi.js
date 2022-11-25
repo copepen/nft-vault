@@ -102,6 +102,7 @@ describe("SpiceFi4626", function () {
       vaultName,
       vaultSymbol,
       weth.address,
+      0,
     ]);
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");

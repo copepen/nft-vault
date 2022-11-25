@@ -57,13 +57,24 @@ describe("Vault", function () {
         "Spice Vault Test Token",
         "svTT",
         ethers.constants.AddressZero,
+        0,
       ])
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
+
+    await expect(
+      upgrades.deployProxy(Vault, [
+        "Spice Vault Test Token",
+        "svTT",
+        token.address,
+        10001,
+      ])
+    ).to.be.revertedWithCustomError(Vault, "ParameterOutOfBounds");
 
     vault = await upgrades.deployProxy(Vault, [
       "Spice Vault Test Token",
       "svTT",
       token.address,
+      700,
     ]);
 
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
@@ -124,7 +135,7 @@ describe("Vault", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        vault.initialize("Spice Vault Test Token", "svTT", token.address)
+        vault.initialize("Spice Vault Test Token", "svTT", token.address, 0)
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 

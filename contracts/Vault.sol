@@ -119,13 +119,18 @@ contract Vault is
     /// @param name_ receipt token name
     /// @param symbol_ receipt token symbol
     /// @param asset_ asset token contract
+    /// @param withdrawalFees_ initial withdrawal fees
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        IERC20Upgradeable asset_
+        IERC20Upgradeable asset_,
+        uint256 withdrawalFees_
     ) external initializer {
         if (address(asset_) == address(0)) {
             revert InvalidAddress();
+        }
+        if (withdrawalFees_ > 10_000) {
+            revert ParameterOutOfBounds();
         }
 
         __ERC20_init(name_, symbol_);
@@ -133,7 +138,7 @@ contract Vault is
         __Pausable_init();
         __ReentrancyGuard_init();
 
-        _withdrawalFees = 700;
+        _withdrawalFees = withdrawalFees_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ASSET_RECEIVER_ROLE, msg.sender);
