@@ -267,28 +267,20 @@ contract SpiceFiNFT4626 is
     }
 
     /// @notice See {ISpiceFiNFT4626-maxWithdraw}
-    function maxWithdraw(address owner) public view override returns (uint256) {
+    function maxWithdraw(address) public view override returns (uint256) {
         uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        return
-            paused()
-                ? 0
-                : _convertToAssets(
-                    balanceOf(owner),
-                    MathUpgradeable.Rounding.Down
-                ).min(balance);
+        return paused() ? 0 : balance;
     }
 
     /// @notice See {ISpiceFiNFT4626-maxRedeem}
-    function maxRedeem(address owner) public view override returns (uint256) {
+    function maxRedeem(address) public view override returns (uint256) {
         uint256 balance = IERC20MetadataUpgradeable(asset()).balanceOf(
             address(this)
         );
         return
             paused()
                 ? 0
-                : balanceOf(owner).min(
-                    _convertToShares(balance, MathUpgradeable.Rounding.Down)
-                );
+                : _convertToShares(balance, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {ISpiceFiNFT4626-previewDeposit}

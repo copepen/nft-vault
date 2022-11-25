@@ -250,6 +250,241 @@ describe("SpiceFiNFT4626", function () {
     });
   });
 
+  describe("Getters", function () {
+    describe("convertToShares", function () {
+      it("Zero assets", async function () {
+        expect(await spiceVault.convertToShares(0)).to.be.eq(0);
+      });
+
+      it("Non-zero assets when supply is zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        expect(await spiceVault.convertToShares(assets)).to.be.eq(assets);
+      });
+
+      it("Non-zero assets when supply is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.convertToShares(100)).to.be.eq(100);
+      });
+    });
+
+    describe("convertToAssets", function () {
+      it("Zero shares", async function () {
+        expect(await spiceVault.convertToAssets(0)).to.be.eq(0);
+      });
+
+      it("Non-zero shares when supply is zero", async function () {
+        expect(await spiceVault.convertToAssets(100)).to.be.eq(100);
+      });
+
+      it("Non-zero shares when supply is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.convertToAssets(100)).to.be.eq(100);
+      });
+    });
+
+    describe("previewDeposit", function () {
+      it("Zero assets", async function () {
+        expect(await spiceVault.previewDeposit(0)).to.be.eq(0);
+      });
+
+      it("Non-zero assets when supply is zero", async function () {
+        expect(await spiceVault.previewDeposit(100)).to.be.eq(100);
+      });
+
+      it("Non-zero assets when supply is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.previewDeposit(100)).to.be.eq(100);
+      });
+    });
+
+    describe("previewMint", function () {
+      it("Zero shares", async function () {
+        expect(await spiceVault.previewMint(0)).to.be.eq(0);
+      });
+
+      it("Non-zero shares when supply is zero", async function () {
+        expect(await spiceVault.previewMint(100)).to.be.eq(100);
+      });
+
+      it("Non-zero shares when supply is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.previewMint(100)).to.be.eq(100);
+      });
+    });
+
+    describe("previewWithdraw", function () {
+      it("Zero assets", async function () {
+        expect(await spiceVault.previewWithdraw(0)).to.be.eq(0);
+      });
+
+      it("Non-zero assets when supply is zero", async function () {
+        expect(await spiceVault.previewWithdraw(9300)).to.be.eq(10000);
+      });
+
+      it("Non-zero assets when supply is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.previewWithdraw(9300)).to.be.eq(10000);
+      });
+    });
+
+    describe("previewRedeem", function () {
+      it("Zero shares", async function () {
+        expect(await spiceVault.previewRedeem(0)).to.be.eq(0);
+      });
+
+      it("Non-zero shares when supply is zero", async function () {
+        expect(await spiceVault.previewRedeem(10000)).to.be.eq(9300);
+      });
+
+      it("Non-zero shares when supply is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.previewRedeem(10000)).to.be.eq(9300);
+      });
+    });
+
+    describe("maxDeposit", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+        expect(await spiceVault.maxDeposit(admin.address)).to.be.eq(0);
+      });
+
+      it("When not paused", async function () {
+        expect(await spiceVault.maxDeposit(admin.address)).to.be.eq(
+          ethers.constants.MaxUint256
+        );
+      });
+    });
+
+    describe("maxMint", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+        expect(await spiceVault.maxMint(admin.address)).to.be.eq(0);
+      });
+
+      it("When not paused", async function () {
+        expect(await spiceVault.maxMint(admin.address)).to.be.eq(
+          ethers.constants.MaxUint256
+        );
+      });
+    });
+
+    describe("maxWithdraw", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+        expect(await spiceVault.maxWithdraw(admin.address)).to.be.eq(0);
+      });
+
+      it("When balance is zero", async function () {
+        expect(await spiceVault.maxWithdraw(admin.address)).to.be.eq(0);
+      });
+
+      it("When balance is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(assets);
+      });
+    });
+
+    describe("maxRedeem", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+        expect(await spiceVault.maxRedeem(admin.address)).to.be.eq(0);
+      });
+
+      it("When balance is zero", async function () {
+        expect(await spiceVault.maxRedeem(admin.address)).to.be.eq(0);
+      });
+
+      it("When balance is non-zero", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(assets);
+      });
+    });
+
+    describe("tokenURI", function () {
+      it("When token not exists", async function () {
+        await expect(spiceVault.tokenURI(1)).to.be.revertedWith(
+          "ERC721: invalid token ID"
+        );
+      });
+
+      it("When not revealed", async function () {
+        await spiceVault.setPreviewURI("previewuri");
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
+
+        expect(await spiceVault.tokenURI(1)).to.be.eq("previewuri");
+      });
+
+      it("When base uri is empty", async function () {
+        await spiceVault.setBaseURI("");
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
+
+        expect(await spiceVault.tokenURI(1)).to.be.eq("");
+      });
+
+      it("When base uri is not empty", async function () {
+        await spiceVault.setBaseURI("baseuri://");
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
+
+        expect(await spiceVault.tokenURI(1)).to.be.eq("baseuri://1");
+      });
+    });
+  });
+
   describe("User Actions", function () {
     describe("Deposit", function () {
       it("When paused", async function () {
