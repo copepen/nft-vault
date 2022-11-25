@@ -405,15 +405,15 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 shares,
         address receiver
-    ) external whenNotPaused returns (uint256 assets) {
+    ) external whenNotPaused nonReentrant returns (uint256 assets) {
         if (tokenId == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (shares == 0) {
             revert ParameterOutOfBounds();
         }
         if (receiver == address(0)) {
             revert InvalidAddress();
-        }
-        if (shares == 0) {
-            revert ParameterOutOfBounds();
         }
 
         // compute redemption amount
@@ -431,7 +431,7 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 assets,
         address receiver
-    ) external whenNotPaused returns (uint256 shares) {
+    ) external whenNotPaused nonReentrant returns (uint256 shares) {
         if (tokenId == 0) {
             revert ParameterOutOfBounds();
         }
