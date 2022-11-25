@@ -120,6 +120,9 @@ contract SpiceFiNFT4626 is
     /// @notice Withdraw before reveal
     error WithdrawBeforeReveal();
 
+    /// @notice Insufficient share balance
+    error InsufficientShareBalance();
+
     /////////////////////////////////////////////////////////////////////////
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
@@ -432,11 +435,11 @@ contract SpiceFiNFT4626 is
         if (tokenId == 0) {
             revert ParameterOutOfBounds();
         }
-        if (receiver == address(0)) {
-            revert InvalidAddress();
-        }
         if (assets == 0) {
             revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
         }
 
         // compute share amount
@@ -514,12 +517,16 @@ contract SpiceFiNFT4626 is
             revert InvalidTokenId();
         }
 
-        address feesAddr1 = getRoleMember(ASSET_RECEIVER_ROLE, 0);
-        address feesAddr2 = getRoleMember(SPICE_ROLE, 0);
-        uint256 fees1 = fees.div(2);
+        if (tokenShares[tokenId] < shares) {
+            revert InsufficientShareBalance();
+        }
 
         totalShares -= shares;
         tokenShares[tokenId] -= shares;
+
+        address feesAddr1 = getRoleMember(ASSET_RECEIVER_ROLE, 0);
+        address feesAddr2 = getRoleMember(SPICE_ROLE, 0);
+        uint256 fees1 = fees.div(2);
 
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
         weth.transfer(feesAddr1, fees1);
