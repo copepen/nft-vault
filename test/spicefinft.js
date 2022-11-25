@@ -1056,6 +1056,595 @@ describe("SpiceFiNFT4626", function () {
     });
   });
 
+  describe("Strategist Actions", function () {
+    describe("Approve", function () {
+      it("Only strategist can call", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["approve(address,address,uint256)"](
+              vault.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only approve vault token", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["approve(address,address,uint256)"](
+              token.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only approve to vault receiver", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["approve(address,address,uint256)"](
+              vault.address,
+              carol.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("Approves correct amount", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(strategist)
+          ["approve(address,address,uint256)"](
+            vault.address,
+            vaultReceiver.address,
+            amount
+          );
+        expect(
+          await vault.allowance(spiceVault.address, vaultReceiver.address)
+        ).to.be.eq(amount);
+      });
+    });
+
+    describe("Deposit", function () {
+      it("Only strategist can call", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["deposit(address,uint256,address)"](
+              vault.address,
+              assets,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only deposit to vault", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,address)"](
+              token.address,
+              assets,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only vault receiver can receive shares", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,address)"](
+              vault.address,
+              assets,
+              carol.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("Take assets and mint shares", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        await spiceVault
+          .connect(strategist)
+          ["deposit(address,uint256,address)"](
+            vault.address,
+            assets,
+            vaultReceiver.address
+          );
+
+        expect(await vault.balanceOf(vaultReceiver.address)).to.be.eq(assets);
+      });
+    });
+
+    describe("Mint", function () {
+      it("Only strategist can call", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["mint(address,uint256,address)"](
+              vault.address,
+              assets,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only mint to vault", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["mint(address,uint256,address)"](
+              token.address,
+              shares,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only vault receiver can receive shares", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["mint(address,uint256,address)"](
+              vault.address,
+              shares,
+              carol.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("Take assets and mint shares", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        const shares = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(strategist)
+          ["mint(address,uint256,address)"](
+            vault.address,
+            shares,
+            vaultReceiver.address
+          );
+
+        expect(await vault.balanceOf(vaultReceiver.address)).to.be.eq(shares);
+      });
+    });
+
+    describe("Withdraw", function () {
+      beforeEach(async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        const shares = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(strategist)
+          ["mint(address,uint256,address)"](
+            vault.address,
+            shares,
+            vaultReceiver.address
+          );
+
+        await vault
+          .connect(vaultReceiver)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+      });
+
+      it("Only strategist can call", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["withdraw(address,uint256,address,address)"](
+              vault.address,
+              assets,
+              spiceVault.address,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only withdraw from vault", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["withdraw(address,uint256,address,address)"](
+              token.address,
+              assets,
+              spiceVault.address,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only vault receiver can receive assets", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["withdraw(address,uint256,address,address)"](
+              vault.address,
+              assets,
+              carol.address,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("Withdraw assets", async function () {
+        const assets = ethers.utils.parseEther("50");
+        await spiceVault
+          .connect(strategist)
+          ["withdraw(address,uint256,address,address)"](
+            vault.address,
+            assets,
+            spiceVault.address,
+            vaultReceiver.address
+          );
+      });
+    });
+
+    describe("Redeem", function () {
+      beforeEach(async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+
+        const shares = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(strategist)
+          ["mint(address,uint256,address)"](
+            vault.address,
+            shares,
+            vaultReceiver.address
+          );
+
+        await vault
+          .connect(vaultReceiver)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+      });
+
+      it("Only strategist can call", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["redeem(address,uint256,address,address)"](
+              vault.address,
+              shares,
+              spiceVault.address,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only redeem from vault", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["redeem(address,uint256,address,address)"](
+              token.address,
+              shares,
+              spiceVault.address,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only vault receiver can receive assets", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["redeem(address,uint256,address,address)"](
+              vault.address,
+              shares,
+              carol.address,
+              vaultReceiver.address
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("Redeem assets", async function () {
+        const shares = ethers.utils.parseEther("50");
+        await spiceVault
+          .connect(strategist)
+          ["redeem(address,uint256,address,address)"](
+            vault.address,
+            shares,
+            spiceVault.address,
+            vaultReceiver.address
+          );
+      });
+    });
+
+    describe("Transfer", function () {
+      beforeEach(async function () {
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault
+          .connect(whale)
+          ["deposit(uint256,uint256)"](0, amount);
+
+        const assets = ethers.utils.parseEther("30");
+        await spiceVault
+          .connect(strategist)
+          ["deposit(address,uint256,address)"](
+            vault.address,
+            assets,
+            spiceVault.address
+          );
+        await spiceVault
+          .connect(strategist)
+          ["deposit(address,uint256,address)"](
+            vault.address,
+            assets,
+            vaultReceiver.address
+          );
+      });
+
+      it("Only strategist can transfer", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["transfer(address,address,uint256)"](
+              vault.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only transfer vault tokens", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["transfer(address,address,uint256)"](
+              weth.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${weth.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only transfer to vault receiver", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["transfer(address,address,uint256)"](
+              vault.address,
+              carol.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      it("When transfer amount exceeds balance", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["transfer(address,address,uint256)"](
+              vault.address,
+              vaultReceiver.address,
+              amount
+            )
+        ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      });
+
+      it("Transfer correct amount", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await spiceVault.grantRole(vaultReceiverRole, carol.address);
+
+        await spiceVault
+          .connect(strategist)
+          ["transfer(address,address,uint256)"](
+            vault.address,
+            carol.address,
+            amount
+          );
+
+        expect(await vault.balanceOf(carol.address)).to.be.eq(amount);
+      });
+    });
+
+    describe("TransferFrom", function () {
+      beforeEach(async function () {
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault
+          .connect(whale)
+          ["deposit(uint256,uint256)"](0, amount);
+
+        const assets = ethers.utils.parseEther("30");
+        await spiceVault
+          .connect(strategist)
+          ["deposit(address,uint256,address)"](
+            vault.address,
+            assets,
+            spiceVault.address
+          );
+        await spiceVault
+          .connect(strategist)
+          ["deposit(address,uint256,address)"](
+            vault.address,
+            assets,
+            vaultReceiver.address
+          );
+
+        await spiceVault.grantRole(vaultReceiverRole, bob.address);
+      });
+
+      it("Only strategist can transfer", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(alice)
+            ["transferFrom(address,address,address,uint256)"](
+              vault.address,
+              vaultReceiver.address,
+              bob.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+        );
+      });
+
+      it("Only transfer vault tokens", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["transferFrom(address,address,address,uint256)"](
+              weth.address,
+              vaultReceiver.address,
+              bob.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${weth.address.toLowerCase()} is missing role ${vaultRole}`
+        );
+      });
+
+      it("Only transfer to vault receiver", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(strategist)
+            ["transferFrom(address,address,address,uint256)"](
+              vault.address,
+              vaultReceiver.address,
+              carol.address,
+              amount
+            )
+        ).to.be.revertedWith(
+          `AccessControl: account ${carol.address.toLowerCase()} is missing role ${vaultReceiverRole}`
+        );
+      });
+
+      if (
+        ("When not approved",
+        async function () {
+          const amount = ethers.utils.parseEther("10");
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["transferFrom(address,address,address,uint256)"](
+                vault.address,
+                vaultReceiver.address,
+                bob.address,
+                amount
+              )
+          ).to.be.revertedWith("ERC20: insufficient allowance");
+        })
+      )
+        it("When transfer amount exceeds balance", async function () {
+          const amount = ethers.utils.parseEther("100");
+          await vault
+            .connect(vaultReceiver)
+            .approve(spiceVault.address, amount);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["transferFrom(address,address,address,uint256)"](
+                vault.address,
+                vaultReceiver.address,
+                bob.address,
+                amount
+              )
+          ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+        });
+
+      it("Transfer correct amount", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await spiceVault.grantRole(vaultReceiverRole, carol.address);
+        await vault.connect(vaultReceiver).approve(spiceVault.address, amount);
+
+        await spiceVault
+          .connect(strategist)
+          ["transferFrom(address,address,address,uint256)"](
+            vault.address,
+            vaultReceiver.address,
+            bob.address,
+            amount
+          );
+
+        expect(await vault.balanceOf(bob.address)).to.be.eq(amount);
+      });
+    });
+  });
+
   describe("Admin Actions", function () {
     it("Set withdrawal fees", async function () {
       await expect(
