@@ -338,9 +338,7 @@ contract SpiceFiNFT4626 is
         return super.supportsInterface(interfaceId);
     }
 
-    /**
-     * @dev See {IERC721Metadata-tokenURI}.
-     */
+    /// @notice See {IERC721Metadata-tokenURI}.
     function tokenURI(uint256 tokenId)
         public
         view

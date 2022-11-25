@@ -820,4 +820,92 @@ describe("SpiceFiNFT4626", function () {
       });
     });
   });
+
+  describe("Admin Actions", function () {
+    it("Set withdrawal fees", async function () {
+      await expect(
+        spiceVault.connect(alice).setWithdrawalFees(1000)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        spiceVault.connect(admin).setWithdrawalFees(10001)
+      ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+
+      await spiceVault.connect(admin).setWithdrawalFees(1000);
+
+      expect(await spiceVault.withdrawalFees()).to.be.eq(1000);
+    });
+
+    it("Set preview uri", async function () {
+      await expect(
+        spiceVault.connect(alice).setPreviewURI("previewuri://")
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await spiceVault.connect(admin).setPreviewURI("previewuri://");
+
+      await spiceVault.connect(admin).setBaseURI("uri://");
+
+      await expect(
+        spiceVault.connect(admin).setPreviewURI("previewuri://")
+      ).to.be.revertedWithCustomError(spiceVault, "MetadataRevealed");
+    });
+
+    it("Set base uri", async function () {
+      await expect(
+        spiceVault.connect(alice).setBaseURI("uri://")
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await spiceVault.connect(admin).setBaseURI("uri://");
+    });
+
+    it("Set verified", async function () {
+      expect(await spiceVault.verified()).to.be.eq(false);
+
+      await expect(
+        spiceVault.connect(alice).setVerified(true)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${spiceRole}`
+      );
+
+      await spiceVault.connect(spiceAdmin).setVerified(true);
+
+      expect(await spiceVault.verified()).to.be.eq(true);
+    });
+
+    it("Pause", async function () {
+      await expect(spiceVault.connect(alice).pause()).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      expect(await spiceVault.paused()).to.be.eq(false);
+
+      const tx = await spiceVault.connect(admin).pause();
+
+      await expect(tx).to.emit(spiceVault, "Paused").withArgs(admin.address);
+
+      expect(await spiceVault.paused()).to.be.eq(true);
+    });
+
+    it("Unpause", async function () {
+      await spiceVault.connect(admin).pause();
+
+      await expect(spiceVault.connect(alice).unpause()).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      expect(await spiceVault.paused()).to.be.eq(true);
+
+      const tx = await spiceVault.connect(admin).unpause();
+
+      await expect(tx).to.emit(spiceVault, "Unpaused").withArgs(admin.address);
+
+      expect(await spiceVault.paused()).to.be.eq(false);
+    });
+  });
 });
