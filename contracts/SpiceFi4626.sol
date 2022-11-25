@@ -8,6 +8,8 @@ import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
+import "./interfaces/IAggregatorVault.sol";
+
 /// @title Storage for SpiceFi4626
 abstract contract SpiceFi4626Storage {
     /// @notice withdrawal fees per 10_000 units
@@ -28,6 +30,7 @@ contract SpiceFi4626 is
     AccessControlEnumerableUpgradeable,
     UUPSUpgradeable,
     SpiceFi4626Storage,
+    IAggregatorVault,
     Multicall
 {
     using SafeMathUpgradeable for uint256;
@@ -327,6 +330,7 @@ contract SpiceFi4626 is
         super._deposit(caller, receiver, assets, shares);
     }
 
+    /// See {IAggregatorVault-transfer}
     function transfer(
         address vault,
         address to,
@@ -337,6 +341,7 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).transfer(to, amount);
     }
 
+    /// See {IAggregatorVault-transferFrom}
     function transferFrom(
         address vault,
         address from,
@@ -348,6 +353,7 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).transferFrom(from, to, amount);
     }
 
+    /// See {IAggregatorVault-approve}
     function approve(
         address vault,
         address spender,
@@ -358,6 +364,7 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).approve(spender, amount);
     }
 
+    /// See {IAggregatorVault-deposit}
     function deposit(
         address vault,
         uint256 assets,
@@ -373,6 +380,7 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).deposit(assets, receiver);
     }
 
+    /// See {IAggregatorVault-mint}
     function mint(
         address vault,
         uint256 shares,
@@ -389,6 +397,7 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).mint(shares, receiver);
     }
 
+    /// See {IAggregatorVault-withdraw}
     function withdraw(
         address vault,
         uint256 assets,
@@ -400,6 +409,7 @@ contract SpiceFi4626 is
         return IERC4626Upgradeable(vault).withdraw(assets, receiver, owner);
     }
 
+    /// See {IAggregatorVault-redeem}
     function redeem(
         address vault,
         uint256 shares,
