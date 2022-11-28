@@ -24,12 +24,8 @@ describe("SpiceFiFactory", function () {
   let snapshotId;
 
   let defaultAdminRole,
-    strategistRole,
     vaultRole,
-    vaultReceiverRole,
-    assetReceiverRole,
-    userRole,
-    spiceRole;
+    aggregatorRole;
 
   const vaultName = "Spice Vault Test Token";
   const vaultSymbol = "svTT";
@@ -109,12 +105,6 @@ describe("SpiceFiFactory", function () {
     );
 
     defaultAdminRole = await impl.DEFAULT_ADMIN_ROLE();
-    strategistRole = await impl.STRATEGIST_ROLE();
-    vaultRole = await impl.VAULT_ROLE();
-    vaultReceiverRole = await impl.VAULT_RECEIVER_ROLE();
-    assetReceiverRole = await impl.ASSET_RECEIVER_ROLE();
-    userRole = await impl.USER_ROLE();
-    spiceRole = await impl.SPICE_ROLE();
 
     const SpiceFiFactory = await ethers.getContractFactory("SpiceFiFactory");
 
@@ -126,6 +116,9 @@ describe("SpiceFiFactory", function () {
       impl.address
     );
     factory = await SpiceFiFactory.deploy(implAddr);
+
+    vaultRole = await factory.VAULT_ROLE();
+    aggregatorRole = await factory.AGGREGATOR_ROLE();
 
     expect(await factory.implementation()).to.be.eq(implAddr);
     await checkRole(factory, admin.address, defaultAdminRole, true);
@@ -143,7 +136,7 @@ describe("SpiceFiFactory", function () {
     await expect(
       factory
         .connect(alice)
-        .callStatic.createVault(
+        .createVault(
           constants.tokens.WETH,
           assetReceiver.address,
           [vault.address, bend.address, drops.address],
@@ -213,5 +206,6 @@ describe("SpiceFiFactory", function () {
     await checkRole(createdVault, vault.address, vaultRole, true);
     await checkRole(createdVault, bend.address, vaultRole, true);
     await checkRole(createdVault, drops.address, vaultRole, true);
+    await checkRole(factory, createdVault.address, aggregatorRole, true);
   });
 });

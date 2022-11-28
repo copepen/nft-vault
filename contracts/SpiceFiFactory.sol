@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./SpiceFi4626.sol";
 
 /// @title SpiceFi Factory
-contract SpiceFiFactory is AccessControl {
+contract SpiceFiFactory is AccessControlEnumerable {
     using Clones for address;
 
     /// @notice SpiceFi4626 implementation
@@ -17,8 +17,11 @@ contract SpiceFiFactory is AccessControl {
     /// Constants ///
     /////////////////////////////////////////////////////////////////////////
 
-    /// @notice Contracts that funds can be sent to
+    /// @notice Vault contracts
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
+
+    /// @notice Aggregator contracts
+    bytes32 public constant AGGREGATOR_ROLE = keccak256("AGGREGATOR_ROLE");
 
     /////////////////////////////////////////////////////////////////////////
     /// Errors ///
@@ -84,6 +87,9 @@ contract SpiceFiFactory is AccessControl {
                 ++i;
             }
         }
+
+        // grant AGGREGATOR_ROLE for tracking
+        _grantRole(AGGREGATOR_ROLE, address(vault));
 
         emit VaultCreated(msg.sender, address(vault));
     }
