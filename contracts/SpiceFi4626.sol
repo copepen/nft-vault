@@ -224,7 +224,7 @@ contract SpiceFi4626 is
                 ? 0
                 : _convertToAssets(
                     maxTotalSupply - totalSupply(),
-                    MathUpgradeable.Rounding.Up
+                    MathUpgradeable.Rounding.Down
                 );
     }
 
