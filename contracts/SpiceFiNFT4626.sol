@@ -234,11 +234,27 @@ contract SpiceFiNFT4626 is
     /// @notice See {ISpiceFiNFT4626-totalAssets}
     function totalAssets() public view returns (uint256) {
         uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
+        uint256 vaultReceiverCount = getRoleMemberCount(VAULT_RECEIVER_ROLE);
+        address[] memory vaultReceivers = new address[](vaultReceiverCount);
+        for (uint8 i; i != vaultReceiverCount; ) {
+            vaultReceivers[i] = getRoleMember(VAULT_RECEIVER_ROLE, i);
+            unchecked {
+                ++i;
+            }
+        }
+
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
         for (uint8 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
-            balance += vault.previewRedeem(vault.balanceOf(address(this)));
+            for (uint8 j; j != vaultReceiverCount; ) {
+                balance += vault.previewRedeem(
+                    vault.balanceOf(vaultReceivers[j])
+                );
+                unchecked {
+                    ++j;
+                }
+            }
             unchecked {
                 ++i;
             }
@@ -473,7 +489,7 @@ contract SpiceFiNFT4626 is
     }
 
     function _mintInternal(address user) internal returns (uint256 tokenId) {
-        if (balanceOf(user) == 1) {
+        if (balanceOf(user) > 0) {
             revert MoreThanOne();
         }
 
