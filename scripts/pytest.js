@@ -113,19 +113,16 @@ async function main() {
   defaultAdminRole = await spiceVault.DEFAULT_ADMIN_ROLE();
   strategistRole = await spiceVault.STRATEGIST_ROLE();
   vaultRole = await spiceVault.VAULT_ROLE();
-  vaultReceiverRole = await spiceVault.VAULT_RECEIVER_ROLE();
   assetReceiverRole = await spiceVault.ASSET_RECEIVER_ROLE();
   userRole = await spiceVault.USER_ROLE();
   spiceRole = await spiceVault.SPICE_ROLE();
 
   await spiceVault.grantRole(strategistRole, strategist.address);
   await spiceVault.grantRole(strategistRole, admin.address);
-  await spiceVault.grantRole(vaultReceiverRole, vaultReceiver.address);
   await spiceVault.grantRole(vaultRole, vault.address);
   await spiceVault.grantRole(vaultRole, bend.address);
   await spiceVault.grantRole(vaultRole, drops.address);
   await checkRole(spiceVault, strategist.address, strategistRole, true);
-  await checkRole(spiceVault, vaultReceiver.address, vaultReceiverRole, true);
   await checkRole(spiceVault, vault.address, vaultRole, true);
   await checkRole(spiceVault, bend.address, vaultRole, true);
   await checkRole(spiceVault, drops.address, vaultRole, true);
