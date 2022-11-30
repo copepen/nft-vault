@@ -165,6 +165,11 @@ contract Vault is
         onlyRole(DEFAULT_ADMIN_ROLE)
     {}
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /////////////////////////////////////////////////////////////////////////
     /// Getters ///
     /////////////////////////////////////////////////////////////////////////

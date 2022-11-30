@@ -79,6 +79,11 @@ contract Drops4626 is
         _decimals = decimals_;
     }
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     /////////////////////////////////////////////////////////////////////////
     /// Getters ///
     /////////////////////////////////////////////////////////////////////////
