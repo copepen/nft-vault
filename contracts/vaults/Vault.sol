@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "./interfaces/IVault.sol";
+import "../interfaces/IVault.sol";
 
 /// @title Storage for Vault
 abstract contract VaultStorageV1 {

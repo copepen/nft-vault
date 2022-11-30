@@ -1,8 +1,7 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
-const { takeSnapshot, revertToSnapshot } = require("./helpers/snapshot");
-const { impersonateAccount } = require("./helpers/account");
-const constants = require("./constants");
+const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
+const constants = require("../constants");
 
 describe("SpiceFiFactory", function () {
   let weth;

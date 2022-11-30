@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
-const { takeSnapshot, revertToSnapshot } = require("./helpers/snapshot");
+const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
 
 describe("Vault", function () {
   let vault;

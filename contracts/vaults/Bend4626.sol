@@ -7,8 +7,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
-import "./interfaces/IWETH.sol";
-import "./interfaces/IBendLendPool.sol";
+import "../interfaces/IWETH.sol";
+import "../interfaces/IBendLendPool.sol";
 
 /// @title Storage for Bend4626
 abstract contract Bend4626Storage {

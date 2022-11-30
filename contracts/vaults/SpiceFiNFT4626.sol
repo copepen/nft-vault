@@ -11,9 +11,9 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
-import "./interfaces/IWETH.sol";
-import "./interfaces/ISpiceFiNFT4626.sol";
-import "./interfaces/IAggregatorVault.sol";
+import "../interfaces/IWETH.sol";
+import "../interfaces/ISpiceFiNFT4626.sol";
+import "../interfaces/IAggregatorVault.sol";
 
 /// @title Storage for SpiceFiNFT4626
 abstract contract SpiceFiNFT4626Storage {

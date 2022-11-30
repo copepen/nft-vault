@@ -8,7 +8,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
-import "./interfaces/IAggregatorVault.sol";
+import "../interfaces/IAggregatorVault.sol";
 
 /// @title Storage for SpiceFi4626
 abstract contract SpiceFi4626Storage {

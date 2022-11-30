@@ -1,8 +1,8 @@
 const { expect } = require("chai");
 const { ethers, upgrades, network } = require("hardhat");
-const { takeSnapshot, revertToSnapshot } = require("./helpers/snapshot");
-const { impersonateAccount } = require("./helpers/account");
-const constants = require("./constants");
+const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
+const { impersonateAccount } = require("../helpers/account");
+const constants = require("../constants");
 
 describe("Drops4626", function () {
   let vault;
