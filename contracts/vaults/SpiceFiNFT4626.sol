@@ -75,10 +75,6 @@ contract SpiceFiNFT4626 is
     /// @notice Contracts that funds can be sent to
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
 
-    /// @notice Contracts that can be listed as "receiver" of shares in ERC4626 client calls
-    bytes32 public constant VAULT_RECEIVER_ROLE =
-        keccak256("VAULT_RECEIVER_ROLE");
-
     /// @notice Contracts that receive fees
     bytes32 public constant ASSET_RECEIVER_ROLE =
         keccak256("ASSET_RECEIVER_ROLE");
@@ -150,7 +146,6 @@ contract SpiceFiNFT4626 is
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(DEFAULT_ADMIN_ROLE, multisig);
-        _setupRole(VAULT_RECEIVER_ROLE, address(this));
 
         _setupRole(STRATEGIST_ROLE, strategist_);
         _setupRole(ASSET_RECEIVER_ROLE, assetReceiver_);
@@ -234,27 +229,12 @@ contract SpiceFiNFT4626 is
     /// @notice See {ISpiceFiNFT4626-totalAssets}
     function totalAssets() public view returns (uint256) {
         uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        uint256 vaultReceiverCount = getRoleMemberCount(VAULT_RECEIVER_ROLE);
-        address[] memory vaultReceivers = new address[](vaultReceiverCount);
-        for (uint8 i; i != vaultReceiverCount; ) {
-            vaultReceivers[i] = getRoleMember(VAULT_RECEIVER_ROLE, i);
-            unchecked {
-                ++i;
-            }
-        }
 
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
         for (uint8 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
-            for (uint8 j; j != vaultReceiverCount; ) {
-                balance += vault.previewRedeem(
-                    vault.balanceOf(vaultReceivers[j])
-                );
-                unchecked {
-                    ++j;
-                }
-            }
+            balance += vault.previewRedeem(vault.balanceOf(address(this)));
             unchecked {
                 ++i;
             }
@@ -566,94 +546,64 @@ contract SpiceFiNFT4626 is
         emit Deposit(caller, tokenId, assets, shares);
     }
 
-    /// See {IAggregatorVault-transfer}
-    function transfer(
-        address vault,
-        address to,
-        uint256 amount
-    ) public onlyRole(STRATEGIST_ROLE) returns (bool) {
-        _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, to);
-        return IERC4626Upgradeable(vault).transfer(to, amount);
-    }
-
-    /// See {IAggregatorVault-transferFrom}
-    function transferFrom(
-        address vault,
-        address from,
-        address to,
-        uint256 amount
-    ) public onlyRole(STRATEGIST_ROLE) returns (bool) {
-        _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, to);
-        return IERC4626Upgradeable(vault).transferFrom(from, to, amount);
-    }
-
-    /// See {IAggregatorVault-approve}
-    function approve(
-        address vault,
-        address spender,
-        uint256 amount
-    ) public onlyRole(STRATEGIST_ROLE) returns (bool) {
-        _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, spender);
-        return IERC4626Upgradeable(vault).approve(spender, amount);
-    }
-
     /// See {IAggregatorVault-deposit}
-    function deposit(
-        address vault,
-        uint256 assets,
-        address receiver
-    ) public onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
+    function deposit(address vault, uint256 assets)
+        public
+        onlyRole(STRATEGIST_ROLE)
+        returns (uint256 shares)
+    {
         _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, receiver);
         SafeERC20Upgradeable.safeIncreaseAllowance(
             IERC20MetadataUpgradeable(asset()),
             vault,
             assets
         );
-        return IERC4626Upgradeable(vault).deposit(assets, receiver);
+        return IERC4626Upgradeable(vault).deposit(assets, address(this));
     }
 
     /// See {IAggregatorVault-mint}
-    function mint(
-        address vault,
-        uint256 shares,
-        address receiver
-    ) public onlyRole(STRATEGIST_ROLE) returns (uint256 assets) {
+    function mint(address vault, uint256 shares)
+        public
+        onlyRole(STRATEGIST_ROLE)
+        returns (uint256 assets)
+    {
         _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, receiver);
         uint256 assets_ = IERC4626Upgradeable(vault).previewMint(shares);
         SafeERC20Upgradeable.safeIncreaseAllowance(
             IERC20MetadataUpgradeable(asset()),
             vault,
             assets_
         );
-        return IERC4626Upgradeable(vault).mint(shares, receiver);
+        return IERC4626Upgradeable(vault).mint(shares, address(this));
     }
 
     /// See {IAggregatorVault-withdraw}
-    function withdraw(
-        address vault,
-        uint256 assets,
-        address receiver,
-        address owner
-    ) public onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
+    function withdraw(address vault, uint256 assets)
+        public
+        onlyRole(STRATEGIST_ROLE)
+        returns (uint256 shares)
+    {
         _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, receiver);
-        return IERC4626Upgradeable(vault).withdraw(assets, receiver, owner);
+        return
+            IERC4626Upgradeable(vault).withdraw(
+                assets,
+                address(this),
+                address(this)
+            );
     }
 
     /// See {IAggregatorVault-redeem}
-    function redeem(
-        address vault,
-        uint256 shares,
-        address receiver,
-        address owner
-    ) public onlyRole(STRATEGIST_ROLE) returns (uint256 assets) {
+    function redeem(address vault, uint256 shares)
+        public
+        onlyRole(STRATEGIST_ROLE)
+        returns (uint256 assets)
+    {
         _checkRole(VAULT_ROLE, vault);
-        _checkRole(VAULT_RECEIVER_ROLE, receiver);
-        return IERC4626Upgradeable(vault).redeem(shares, receiver, owner);
+        return
+            IERC4626Upgradeable(vault).redeem(
+                shares,
+                address(this),
+                address(this)
+            );
     }
 }

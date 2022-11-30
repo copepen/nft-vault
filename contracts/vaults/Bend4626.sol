@@ -5,6 +5,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
@@ -27,6 +28,7 @@ contract Bend4626 is
     Initializable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
+    ReentrancyGuardUpgradeable,
     Bend4626Storage
 {
     using MathUpgradeable for uint256;
@@ -87,6 +89,11 @@ contract Bend4626 is
 
         lpTokenAddress = lpTokenAddress_;
         _decimals = decimals_;
+    }
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -174,6 +181,7 @@ contract Bend4626 is
     /// @return shares The amount of receipt tokens minted
     function deposit(uint256 assets, address receiver)
         external
+        nonReentrant
         returns (uint256 shares)
     {
         if (assets == 0) {
@@ -191,6 +199,7 @@ contract Bend4626 is
     /// @return assets The amount of weth deposited
     function mint(uint256 shares, address receiver)
         external
+        nonReentrant
         returns (uint256 assets)
     {
         if (shares == 0) {
@@ -210,7 +219,7 @@ contract Bend4626 is
         uint256 assets,
         address receiver,
         address owner
-    ) external returns (uint256 shares) {
+    ) external nonReentrant returns (uint256 shares) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -231,7 +240,7 @@ contract Bend4626 is
         uint256 shares,
         address receiver,
         address owner
-    ) external returns (uint256 assets) {
+    ) external nonReentrant returns (uint256 assets) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
