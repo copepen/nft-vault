@@ -265,7 +265,7 @@ contract SpiceFiNFT4626 is
     /// @notice See {ISpiceFiNFT4626-maxWithdraw}
     function maxWithdraw(address) public view override returns (uint256) {
         uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        return paused() ? 0 : balance;
+        return paused() ? 0 : balance.mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @notice See {ISpiceFiNFT4626-maxRedeem}
@@ -276,7 +276,10 @@ contract SpiceFiNFT4626 is
         return
             paused()
                 ? 0
-                : _convertToShares(balance, MathUpgradeable.Rounding.Down);
+                : _convertToShares(
+                    balance.mulDiv(10_000 - withdrawalFees, 10_000),
+                    MathUpgradeable.Rounding.Down
+                );
     }
 
     /// @notice See {ISpiceFiNFT4626-previewDeposit}

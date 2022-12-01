@@ -221,10 +221,12 @@ contract SpiceFi4626 is
         return
             paused()
                 ? 0
-                : _convertToAssets(
-                    balanceOf(owner),
-                    MathUpgradeable.Rounding.Down
-                ).min(balance);
+                : (
+                    _convertToAssets(
+                        balanceOf(owner),
+                        MathUpgradeable.Rounding.Down
+                    ).min(balance)
+                ).mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @inheritdoc IERC4626Upgradeable
@@ -235,9 +237,11 @@ contract SpiceFi4626 is
         return
             paused()
                 ? 0
-                : balanceOf(owner).min(
-                    _convertToShares(balance, MathUpgradeable.Rounding.Down)
-                );
+                : (
+                    balanceOf(owner).min(
+                        _convertToShares(balance, MathUpgradeable.Rounding.Down)
+                    )
+                ).mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @inheritdoc IERC4626Upgradeable

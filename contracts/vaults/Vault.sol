@@ -216,12 +216,16 @@ contract Vault is
 
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
-        return _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Up);
+        return
+            _convertToAssets(
+                balanceOf(owner).mulDiv(10_000 - _withdrawalFees, 10_000),
+                MathUpgradeable.Rounding.Up
+            );
     }
 
     /// @notice See {IERC4626-maxRedeem}
     function maxRedeem(address owner) external view returns (uint256) {
-        return balanceOf(owner);
+        return balanceOf(owner).mulDiv(10_000 - _withdrawalFees, 10_000);
     }
 
     /// @notice See {IERC4626-previewDeposit}

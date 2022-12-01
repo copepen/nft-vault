@@ -446,7 +446,9 @@ describe("SpiceFi4626", function () {
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
 
-        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(assets);
+        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
 
@@ -467,7 +469,9 @@ describe("SpiceFi4626", function () {
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
 
-        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(assets);
+        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
   });
