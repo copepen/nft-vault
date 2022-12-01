@@ -187,7 +187,7 @@ contract SpiceFi4626 is
 
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
-        for (uint8 i; i != count; ) {
+        for (uint256 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
             balance += vault.previewRedeem(vault.balanceOf(address(this)));
             unchecked {
