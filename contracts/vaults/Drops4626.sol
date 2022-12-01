@@ -10,11 +10,14 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/ICEther.sol";
+import "../helpers/WETHUnwrapper.sol";
 
 /// @title Storage for Drops4626
 abstract contract Drops4626Storage {
     /// @notice CEther address
     address public lpTokenAddress;
+
+    WETHUnwrapper public wethUnwrapper;
 
     /// @dev Token decimals
     uint8 internal _decimals;
@@ -57,12 +60,17 @@ contract Drops4626 is
     /// @param name_ Receipt token name
     /// @param symbol_ Receipt token symbol
     /// @param lpTokenAddress_ BToken address
+    /// @param wethUnwrapper_ WETH Unwrapper
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        address lpTokenAddress_
+        address lpTokenAddress_,
+        address payable wethUnwrapper_
     ) external initializer {
         if (lpTokenAddress_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (wethUnwrapper_ == address(0)) {
             revert InvalidAddress();
         }
 
@@ -78,6 +86,7 @@ contract Drops4626 is
         }
 
         lpTokenAddress = lpTokenAddress_;
+        wethUnwrapper = WETHUnwrapper(wethUnwrapper_);
         _decimals = decimals_;
     }
 
@@ -285,10 +294,10 @@ contract Drops4626 is
         IWETH weth = IWETH(WETH);
 
         // receive weth from msg.sender
-        weth.transferFrom(msg.sender, address(this), assets);
+        weth.transferFrom(msg.sender, address(wethUnwrapper), assets);
 
         // transfer weth to eth
-        weth.withdraw(assets);
+        wethUnwrapper.withdraw(assets);
 
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
@@ -348,5 +357,7 @@ contract Drops4626 is
     /// Fallbacks ///
     /////////////////////////////////////////////////////////////////////////
 
-    receive() external payable {}
+    receive() external payable {
+        require(msg.sender == address(wethUnwrapper) || msg.sender == lpTokenAddress, "do not send ether");
+    }
 }

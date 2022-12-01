@@ -8,6 +8,7 @@ describe("Drops4626", function () {
   let vault;
   let token;
   let weth;
+  let unwrapper;
   let admin, alice, bob;
   let whale;
   let snapshotId;
@@ -43,12 +44,25 @@ describe("Drops4626", function () {
     );
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
+    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
+    unwrapper = await WETHUnwrapper.deploy();
+
     const Drops4626 = await ethers.getContractFactory("Drops4626");
 
     await expect(
       upgrades.deployProxy(Drops4626, [
         name,
         symbol,
+        ethers.constants.AddressZero,
+        unwrapper.address,
+      ])
+    ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
+
+    await expect(
+      upgrades.deployProxy(Drops4626, [
+        name,
+        symbol,
+        constants.tokens.DropsETH,
         ethers.constants.AddressZero,
       ])
     ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
@@ -57,6 +71,7 @@ describe("Drops4626", function () {
       name,
       symbol,
       constants.tokens.DropsETH,
+      unwrapper.address,
     ]);
 
     await impersonateAccount(whale.address);
@@ -89,9 +104,21 @@ describe("Drops4626", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        vault.initialize(name, symbol, constants.tokens.DropsETH)
+        vault.initialize(
+          name,
+          symbol,
+          constants.tokens.DropsETH,
+          unwrapper.address
+        )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
+  });
+
+  it("Should not receive ETH", async function () {
+    await expect(admin.sendTransaction({
+      to: vault.address,
+      value: ethers.utils.parseEther("1"),
+    })).to.be.revertedWith("do not send ether");
   });
 
   describe("Getters", function () {

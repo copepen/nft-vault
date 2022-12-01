@@ -5,6 +5,7 @@ const constants = require("../constants");
 
 describe("SpiceFiFactory", function () {
   let weth;
+  let unwrapper;
   let vault;
   let bend;
   let drops;
@@ -22,9 +23,7 @@ describe("SpiceFiFactory", function () {
 
   let snapshotId;
 
-  let defaultAdminRole,
-    vaultRole,
-    aggregatorRole;
+  let defaultAdminRole, vaultRole, aggregatorRole;
 
   const vaultName = "Spice Vault Test Token";
   const vaultSymbol = "svTT";
@@ -67,6 +66,9 @@ describe("SpiceFiFactory", function () {
       admin
     );
 
+    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
+    unwrapper = await WETHUnwrapper.deploy();
+
     const Vault = await ethers.getContractFactory("Vault");
 
     vault = await upgrades.deployProxy(Vault, [
@@ -91,6 +93,7 @@ describe("SpiceFiFactory", function () {
       dropsVaultName,
       dropsVaultSymbol,
       constants.tokens.DropsETH,
+      unwrapper.address,
     ]);
 
     const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
