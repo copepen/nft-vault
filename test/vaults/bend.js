@@ -224,6 +224,14 @@ describe("Bend4626", function () {
         ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
       });
 
+      it("When receiver is 0x0", async function () {
+        const assets = ethers.utils.parseEther("100");
+
+        await expect(
+          vault.connect(whale).deposit(assets, ethers.constants.AddressZero)
+        ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+      });
+
       it("When asset is not approved", async function () {
         const assets = ethers.utils.parseEther("100");
 
@@ -279,6 +287,14 @@ describe("Bend4626", function () {
         await expect(
           vault.connect(whale).mint(0, whale.address)
         ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When receiver is 0x0", async function () {
+        const shares = ethers.utils.parseEther("100");
+
+        await expect(
+          vault.connect(whale).mint(shares, ethers.constants.AddressZero)
+        ).to.be.revertedWithCustomError(vault, "InvalidAddress");
       });
 
       it("When asset is not approved", async function () {

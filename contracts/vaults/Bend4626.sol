@@ -187,6 +187,9 @@ contract Bend4626 is
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
 
         shares = previewDeposit(assets);
 
@@ -204,6 +207,9 @@ contract Bend4626 is
     {
         if (shares == 0) {
             revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
         }
 
         assets = previewMint(shares);
