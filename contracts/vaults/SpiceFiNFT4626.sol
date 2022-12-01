@@ -552,6 +552,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-deposit}
     function deposit(address vault, uint256 assets)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 shares)
     {
@@ -567,6 +568,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-mint}
     function mint(address vault, uint256 shares)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 assets)
     {
@@ -583,6 +585,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-withdraw}
     function withdraw(address vault, uint256 assets)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 shares)
     {
@@ -598,6 +601,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-redeem}
     function redeem(address vault, uint256 shares)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 assets)
     {
