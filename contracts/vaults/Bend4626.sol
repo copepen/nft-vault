@@ -27,7 +27,6 @@ abstract contract Bend4626Storage {
 contract Bend4626 is
     Initializable,
     ERC20Upgradeable,
-    IERC4626Upgradeable,
     ReentrancyGuardUpgradeable,
     Bend4626Storage
 {
@@ -43,6 +42,25 @@ contract Bend4626 is
     uint256 public constant ONE_RAY = 1e27;
 
     /////////////////////////////////////////////////////////////////////////
+    /// Events ///
+    /////////////////////////////////////////////////////////////////////////
+
+    event Deposit(
+        address indexed sender,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    event Withdraw(
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    /////////////////////////////////////////////////////////////////////////
     /// Errors ///
     /////////////////////////////////////////////////////////////////////////
 
@@ -51,6 +69,9 @@ contract Bend4626 is
 
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
+
+    /// @notice Slippage too high
+    error SlippageTooHigh();
 
     /////////////////////////////////////////////////////////////////////////
     /// Constructor ///
@@ -101,12 +122,7 @@ contract Bend4626 is
     /////////////////////////////////////////////////////////////////////////
 
     /// @notice See {IERC20Metadata-decimals}.
-    function decimals()
-        public
-        view
-        override(ERC20Upgradeable, IERC20MetadataUpgradeable)
-        returns (uint8)
-    {
+    function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
@@ -177,13 +193,14 @@ contract Bend4626 is
 
     /// @notice Deposits weth into Bend pool and receive receipt tokens
     /// @param assets The amount of weth being deposited
+    /// @param sharesMin The minimum amount of shares to receive
     /// @param receiver The account that will receive the receipt tokens
     /// @return shares The amount of receipt tokens minted
-    function deposit(uint256 assets, address receiver)
-        external
-        nonReentrant
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 assets,
+        uint256 sharesMin,
+        address receiver
+    ) external nonReentrant returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -193,18 +210,23 @@ contract Bend4626 is
 
         shares = previewDeposit(assets);
 
+        if (sharesMin > shares) {
+            revert SlippageTooHigh();
+        }
+
         _deposit(assets, shares, receiver);
     }
 
     /// @notice Deposits weth into Bend pool and receive receipt tokens
     /// @param shares The amount of receipt tokens to mint
+    /// @param assetsMax The maximum amount of assets to deposit
     /// @param receiver The account that will receive the receipt tokens
     /// @return assets The amount of weth deposited
-    function mint(uint256 shares, address receiver)
-        external
-        nonReentrant
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        uint256 assetsMax,
+        address receiver
+    ) external nonReentrant returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -214,15 +236,21 @@ contract Bend4626 is
 
         assets = previewMint(shares);
 
+        if (assetsMax < assets) {
+            revert SlippageTooHigh();
+        }
+
         _deposit(assets, shares, receiver);
     }
 
     /// @notice Withdraw weth from the pool
     /// @param assets The amount of weth being withdrawn
+    /// @param sharesMax The maximum amount of shares to burn
     /// @param receiver The account that will receive weth
     /// @param owner The account that will pay receipt tokens
     function withdraw(
         uint256 assets,
+        uint256 sharesMax,
         address receiver,
         address owner
     ) external nonReentrant returns (uint256 shares) {
@@ -235,15 +263,21 @@ contract Bend4626 is
 
         shares = previewWithdraw(assets);
 
+        if (sharesMax < shares) {
+            revert SlippageTooHigh();
+        }
+
         _withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /// @notice Withdraw weth from the pool
     /// @param shares The amount of receipt tokens being burnt
+    /// @param assetsMin The minimum amount of assets to redeem
     /// @param receiver The account that will receive weth
     /// @param owner The account that will pay receipt tokens
     function redeem(
         uint256 shares,
+        uint256 assetsMin,
         address receiver,
         address owner
     ) external nonReentrant returns (uint256 assets) {
@@ -255,6 +289,10 @@ contract Bend4626 is
         }
 
         assets = previewRedeem(shares);
+
+        if (assetsMin > assets) {
+            revert SlippageTooHigh();
+        }
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
     }
