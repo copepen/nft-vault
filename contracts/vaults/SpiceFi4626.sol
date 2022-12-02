@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "../interfaces/IAggregatorVault.sol";
@@ -29,6 +30,7 @@ contract SpiceFi4626 is
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
     UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
     SpiceFi4626Storage,
     IAggregatorVault,
     Multicall
@@ -187,7 +189,7 @@ contract SpiceFi4626 is
 
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
-        for (uint8 i; i != count; ) {
+        for (uint256 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
             balance += vault.previewRedeem(vault.balanceOf(address(this)));
             unchecked {
@@ -221,10 +223,12 @@ contract SpiceFi4626 is
         return
             paused()
                 ? 0
-                : _convertToAssets(
-                    balanceOf(owner),
-                    MathUpgradeable.Rounding.Down
-                ).min(balance);
+                : (
+                    _convertToAssets(
+                        balanceOf(owner),
+                        MathUpgradeable.Rounding.Down
+                    ).min(balance)
+                ).mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @inheritdoc IERC4626Upgradeable
@@ -235,9 +239,11 @@ contract SpiceFi4626 is
         return
             paused()
                 ? 0
-                : balanceOf(owner).min(
-                    _convertToShares(balance, MathUpgradeable.Rounding.Down)
-                );
+                : (
+                    balanceOf(owner).min(
+                        _convertToShares(balance, MathUpgradeable.Rounding.Down)
+                    )
+                ).mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @inheritdoc IERC4626Upgradeable
@@ -275,7 +281,7 @@ contract SpiceFi4626 is
         address owner,
         uint256 assets,
         uint256 shares
-    ) internal override {
+    ) internal override nonReentrant {
         address feesAddr1 = getRoleMember(ASSET_RECEIVER_ROLE, 0);
         address feesAddr2 = getRoleMember(SPICE_ROLE, 0);
         uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
@@ -301,7 +307,7 @@ contract SpiceFi4626 is
         address receiver,
         uint256 assets,
         uint256 shares
-    ) internal override {
+    ) internal override nonReentrant {
         require(
             getRoleMemberCount(USER_ROLE) == 0 || hasRole(USER_ROLE, caller),
             "caller is not enabled"
@@ -313,6 +319,7 @@ contract SpiceFi4626 is
     /// See {IAggregatorVault-deposit}
     function deposit(address vault, uint256 assets)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 shares)
     {
@@ -328,6 +335,7 @@ contract SpiceFi4626 is
     /// See {IAggregatorVault-mint}
     function mint(address vault, uint256 shares)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 assets)
     {
@@ -344,6 +352,7 @@ contract SpiceFi4626 is
     /// See {IAggregatorVault-withdraw}
     function withdraw(address vault, uint256 assets)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 shares)
     {
@@ -359,6 +368,7 @@ contract SpiceFi4626 is
     /// See {IAggregatorVault-redeem}
     function redeem(address vault, uint256 shares)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 assets)
     {

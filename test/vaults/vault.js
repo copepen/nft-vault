@@ -293,7 +293,9 @@ describe("Vault", function () {
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
 
-        expect(await vault.maxWithdraw(alice.address)).to.be.eq(assets);
+        expect(await vault.maxWithdraw(alice.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
 
@@ -308,7 +310,9 @@ describe("Vault", function () {
         await token.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
 
-        expect(await vault.maxRedeem(alice.address)).to.be.eq(assets);
+        expect(await vault.maxRedeem(alice.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
   });

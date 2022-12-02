@@ -8,6 +8,7 @@ describe("Drops4626", function () {
   let vault;
   let token;
   let weth;
+  let unwrapper;
   let admin, alice, bob;
   let whale;
   let snapshotId;
@@ -43,12 +44,25 @@ describe("Drops4626", function () {
     );
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
+    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
+    unwrapper = await WETHUnwrapper.deploy();
+
     const Drops4626 = await ethers.getContractFactory("Drops4626");
 
     await expect(
       upgrades.deployProxy(Drops4626, [
         name,
         symbol,
+        ethers.constants.AddressZero,
+        unwrapper.address,
+      ])
+    ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
+
+    await expect(
+      upgrades.deployProxy(Drops4626, [
+        name,
+        symbol,
+        constants.tokens.DropsETH,
         ethers.constants.AddressZero,
       ])
     ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
@@ -57,6 +71,7 @@ describe("Drops4626", function () {
       name,
       symbol,
       constants.tokens.DropsETH,
+      unwrapper.address,
     ]);
 
     await impersonateAccount(whale.address);
@@ -89,9 +104,23 @@ describe("Drops4626", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        vault.initialize(name, symbol, constants.tokens.DropsETH)
+        vault.initialize(
+          name,
+          symbol,
+          constants.tokens.DropsETH,
+          unwrapper.address
+        )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
+  });
+
+  it("Should not receive ETH", async function () {
+    await expect(
+      admin.sendTransaction({
+        to: vault.address,
+        value: ethers.utils.parseEther("1"),
+      })
+    ).to.be.revertedWith("do not send ether");
   });
 
   describe("Getters", function () {
@@ -200,8 +229,11 @@ describe("Drops4626", function () {
 
       it("When balance is non-zero", async function () {
         const assets = ethers.utils.parseEther("100");
+        const shares = await vault.previewDeposit(assets);
         await weth.connect(whale).approve(vault.address, assets);
-        await vault.connect(whale).deposit(assets, whale.address);
+        await vault
+          .connect(whale)
+          .deposit(assets, shares.mul(98).div(100), whale.address);
 
         expect(await vault.maxWithdraw(whale.address)).to.be.eq(
           await vault.convertToAssets(await vault.balanceOf(whale.address))
@@ -216,8 +248,11 @@ describe("Drops4626", function () {
 
       it("When balance is non-zero", async function () {
         const assets = ethers.utils.parseEther("100");
+        const shares = await vault.previewDeposit(assets);
         await weth.connect(whale).approve(vault.address, assets);
-        await vault.connect(whale).deposit(assets, whale.address);
+        await vault
+          .connect(whale)
+          .deposit(assets, shares.mul(98).div(100), whale.address);
 
         expect(await vault.maxRedeem(whale.address)).to.be.eq(
           await vault.balanceOf(whale.address)
@@ -230,25 +265,55 @@ describe("Drops4626", function () {
     describe("Deposit", function () {
       it("When deposits 0 assets", async function () {
         await expect(
-          vault.connect(whale).deposit(0, whale.address)
+          vault.connect(whale).deposit(0, 0, whale.address)
         ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When receiver is 0x0", async function () {
+        const assets = ethers.utils.parseEther("100");
+        const shares = await vault.previewDeposit(assets);
+
+        await expect(
+          vault
+            .connect(whale)
+            .deposit(assets, shares, ethers.constants.AddressZero)
+        ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+      });
+
+      it("When slippage is too high", async function () {
+        const assets = ethers.utils.parseEther("100");
+        const shares = await vault.previewDeposit(assets);
+
+        await weth.connect(whale).approve(vault.address, assets);
+
+        await expect(
+          vault
+            .connect(whale)
+            .deposit(assets, shares.mul(102).div(100), whale.address)
+        ).to.be.revertedWithCustomError(vault, "SlippageTooHigh");
       });
 
       it("When asset is not approved", async function () {
         const assets = ethers.utils.parseEther("100");
+        const shares = await vault.previewDeposit(assets);
 
         await expect(
-          vault.connect(whale).deposit(assets, whale.address)
+          vault
+            .connect(whale)
+            .deposit(assets, shares.mul(98).div(100), whale.address)
         ).to.be.revertedWithoutReason();
       });
 
       it("When balance is not enough", async function () {
         const assets = ethers.utils.parseEther("100");
+        const shares = await vault.previewDeposit(assets);
 
         await weth.connect(alice).approve(vault.address, assets);
 
         await expect(
-          vault.connect(alice).deposit(assets, alice.address)
+          vault
+            .connect(alice)
+            .deposit(assets, shares.mul(98).div(100), alice.address)
         ).to.be.revertedWithoutReason();
       });
 
@@ -260,7 +325,9 @@ describe("Drops4626", function () {
 
         const beforeAssetBalance = await weth.balanceOf(whale.address);
 
-        const tx = await vault.connect(whale).deposit(assets, bob.address);
+        const tx = await vault
+          .connect(whale)
+          .deposit(assets, shares.mul(98).div(100), bob.address);
 
         const shareBalance = await vault.balanceOf(bob.address);
         expect(shareBalance).to.be.closeTo(
@@ -288,25 +355,50 @@ describe("Drops4626", function () {
     describe("Mint", function () {
       it("When mints 0 shares", async function () {
         await expect(
-          vault.connect(whale).mint(0, whale.address)
+          vault.connect(whale).mint(0, 0, whale.address)
         ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When receiver is 0x0", async function () {
+        const shares = ethers.utils.parseUnits("1000", 6);
+
+        await expect(
+          vault.connect(whale).mint(shares, 0, ethers.constants.AddressZero)
+        ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+      });
+
+      it("When slippage is too high", async function () {
+        const shares = ethers.utils.parseEther("100");
+        const assets = await vault.previewMint(shares);
+
+        await expect(
+          vault
+            .connect(whale)
+            .mint(shares, assets.mul(98).div(100), whale.address)
+        ).to.be.revertedWithCustomError(vault, "SlippageTooHigh");
       });
 
       it("When asset is not approved", async function () {
         const shares = ethers.utils.parseUnits("1000", 6);
+        const assets = await vault.previewMint(shares);
 
         await expect(
-          vault.connect(whale).mint(shares, whale.address)
+          vault
+            .connect(whale)
+            .mint(shares, assets.mul(102).div(100), whale.address)
         ).to.be.revertedWithoutReason();
       });
 
       it("When balance is not enough", async function () {
         const shares = ethers.utils.parseUnits("1000", 6);
+        const assets = await vault.previewMint(shares);
 
         await weth.connect(alice).approve(vault.address, shares);
 
         await expect(
-          vault.connect(alice).mint(shares, alice.address)
+          vault
+            .connect(alice)
+            .mint(shares, assets.mul(102).div(100), alice.address)
         ).to.be.revertedWithoutReason();
       });
 
@@ -318,7 +410,9 @@ describe("Drops4626", function () {
 
         const beforeAssetBalance = await weth.balanceOf(whale.address);
 
-        const tx = await vault.connect(whale).mint(shares, bob.address);
+        const tx = await vault
+          .connect(whale)
+          .mint(shares, assets.mul(102).div(100), bob.address);
 
         const shareBalance = await vault.balanceOf(bob.address);
         expect(shareBalance).to.be.closeTo(
@@ -347,36 +441,68 @@ describe("Drops4626", function () {
       beforeEach(async function () {
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
-        await vault.connect(whale).deposit(assets, whale.address);
+        await vault.connect(whale).deposit(assets, 0, whale.address);
       });
 
       it("When receiver is 0x0", async function () {
         await expect(
           vault
             .connect(whale)
-            .withdraw(0, ethers.constants.AddressZero, whale.address)
+            .withdraw(0, 0, ethers.constants.AddressZero, whale.address)
         ).to.be.revertedWithCustomError(vault, "InvalidAddress");
       });
 
       it("When withdraw 0 amount", async function () {
         await expect(
-          vault.connect(whale).withdraw(0, whale.address, whale.address)
+          vault.connect(whale).withdraw(0, 0, whale.address, whale.address)
         ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When slippage is too high", async function () {
+        const assets = ethers.utils.parseEther("50");
+        const shares = await vault.previewWithdraw(assets);
+
+        await expect(
+          vault
+            .connect(whale)
+            .withdraw(
+              assets,
+              shares.mul(98).div(100),
+              alice.address,
+              whale.address
+            )
+        ).to.be.revertedWithCustomError(vault, "SlippageTooHigh");
       });
 
       it("When allowance is not enough", async function () {
         const assets = ethers.utils.parseEther("50");
+        const shares = await vault.previewWithdraw(assets);
 
         await expect(
-          vault.connect(alice).withdraw(assets, alice.address, whale.address)
+          vault
+            .connect(alice)
+            .withdraw(
+              assets,
+              shares.mul(102).div(100),
+              alice.address,
+              whale.address
+            )
         ).to.be.revertedWith("ERC20: insufficient allowance");
       });
 
       it("When share balance is not enough", async function () {
         const assets = ethers.utils.parseEther("200");
+        const shares = await vault.previewWithdraw(assets);
 
         await expect(
-          vault.connect(whale).withdraw(assets, bob.address, whale.address)
+          vault
+            .connect(whale)
+            .withdraw(
+              assets,
+              shares.mul(102).div(100),
+              bob.address,
+              whale.address
+            )
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
       });
 
@@ -387,7 +513,14 @@ describe("Drops4626", function () {
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
+        await vault
+          .connect(whale)
+          .withdraw(
+            assets,
+            shares.mul(102).div(100),
+            bob.address,
+            whale.address
+          );
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
@@ -407,36 +540,63 @@ describe("Drops4626", function () {
       beforeEach(async function () {
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
-        await vault.connect(whale).deposit(assets, whale.address);
+        await vault.connect(whale).deposit(assets, 0, whale.address);
       });
 
       it("When receiver is 0x0", async function () {
         await expect(
           vault
             .connect(whale)
-            .redeem(0, ethers.constants.AddressZero, whale.address)
+            .redeem(0, 0, ethers.constants.AddressZero, whale.address)
         ).to.be.revertedWithCustomError(vault, "InvalidAddress");
       });
 
       it("When redeem 0 amount", async function () {
         await expect(
-          vault.connect(whale).redeem(0, whale.address, whale.address)
+          vault.connect(whale).redeem(0, 0, whale.address, whale.address)
         ).to.be.revertedWithCustomError(vault, "ParameterOutOfBounds");
+      });
+
+      it("When slippage is too high", async function () {
+        const shares = ethers.utils.parseUnits("100", 6);
+        const assets = await vault.previewRedeem(shares);
+
+        await expect(
+          vault
+            .connect(whale)
+            .redeem(
+              shares,
+              assets.mul(102).div(100),
+              alice.address,
+              whale.address
+            )
+        ).to.be.revertedWithCustomError(vault, "SlippageTooHigh");
       });
 
       it("When allowance is not enough", async function () {
         const shares = ethers.utils.parseUnits("100", 6);
+        const assets = await vault.previewRedeem(shares);
 
         await expect(
-          vault.connect(alice).redeem(shares, alice.address, whale.address)
+          vault
+            .connect(alice)
+            .redeem(
+              shares,
+              assets.mul(98).div(100),
+              alice.address,
+              whale.address
+            )
         ).to.be.revertedWith("ERC20: insufficient allowance");
       });
 
       it("When shares balance is not enough", async function () {
         const shares = (await vault.balanceOf(whale.address)).add(1);
+        const assets = await vault.previewRedeem(shares);
 
         await expect(
-          vault.connect(whale).redeem(shares, bob.address, whale.address)
+          vault
+            .connect(whale)
+            .redeem(shares, assets.mul(98).div(100), bob.address, whale.address)
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
       });
 
@@ -447,7 +607,9 @@ describe("Drops4626", function () {
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).redeem(shares, bob.address, whale.address);
+        await vault
+          .connect(whale)
+          .redeem(shares, assets.mul(98).div(100), bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);

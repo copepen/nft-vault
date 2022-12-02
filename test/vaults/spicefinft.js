@@ -9,6 +9,9 @@ describe("SpiceFiNFT4626", function () {
   let token;
   let weth;
 
+  // helpers
+  let unwrapper;
+
   // vaults
   let vault;
   let bend;
@@ -81,6 +84,9 @@ describe("SpiceFiNFT4626", function () {
       admin
     );
 
+    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
+    unwrapper = await WETHUnwrapper.deploy();
+
     const Vault = await ethers.getContractFactory("Vault");
 
     vault = await upgrades.deployProxy(Vault, [
@@ -105,6 +111,7 @@ describe("SpiceFiNFT4626", function () {
       dropsVaultName,
       dropsVaultSymbol,
       constants.tokens.DropsETH,
+      unwrapper.address,
     ]);
 
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
@@ -396,7 +403,9 @@ describe("SpiceFiNFT4626", function () {
           .approve(spiceVault.address, ethers.constants.MaxUint256);
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
 
-        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(assets);
+        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
 
@@ -417,7 +426,9 @@ describe("SpiceFiNFT4626", function () {
           .approve(spiceVault.address, ethers.constants.MaxUint256);
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
 
-        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(assets);
+        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
 

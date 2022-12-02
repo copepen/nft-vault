@@ -9,6 +9,9 @@ describe("SpiceFi4626", function () {
   let token;
   let weth;
 
+  // helpers
+  let unwrapper;
+
   // vaults
   let vault;
   let bend;
@@ -80,6 +83,9 @@ describe("SpiceFi4626", function () {
       admin
     );
 
+    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
+    unwrapper = await WETHUnwrapper.deploy();
+
     const Vault = await ethers.getContractFactory("Vault");
 
     vault = await upgrades.deployProxy(Vault, [
@@ -104,6 +110,7 @@ describe("SpiceFi4626", function () {
       dropsVaultName,
       dropsVaultSymbol,
       constants.tokens.DropsETH,
+      unwrapper.address,
     ]);
 
     const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
@@ -446,7 +453,9 @@ describe("SpiceFi4626", function () {
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
 
-        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(assets);
+        expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
 
@@ -467,7 +476,9 @@ describe("SpiceFi4626", function () {
           .connect(whale)
           ["deposit(uint256,address)"](assets, whale.address);
 
-        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(assets);
+        expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(
+          assets.mul(9300).div(10000)
+        );
       });
     });
   });

@@ -232,7 +232,7 @@ contract SpiceFiNFT4626 is
 
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
-        for (uint8 i; i != count; ) {
+        for (uint256 i; i != count; ) {
             vault = IERC4626Upgradeable(getRoleMember(VAULT_ROLE, i));
             balance += vault.previewRedeem(vault.balanceOf(address(this)));
             unchecked {
@@ -265,7 +265,7 @@ contract SpiceFiNFT4626 is
     /// @notice See {ISpiceFiNFT4626-maxWithdraw}
     function maxWithdraw(address) public view override returns (uint256) {
         uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        return paused() ? 0 : balance;
+        return paused() ? 0 : balance.mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @notice See {ISpiceFiNFT4626-maxRedeem}
@@ -276,7 +276,10 @@ contract SpiceFiNFT4626 is
         return
             paused()
                 ? 0
-                : _convertToShares(balance, MathUpgradeable.Rounding.Down);
+                : _convertToShares(
+                    balance.mulDiv(10_000 - withdrawalFees, 10_000),
+                    MathUpgradeable.Rounding.Down
+                );
     }
 
     /// @notice See {ISpiceFiNFT4626-previewDeposit}
@@ -549,6 +552,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-deposit}
     function deposit(address vault, uint256 assets)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 shares)
     {
@@ -564,6 +568,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-mint}
     function mint(address vault, uint256 shares)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 assets)
     {
@@ -580,6 +585,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-withdraw}
     function withdraw(address vault, uint256 assets)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 shares)
     {
@@ -595,6 +601,7 @@ contract SpiceFiNFT4626 is
     /// See {IAggregatorVault-redeem}
     function redeem(address vault, uint256 shares)
         public
+        nonReentrant
         onlyRole(STRATEGIST_ROLE)
         returns (uint256 assets)
     {

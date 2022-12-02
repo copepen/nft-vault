@@ -10,11 +10,14 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/ICEther.sol";
+import "../helpers/WETHUnwrapper.sol";
 
 /// @title Storage for Drops4626
 abstract contract Drops4626Storage {
     /// @notice CEther address
     address public lpTokenAddress;
+
+    WETHUnwrapper public wethUnwrapper;
 
     /// @dev Token decimals
     uint8 internal _decimals;
@@ -24,7 +27,6 @@ abstract contract Drops4626Storage {
 contract Drops4626 is
     Initializable,
     ERC20Upgradeable,
-    IERC4626Upgradeable,
     ReentrancyGuardUpgradeable,
     Drops4626Storage
 {
@@ -40,6 +42,25 @@ contract Drops4626 is
     uint256 public constant ONE_WAD = 1e18;
 
     /////////////////////////////////////////////////////////////////////////
+    /// Events ///
+    /////////////////////////////////////////////////////////////////////////
+
+    event Deposit(
+        address indexed sender,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    event Withdraw(
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
+
+    /////////////////////////////////////////////////////////////////////////
     /// Errors ///
     /////////////////////////////////////////////////////////////////////////
 
@@ -49,6 +70,9 @@ contract Drops4626 is
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
 
+    /// @notice Slippage too high
+    error SlippageTooHigh();
+
     /////////////////////////////////////////////////////////////////////////
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
@@ -57,12 +81,17 @@ contract Drops4626 is
     /// @param name_ Receipt token name
     /// @param symbol_ Receipt token symbol
     /// @param lpTokenAddress_ BToken address
+    /// @param wethUnwrapper_ WETH Unwrapper
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        address lpTokenAddress_
+        address lpTokenAddress_,
+        address payable wethUnwrapper_
     ) external initializer {
         if (lpTokenAddress_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (wethUnwrapper_ == address(0)) {
             revert InvalidAddress();
         }
 
@@ -78,6 +107,7 @@ contract Drops4626 is
         }
 
         lpTokenAddress = lpTokenAddress_;
+        wethUnwrapper = WETHUnwrapper(wethUnwrapper_);
         _decimals = decimals_;
     }
 
@@ -91,12 +121,7 @@ contract Drops4626 is
     /////////////////////////////////////////////////////////////////////////
 
     /// @notice See {IERC20Metadata-decimals}.
-    function decimals()
-        public
-        view
-        override(ERC20Upgradeable, IERC20MetadataUpgradeable)
-        returns (uint8)
-    {
+    function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
@@ -167,44 +192,62 @@ contract Drops4626 is
 
     /// @notice Deposits weth into CEther and receive receipt tokens
     /// @param assets The amount of weth being deposited
+    /// @param sharesMin The minimum amount of shares to receive
     /// @param receiver The account that will receive the receipt tokens
     /// @return shares The amount of receipt tokens minted
-    function deposit(uint256 assets, address receiver)
-        external
-        nonReentrant
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 assets,
+        uint256 sharesMin,
+        address receiver
+    ) external nonReentrant returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
 
         shares = _deposit(assets, receiver);
+
+        if (sharesMin > shares) {
+            revert SlippageTooHigh();
+        }
     }
 
     /// @notice Deposits weth into CEther and receive receipt tokens
     /// @param shares The amount of receipt tokens to mint
+    /// @param assetsMax The maximum amount of assets to deposit
     /// @param receiver The account that will receive the receipt tokens
     /// @return assets The amount of weth deposited
-    function mint(uint256 shares, address receiver)
-        external
-        nonReentrant
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        uint256 assetsMax,
+        address receiver
+    ) external nonReentrant returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
 
         assets = previewMint(shares);
+
+        if (assetsMax < assets) {
+            revert SlippageTooHigh();
+        }
 
         _deposit(assets, receiver);
     }
 
     /// @notice Withdraw weth from the pool
     /// @param assets The amount of weth being withdrawn
+    /// @param sharesMax The maximum amount of shares to burn
     /// @param receiver The account that will receive weth
     /// @param owner The account that will pay receipt tokens
     function withdraw(
         uint256 assets,
+        uint256 sharesMax,
         address receiver,
         address owner
     ) external nonReentrant returns (uint256 shares) {
@@ -217,15 +260,21 @@ contract Drops4626 is
 
         shares = previewWithdraw(assets);
 
+        if (sharesMax < shares) {
+            revert SlippageTooHigh();
+        }
+
         _withdraw(msg.sender, receiver, owner, shares);
     }
 
     /// @notice Withdraw weth from the pool
     /// @param shares The amount of receipt tokens being burnt
+    /// @param assetsMin The minimum amount of assets to redeem
     /// @param receiver The account that will receive weth
     /// @param owner The account that will pay receipt tokens
     function redeem(
         uint256 shares,
+        uint256 assetsMin,
         address receiver,
         address owner
     ) external nonReentrant returns (uint256 assets) {
@@ -237,6 +286,10 @@ contract Drops4626 is
         }
 
         assets = _withdraw(msg.sender, receiver, owner, shares);
+
+        if (assetsMin > assets) {
+            revert SlippageTooHigh();
+        }
     }
 
     /////////////////////////////////////////////////////////////////////////
@@ -285,10 +338,10 @@ contract Drops4626 is
         IWETH weth = IWETH(WETH);
 
         // receive weth from msg.sender
-        weth.transferFrom(msg.sender, address(this), assets);
+        weth.transferFrom(msg.sender, address(wethUnwrapper), assets);
 
         // transfer weth to eth
-        weth.withdraw(assets);
+        wethUnwrapper.withdraw(assets);
 
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
@@ -348,5 +401,11 @@ contract Drops4626 is
     /// Fallbacks ///
     /////////////////////////////////////////////////////////////////////////
 
-    receive() external payable {}
+    receive() external payable {
+        require(
+            msg.sender == address(wethUnwrapper) ||
+                msg.sender == lpTokenAddress,
+            "do not send ether"
+        );
+    }
 }
