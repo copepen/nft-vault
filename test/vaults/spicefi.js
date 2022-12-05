@@ -598,168 +598,867 @@ describe("SpiceFi4626", function () {
   });
 
   describe("Strategist Actions", function () {
-    describe("Deposit", function () {
-      it("Only strategist can call", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
-            .connect(alice)
-            ["deposit(address,uint256)"](vault.address, assets)
-        ).to.be.revertedWith(
-          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
-        );
-      });
+    describe("Vault", function () {
+      describe("Deposit", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+        });
 
-      it("Only deposit to vault", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
+        it("Only strategist can call", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["deposit(address,uint256,uint256)"](
+                vault.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only deposit to vault", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["deposit(address,uint256,uint256)"](
+                token.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["deposit(address,uint256,uint256)"](
+                vault.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Take assets and mint shares", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewDeposit(assets);
+          await spiceVault
             .connect(strategist)
-            ["deposit(address,uint256)"](token.address, assets)
-        ).to.be.revertedWith(
-          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
-        );
+            ["deposit(address,uint256,uint256)"](
+              vault.address,
+              assets,
+              shares.mul(99).div(100)
+            );
+
+          expect(await vault.balanceOf(spiceVault.address)).to.be.eq(assets);
+        });
       });
 
-      it("Take assets and mint shares", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await weth.connect(whale).approve(spiceVault.address, assets);
-        await spiceVault
-          .connect(whale)
-          ["deposit(uint256,address)"](assets, whale.address);
+      describe("Mint", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+        });
 
-        await spiceVault
-          .connect(strategist)
-          ["deposit(address,uint256)"](vault.address, assets);
+        it("Only strategist can call", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["mint(address,uint256,uint256)"](
+                vault.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
 
-        expect(await vault.balanceOf(spiceVault.address)).to.be.eq(assets);
+        it("Only mint to vault", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["mint(address,uint256,uint256)"](
+                token.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["mint(address,uint256,uint256)"](
+                vault.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Take assets and mint shares", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewMint(shares);
+          await spiceVault
+            .connect(strategist)
+            ["mint(address,uint256,uint256)"](
+              vault.address,
+              shares,
+              assets.mul(101).div(100)
+            );
+
+          expect(await vault.balanceOf(spiceVault.address)).to.be.eq(shares);
+        });
+      });
+
+      describe("Withdraw", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+
+          await spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,uint256)"](vault.address, assets, 0);
+        });
+
+        it("Only strategist can call", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["withdraw(address,uint256,uint256)"](
+                vault.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only withdraw from vault", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["withdraw(address,uint256,uint256)"](
+                token.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await vault.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["withdraw(address,uint256,uint256)"](
+                vault.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Withdraw assets", async function () {
+          const assets = ethers.utils.parseEther("50");
+          const shares = await vault.previewWithdraw(assets);
+          await spiceVault
+            .connect(strategist)
+            ["withdraw(address,uint256,uint256)"](
+              vault.address,
+              assets,
+              shares.mul(101).div(100)
+            );
+        });
+      });
+
+      describe("Redeem", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+
+          await spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,uint256)"](vault.address, assets, 0);
+        });
+
+        it("Only strategist can call", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["redeem(address,uint256,uint256)"](
+                vault.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only redeem from vault", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["redeem(address,uint256,uint256)"](
+                token.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await vault.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["redeem(address,uint256,uint256)"](
+                vault.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Redeem assets", async function () {
+          const shares = ethers.utils.parseEther("50");
+          const assets = await vault.previewRedeem(shares);
+          await spiceVault
+            .connect(strategist)
+            ["redeem(address,uint256,uint256)"](
+              vault.address,
+              shares,
+              assets.mul(99).div(100)
+            );
+        });
       });
     });
 
-    describe("Mint", function () {
-      it("Only strategist can call", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
-            .connect(alice)
-            ["mint(address,uint256)"](vault.address, assets)
-        ).to.be.revertedWith(
-          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
-        );
-      });
+    describe("Bend", function () {
+      describe("Deposit", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+        });
 
-      it("Only mint to vault", async function () {
-        const shares = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
+        it("Only strategist can call", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["deposit(address,uint256,uint256)"](
+                bend.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only deposit to bend", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["deposit(address,uint256,uint256)"](
+                token.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["deposit(address,uint256,uint256)"](
+                bend.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Take assets and mint shares", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewDeposit(assets);
+          await spiceVault
             .connect(strategist)
-            ["mint(address,uint256)"](token.address, shares)
-        ).to.be.revertedWith(
-          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
-        );
+            ["deposit(address,uint256,uint256)"](
+              bend.address,
+              assets,
+              shares.mul(99).div(100)
+            );
+
+          expect(await bend.balanceOf(spiceVault.address)).to.be.eq(assets);
+        });
       });
 
-      it("Take assets and mint shares", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await weth.connect(whale).approve(spiceVault.address, assets);
-        await spiceVault
-          .connect(whale)
-          ["deposit(uint256,address)"](assets, whale.address);
+      describe("Mint", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+        });
 
-        const shares = ethers.utils.parseEther("100");
-        await spiceVault
-          .connect(strategist)
-          ["mint(address,uint256)"](vault.address, shares);
+        it("Only strategist can call", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["mint(address,uint256,uint256)"](
+                bend.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
 
-        expect(await vault.balanceOf(spiceVault.address)).to.be.eq(shares);
+        it("Only mint to bend", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["mint(address,uint256,uint256)"](
+                token.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["mint(address,uint256,uint256)"](
+                bend.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Take assets and mint shares", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewMint(shares);
+          await spiceVault
+            .connect(strategist)
+            ["mint(address,uint256,uint256)"](
+              bend.address,
+              shares,
+              assets.mul(101).div(100)
+            );
+
+          expect(await bend.balanceOf(spiceVault.address)).to.be.eq(shares);
+        });
+      });
+
+      describe("Withdraw", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+
+          await spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,uint256)"](bend.address, assets, 0);
+        });
+
+        it("Only strategist can call", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["withdraw(address,uint256,uint256)"](
+                bend.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only withdraw from bend", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["withdraw(address,uint256,uint256)"](
+                token.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await bend.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["withdraw(address,uint256,uint256)"](
+                bend.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Withdraw assets", async function () {
+          const assets = ethers.utils.parseEther("50");
+          const shares = await bend.previewWithdraw(assets);
+          await spiceVault
+            .connect(strategist)
+            ["withdraw(address,uint256,uint256)"](
+              bend.address,
+              assets,
+              shares.mul(101).div(100)
+            );
+        });
+      });
+
+      describe("Redeem", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+
+          await spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,uint256)"](bend.address, assets, 0);
+        });
+
+        it("Only strategist can call", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["redeem(address,uint256,uint256)"](
+                bend.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only redeem from bend", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["redeem(address,uint256,uint256)"](
+                token.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const shares = ethers.utils.parseEther("100");
+          const assets = await bend.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["redeem(address,uint256,uint256)"](
+                bend.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Redeem assets", async function () {
+          const shares = ethers.utils.parseEther("50");
+          const assets = await bend.previewRedeem(shares);
+          await spiceVault
+            .connect(strategist)
+            ["redeem(address,uint256,uint256)"](
+              bend.address,
+              shares,
+              assets.mul(99).div(100)
+            );
+        });
       });
     });
 
-    describe("Withdraw", function () {
-      beforeEach(async function () {
-        const assets = ethers.utils.parseEther("100");
-        await weth.connect(whale).approve(spiceVault.address, assets);
-        await spiceVault
-          .connect(whale)
-          ["deposit(uint256,address)"](assets, whale.address);
+    describe("Drops", function () {
+      describe("Deposit", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+        });
 
-        const shares = ethers.utils.parseEther("100");
-        await spiceVault
-          .connect(strategist)
-          ["mint(address,uint256)"](vault.address, shares);
-      });
+        it("Only strategist can call", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await drops.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["deposit(address,uint256,uint256)"](
+                drops.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
 
-      it("Only strategist can call", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
-            .connect(alice)
-            ["withdraw(address,uint256)"](vault.address, assets)
-        ).to.be.revertedWith(
-          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
-        );
-      });
+        it("Only deposit to drops", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await drops.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["deposit(address,uint256,uint256)"](
+                token.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
 
-      it("Only withdraw from vault", async function () {
-        const assets = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
+        it("When slippage is too high", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await drops.previewDeposit(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["deposit(address,uint256,uint256)"](
+                drops.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Take assets and mint shares", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await drops.previewDeposit(assets);
+          await spiceVault
             .connect(strategist)
-            ["withdraw(address,uint256)"](token.address, assets)
-        ).to.be.revertedWith(
-          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
-        );
+            ["deposit(address,uint256,uint256)"](
+              drops.address,
+              assets,
+              shares.mul(99).div(100)
+            );
+
+          expect(await drops.balanceOf(spiceVault.address)).to.be.closeTo(
+            shares,
+            shares.div(1000)
+          );
+        });
       });
 
-      it("Withdraw assets", async function () {
-        const assets = ethers.utils.parseEther("50");
-        await spiceVault
-          .connect(strategist)
-          ["withdraw(address,uint256)"](vault.address, assets);
-      });
-    });
+      describe("Mint", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+        });
 
-    describe("Redeem", function () {
-      beforeEach(async function () {
-        const assets = ethers.utils.parseEther("100");
-        await weth.connect(whale).approve(spiceVault.address, assets);
-        await spiceVault
-          .connect(whale)
-          ["deposit(uint256,address)"](assets, whale.address);
+        it("Only strategist can call", async function () {
+          const shares = ethers.utils.parseUnits("1000", 6);
+          const assets = await drops.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["mint(address,uint256,uint256)"](
+                drops.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
 
-        const shares = ethers.utils.parseEther("100");
-        await spiceVault
-          .connect(strategist)
-          ["mint(address,uint256)"](vault.address, shares);
-      });
+        it("Only mint to drops", async function () {
+          const shares = ethers.utils.parseUnits("1000", 6);
+          const assets = await drops.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["mint(address,uint256,uint256)"](
+                token.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
 
-      it("Only strategist can call", async function () {
-        const shares = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
-            .connect(alice)
-            ["redeem(address,uint256)"](vault.address, shares)
-        ).to.be.revertedWith(
-          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
-        );
-      });
+        it("When slippage is too high", async function () {
+          const shares = ethers.utils.parseUnits("1000", 6);
+          const assets = await drops.previewMint(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["mint(address,uint256,uint256)"](
+                drops.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
 
-      it("Only redeem from vault", async function () {
-        const shares = ethers.utils.parseEther("100");
-        await expect(
-          spiceVault
+        it("Take assets and mint shares", async function () {
+          const shares = ethers.utils.parseUnits("1000", 6);
+          const assets = await drops.previewMint(shares);
+          await spiceVault
             .connect(strategist)
-            ["redeem(address,uint256)"](token.address, shares)
-        ).to.be.revertedWith(
-          `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
-        );
+            ["mint(address,uint256,uint256)"](
+              drops.address,
+              shares,
+              assets.mul(101).div(100)
+            );
+
+          expect(await drops.balanceOf(spiceVault.address)).to.be.closeTo(
+            shares,
+            shares.div(1000)
+          );
+        });
       });
 
-      it("Redeem assets", async function () {
-        const shares = ethers.utils.parseEther("50");
-        await spiceVault
-          .connect(strategist)
-          ["redeem(address,uint256)"](vault.address, shares);
+      describe("Withdraw", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+
+          await spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,uint256)"](drops.address, assets, 0);
+        });
+
+        it("Only strategist can call", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await drops.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["withdraw(address,uint256,uint256)"](
+                drops.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only withdraw from drops", async function () {
+          const assets = ethers.utils.parseEther("100");
+          const shares = await drops.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["withdraw(address,uint256,uint256)"](
+                token.address,
+                assets,
+                shares.mul(101).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const assets = ethers.utils.parseEther("50");
+          const shares = await drops.previewWithdraw(assets);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["withdraw(address,uint256,uint256)"](
+                drops.address,
+                assets,
+                shares.mul(99).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Withdraw assets", async function () {
+          const assets = ethers.utils.parseEther("50");
+          const shares = await drops.previewWithdraw(assets);
+          await spiceVault
+            .connect(strategist)
+            ["withdraw(address,uint256,uint256)"](
+              drops.address,
+              assets,
+              shares.mul(101).div(100)
+            );
+        });
+      });
+
+      describe("Redeem", function () {
+        beforeEach(async function () {
+          const assets = ethers.utils.parseEther("100");
+          await weth.connect(whale).approve(spiceVault.address, assets);
+          await spiceVault
+            .connect(whale)
+            ["deposit(uint256,address)"](assets, whale.address);
+
+          await spiceVault
+            .connect(strategist)
+            ["deposit(address,uint256,uint256)"](drops.address, assets, 0);
+        });
+
+        it("Only strategist can call", async function () {
+          const shares = ethers.utils.parseUnits("100", 6);
+          const assets = await drops.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(alice)
+              ["redeem(address,uint256,uint256)"](
+                drops.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${alice.address.toLowerCase()} is missing role ${strategistRole}`
+          );
+        });
+
+        it("Only redeem from drops", async function () {
+          const shares = ethers.utils.parseUnits("100", 6);
+          const assets = await drops.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["redeem(address,uint256,uint256)"](
+                token.address,
+                shares,
+                assets.mul(99).div(100)
+              )
+          ).to.be.revertedWith(
+            `AccessControl: account ${token.address.toLowerCase()} is missing role ${vaultRole}`
+          );
+        });
+
+        it("When slippage is too high", async function () {
+          const shares = ethers.utils.parseUnits("100", 6);
+          const assets = await drops.previewRedeem(shares);
+          await expect(
+            spiceVault
+              .connect(strategist)
+              ["redeem(address,uint256,uint256)"](
+                drops.address,
+                shares,
+                assets.mul(101).div(100)
+              )
+          ).to.be.revertedWithCustomError(spiceVault, "SlippageTooHigh");
+        });
+
+        it("Redeem assets", async function () {
+          const shares = ethers.utils.parseUnits("100", 6);
+          const assets = await drops.previewRedeem(shares);
+          await spiceVault
+            .connect(strategist)
+            ["redeem(address,uint256,uint256)"](
+              drops.address,
+              shares,
+              assets.mul(99).div(100)
+            );
+        });
       });
     });
   });
