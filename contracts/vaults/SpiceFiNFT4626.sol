@@ -119,6 +119,9 @@ contract SpiceFiNFT4626 is
     /// @notice Insufficient share balance
     error InsufficientShareBalance();
 
+    /// @notice Slippage too high
+    error SlippageTooHigh();
+
     /////////////////////////////////////////////////////////////////////////
     /// Constructor ///
     /////////////////////////////////////////////////////////////////////////
@@ -550,28 +553,30 @@ contract SpiceFiNFT4626 is
     }
 
     /// See {IAggregatorVault-deposit}
-    function deposit(address vault, uint256 assets)
-        public
-        nonReentrant
-        onlyRole(STRATEGIST_ROLE)
-        returns (uint256 shares)
-    {
+    function deposit(
+        address vault,
+        uint256 assets,
+        uint256 minShares
+    ) public nonReentrant onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
         _checkRole(VAULT_ROLE, vault);
         SafeERC20Upgradeable.safeIncreaseAllowance(
             IERC20MetadataUpgradeable(asset()),
             vault,
             assets
         );
-        return IERC4626Upgradeable(vault).deposit(assets, address(this));
+        shares = IERC4626Upgradeable(vault).deposit(assets, address(this));
+
+        if (minShares > shares) {
+            revert SlippageTooHigh();
+        }
     }
 
     /// See {IAggregatorVault-mint}
-    function mint(address vault, uint256 shares)
-        public
-        nonReentrant
-        onlyRole(STRATEGIST_ROLE)
-        returns (uint256 assets)
-    {
+    function mint(
+        address vault,
+        uint256 shares,
+        uint256 maxAssets
+    ) public nonReentrant onlyRole(STRATEGIST_ROLE) returns (uint256 assets) {
         _checkRole(VAULT_ROLE, vault);
         uint256 assets_ = IERC4626Upgradeable(vault).previewMint(shares);
         SafeERC20Upgradeable.safeIncreaseAllowance(
@@ -579,38 +584,46 @@ contract SpiceFiNFT4626 is
             vault,
             assets_
         );
-        return IERC4626Upgradeable(vault).mint(shares, address(this));
+        assets = IERC4626Upgradeable(vault).mint(shares, address(this));
+
+        if (maxAssets < assets) {
+            revert SlippageTooHigh();
+        }
     }
 
     /// See {IAggregatorVault-withdraw}
-    function withdraw(address vault, uint256 assets)
-        public
-        nonReentrant
-        onlyRole(STRATEGIST_ROLE)
-        returns (uint256 shares)
-    {
+    function withdraw(
+        address vault,
+        uint256 assets,
+        uint256 maxShares
+    ) public nonReentrant onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
         _checkRole(VAULT_ROLE, vault);
-        return
-            IERC4626Upgradeable(vault).withdraw(
-                assets,
-                address(this),
-                address(this)
-            );
+        shares = IERC4626Upgradeable(vault).withdraw(
+            assets,
+            address(this),
+            address(this)
+        );
+
+        if (maxShares < shares) {
+            revert SlippageTooHigh();
+        }
     }
 
     /// See {IAggregatorVault-redeem}
-    function redeem(address vault, uint256 shares)
-        public
-        nonReentrant
-        onlyRole(STRATEGIST_ROLE)
-        returns (uint256 assets)
-    {
+    function redeem(
+        address vault,
+        uint256 shares,
+        uint256 minAssets
+    ) public nonReentrant onlyRole(STRATEGIST_ROLE) returns (uint256 assets) {
         _checkRole(VAULT_ROLE, vault);
-        return
-            IERC4626Upgradeable(vault).redeem(
-                shares,
-                address(this),
-                address(this)
-            );
+        assets = IERC4626Upgradeable(vault).redeem(
+            shares,
+            address(this),
+            address(this)
+        );
+
+        if (minAssets > assets) {
+            revert SlippageTooHigh();
+        }
     }
 }
