@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 /// @title IVaultRegistry
+/// @author Spice Finance Inc
 interface IVaultRegistry {
     /////////////////////////////////////////////////////////////////////////
     /// Events ///

@@ -12,6 +12,7 @@ import "../interfaces/IWETH.sol";
 import "../interfaces/IBendLendPool.sol";
 
 /// @title Storage for Bend4626
+/// @author Spice Finance Inc
 abstract contract Bend4626Storage {
     /// @notice LendPool address
     address public poolAddress;
@@ -24,6 +25,7 @@ abstract contract Bend4626Storage {
 }
 
 /// @title ERC4626 Wrapper for BendLendPool
+/// @author Spice Finance Inc
 contract Bend4626 is
     Bend4626Storage,
     Initializable,

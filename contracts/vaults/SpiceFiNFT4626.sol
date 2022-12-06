@@ -16,6 +16,7 @@ import "../interfaces/ISpiceFiNFT4626.sol";
 import "../interfaces/IAggregatorVault.sol";
 
 /// @title Storage for SpiceFiNFT4626
+/// @author Spice Finance Inc
 abstract contract SpiceFiNFT4626Storage {
     /// @notice withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
@@ -43,6 +44,7 @@ abstract contract SpiceFiNFT4626Storage {
 }
 
 /// @title SpiceFiNFT4626
+/// @author Spice Finance Inc
 contract SpiceFiNFT4626 is
     ISpiceFiNFT4626,
     IAggregatorVault,

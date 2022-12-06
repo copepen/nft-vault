@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 /// @title IAggregatorVault
+/// @author Spice Finance Inc
 interface IAggregatorVault {
     /// @notice Deposit weth into vault and receive receipt tokens
     /// @param vault Vault address

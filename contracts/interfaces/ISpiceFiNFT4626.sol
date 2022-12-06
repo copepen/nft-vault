@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 /// @title ISpiceFiNFT4626
+/// @author Spice Finance Inc
 interface ISpiceFiNFT4626 {
     event Deposit(
         address indexed sender,

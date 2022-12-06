@@ -13,6 +13,7 @@ import "../interfaces/ICEther.sol";
 import "../helpers/WETHUnwrapper.sol";
 
 /// @title Storage for Drops4626
+/// @author Spice Finance Inc
 abstract contract Drops4626Storage {
     /// @notice CEther address
     address public lpTokenAddress;
@@ -24,6 +25,7 @@ abstract contract Drops4626Storage {
 }
 
 /// @title ERC4626 Wrapper for Drops CEther
+/// @author Spice Finance Inc
 contract Drops4626 is
     Drops4626Storage,
     Initializable,

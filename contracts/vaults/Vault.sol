@@ -18,6 +18,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../interfaces/IVault.sol";
 
 /// @title Storage for Vault
+/// @author Spice Finance Inc
 abstract contract VaultStorageV1 {
     /// @dev Asset token
     IERC20Upgradeable internal _asset;
@@ -33,11 +34,13 @@ abstract contract VaultStorageV1 {
 }
 
 /// @title Storage for Vault, aggregated
+/// @author Spice Finance Inc
 abstract contract VaultStorage is VaultStorageV1 {
 
 }
 
 /// @title Vault
+/// @author Spice Finance Inc
 contract Vault is
     IVault,
     VaultStorage,

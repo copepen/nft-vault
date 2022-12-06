@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 import "./SpiceFi4626.sol";
 
 /// @title SpiceFi Factory
+/// @author Spice Finance Inc
 contract SpiceFiFactory is AccessControlEnumerable {
     using Clones for address;
 
@@ -42,6 +43,10 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @param vault Vault address
     event VaultCreated(address indexed owner, address vault);
 
+    /////////////////////////////////////////////////////////////////////////
+    /// Constructor ///
+    /////////////////////////////////////////////////////////////////////////
+
     /// @notice Constructor
     /// @param implementation_ SpiceFi4626 implementation address
     constructor(SpiceFi4626 implementation_) {
@@ -53,6 +58,10 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
         implementation = implementation_;
     }
+
+    /////////////////////////////////////////////////////////////////////////
+    /// Functions ///
+    /////////////////////////////////////////////////////////////////////////
 
     /// @notice Creates new SpiceFi4626 vault
     /// @param asset Asset address for SpiceFi4626

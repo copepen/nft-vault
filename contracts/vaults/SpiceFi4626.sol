@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 import "../interfaces/IAggregatorVault.sol";
 
 /// @title Storage for SpiceFi4626
+/// @author Spice Finance Inc
 abstract contract SpiceFi4626Storage {
     /// @notice withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
@@ -23,8 +24,8 @@ abstract contract SpiceFi4626Storage {
     bool public verified;
 }
 
-// https://forum.openzeppelin.com/t/right-way-to-extend-both-multicallupgradeable-and-uupsupgradeable/14840
 /// @title SpiceFi4626
+/// @author Spice Finance Inc
 contract SpiceFi4626 is
     IAggregatorVault,
     SpiceFi4626Storage,

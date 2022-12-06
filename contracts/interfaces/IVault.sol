@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 /// @title Interface to a Vault
+/// @author Spice Finance Inc
 interface IVault {
     /////////////////////////////////////////////////////////////////////////
     /// Events ///
