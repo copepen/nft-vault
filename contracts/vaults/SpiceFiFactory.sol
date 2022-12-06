@@ -6,17 +6,19 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./SpiceFi4626.sol";
 
-/// @title SpiceFi Factory
-/// @author Spice Finance Inc
+/**
+ * @title SpiceFiFactory
+ * @author Spice Finance Inc
+ */
 contract SpiceFiFactory is AccessControlEnumerable {
     using Clones for address;
 
     /// @notice SpiceFi4626 implementation
     SpiceFi4626 public immutable implementation;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice Vault contracts
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
@@ -24,9 +26,9 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @notice Aggregator contracts
     bytes32 public constant AGGREGATOR_ROLE = keccak256("AGGREGATOR_ROLE");
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -34,18 +36,18 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     /// @notice Emitted when new vault is created
     /// @param owner Owner addres
     /// @param vault Vault address
     event VaultCreated(address indexed owner, address vault);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice Constructor
     /// @param implementation_ SpiceFi4626 implementation address
@@ -59,9 +61,9 @@ contract SpiceFiFactory is AccessControlEnumerable {
         implementation = implementation_;
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Functions */
+    /*************/
 
     /// @notice Creates new SpiceFi4626 vault
     /// @param asset Asset address for SpiceFi4626

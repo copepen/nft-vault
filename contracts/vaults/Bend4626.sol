@@ -11,8 +11,10 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "../interfaces/IWETH.sol";
 import "../interfaces/IBendLendPool.sol";
 
-/// @title Storage for Bend4626
-/// @author Spice Finance Inc
+/**
+ * @title Storage for Bend4626
+ * @author Spice Finance Inc
+ */
 abstract contract Bend4626Storage {
     /// @notice LendPool address
     address public poolAddress;
@@ -24,8 +26,10 @@ abstract contract Bend4626Storage {
     uint8 internal _decimals;
 }
 
-/// @title ERC4626 Wrapper for BendLendPool
-/// @author Spice Finance Inc
+/**
+ * @title ERC4626 Wrapper for BendLendPool
+ * @author Spice Finance Inc
+ */
 contract Bend4626 is
     Bend4626Storage,
     Initializable,
@@ -34,18 +38,18 @@ contract Bend4626 is
 {
     using MathUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint256 public constant ONE_RAY = 1e27;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     event Deposit(
         address indexed sender,
@@ -62,9 +66,9 @@ contract Bend4626 is
         uint256 shares
     );
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -72,9 +76,9 @@ contract Bend4626 is
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice Bend4626 constructor (for proxy)
     /// @param name_ Receipt token name
@@ -116,9 +120,9 @@ contract Bend4626 is
         _disableInitializers();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Getters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Getters */
+    /***********/
 
     /// @notice See {IERC20Metadata-decimals}.
     function decimals() public view override returns (uint8) {
@@ -186,9 +190,9 @@ contract Bend4626 is
         return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// User Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /******************/
+    /* User Functions */
+    /******************/
 
     /// @notice Deposits weth into Bend pool and receive receipt tokens
     /// @param assets The amount of weth being deposited
@@ -276,9 +280,9 @@ contract Bend4626 is
         _withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Internal Helper Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /*****************************/
+    /* Internal Helper Functions */
+    /*****************************/
 
     /// @dev Get estimated share amount for assets
     /// @param assets Asset token amount

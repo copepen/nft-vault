@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-/// @title ICEther
+/**
+ * @title ICEther
+ */
 interface ICEther {
     function mint() external payable;
     function redeem(uint256 redeemTokens) external returns (uint256);

@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-/// @title IVaultRegistry
-/// @author Spice Finance Inc
+/**
+ * @title IVaultRegistry
+ * @author Spice Finance Inc
+ */
 interface IVaultRegistry {
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     /// @notice Emitted when a vault is registered
     /// @param vault Vault address
@@ -16,9 +18,9 @@ interface IVaultRegistry {
     /// @param vault Vault address
     event VaultUnregistered(address indexed vault);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Primary API ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Primary API */
+    /***************/
 
     /// @notice Register a vault
     ///

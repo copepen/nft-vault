@@ -11,8 +11,10 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "../interfaces/IAggregatorVault.sol";
 
-/// @title Storage for SpiceFi4626
-/// @author Spice Finance Inc
+/**
+ * @title Storage for SpiceFi4626
+ * @author Spice Finance Inc
+ */
 abstract contract SpiceFi4626Storage {
     /// @notice withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
@@ -24,8 +26,10 @@ abstract contract SpiceFi4626Storage {
     bool public verified;
 }
 
-/// @title SpiceFi4626
-/// @author Spice Finance Inc
+/**
+ * @title SpiceFi4626
+ * @author Spice Finance Inc
+ */
 contract SpiceFi4626 is
     IAggregatorVault,
     SpiceFi4626Storage,
@@ -39,9 +43,9 @@ contract SpiceFi4626 is
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice Spice Multisig
     address public constant multisig =
@@ -63,9 +67,9 @@ contract SpiceFi4626 is
     /// @notice Spice role
     bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -76,9 +80,9 @@ contract SpiceFi4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice SpiceFi4626 constructor (for proxy)
     /// @param asset_ Asset token address

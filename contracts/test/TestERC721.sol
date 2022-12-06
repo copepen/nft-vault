@@ -4,17 +4,19 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @title Test ERC721 Token
+/**
+ * @title Test ERC721 Token
+ */
 contract TestERC721 is ERC721, Ownable {
-    /////////////////////////////////////////////////////////////////////////
-    /// Properties ///
-    /////////////////////////////////////////////////////////////////////////
+    /**************/
+    /* Properties */
+    /**************/
 
     string private _baseTokenURI;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice TestERC721 constructor
     /// @notice name Token name
@@ -28,18 +30,18 @@ contract TestERC721 is ERC721, Ownable {
         _baseTokenURI = baseURI;
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Overrides ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Overrides */
+    /*************/
 
     /// @inheritdoc ERC721
     function _baseURI() internal view virtual override returns (string memory) {
         return _baseTokenURI;
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Privileged API ///
-    /////////////////////////////////////////////////////////////////////////
+    /******************/
+    /* Privileged API */
+    /******************/
 
     /// @notice Set token base URI
     /// @param baseURI Token base URI

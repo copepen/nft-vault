@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-/// @title Interface to a Vault
-/// @author Spice Finance Inc
+/**
+ * @title IVault
+ * @author Spice Finance Inc
+ */
 interface IVault {
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     /// @notice Emitted when receipt tokens are redeemed
     /// @param account Redeeming account

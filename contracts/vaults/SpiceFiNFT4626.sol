@@ -15,8 +15,10 @@ import "../interfaces/IWETH.sol";
 import "../interfaces/ISpiceFiNFT4626.sol";
 import "../interfaces/IAggregatorVault.sol";
 
-/// @title Storage for SpiceFiNFT4626
-/// @author Spice Finance Inc
+/**
+ * @title Storage for SpiceFiNFT4626
+ * @author Spice Finance Inc
+ */
 abstract contract SpiceFiNFT4626Storage {
     /// @notice withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
@@ -43,8 +45,10 @@ abstract contract SpiceFiNFT4626Storage {
     bool internal _revealed;
 }
 
-/// @title SpiceFiNFT4626
-/// @author Spice Finance Inc
+/**
+ * @title SpiceFiNFT4626
+ * @author Spice Finance Inc
+ */
 contract SpiceFiNFT4626 is
     ISpiceFiNFT4626,
     IAggregatorVault,
@@ -60,9 +64,9 @@ contract SpiceFiNFT4626 is
     using MathUpgradeable for uint256;
     using StringsUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -93,9 +97,9 @@ contract SpiceFiNFT4626 is
     /// @notice Mint price
     uint256 constant MINT_PRICE = 0.08 ether;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -124,9 +128,9 @@ contract SpiceFiNFT4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice SpiceFiNFT4626 constructor (for proxy)
     /// @param strategist_ Default strategist address
@@ -222,9 +226,9 @@ contract SpiceFiNFT4626 is
         _unpause();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Getters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Getters */
+    /***********/
 
     /// @notice See {ISpiceFiNFT4626-asset}
     function asset() public pure returns (address) {
@@ -354,9 +358,9 @@ contract SpiceFiNFT4626 is
                 : "";
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// User Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /******************/
+    /* User Functions */
+    /******************/
 
     /// See {ISpiceFiNFT4626-deposit}.
     function deposit(uint256 tokenId, uint256 assets)
@@ -448,9 +452,9 @@ contract SpiceFiNFT4626 is
         _withdraw(msg.sender, tokenId, receiver, assets, shares, fees);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Internal Helper Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /*****************************/
+    /* Internal Helper Functions */
+    /*****************************/
 
     function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
         internal

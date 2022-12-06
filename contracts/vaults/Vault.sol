@@ -17,8 +17,10 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../interfaces/IVault.sol";
 
-/// @title Storage for Vault
-/// @author Spice Finance Inc
+/**
+ * @title Storage for Vault
+ * @author Spice Finance Inc
+ */
 abstract contract VaultStorageV1 {
     /// @dev Asset token
     IERC20Upgradeable internal _asset;
@@ -33,14 +35,18 @@ abstract contract VaultStorageV1 {
     uint256 internal _totalAssets;
 }
 
-/// @title Storage for Vault, aggregated
-/// @author Spice Finance Inc
+/**
+ * @title Storage for Vault, aggregated
+ * @author Spice Finance Inc
+ */
 abstract contract VaultStorage is VaultStorageV1 {
 
 }
 
-/// @title Vault
-/// @author Spice Finance Inc
+/**
+ * @title Vault
+ * @author Spice Finance Inc
+ */
 contract Vault is
     IVault,
     VaultStorage,
@@ -56,16 +62,16 @@ contract Vault is
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using MathUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice Implementation version
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Access Control Roles ///
-    /////////////////////////////////////////////////////////////////////////
+    /************************/
+    /* Access Control Roles */
+    /************************/
 
     /// @notice Keeper role
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
@@ -86,9 +92,9 @@ contract Vault is
     bytes32 public constant ASSET_RECEIVER_ROLE =
         keccak256("ASSET_RECEIVER_ROLE");
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -102,9 +108,9 @@ contract Vault is
     /// @notice Not whitelisted
     error NotWhitelisted();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     /// @notice Emitted when withdrawal fee rate is updated
     /// @param withdrawalFees New withdrawal fees per 10_000 units
@@ -114,9 +120,9 @@ contract Vault is
     /// @param totalAssets Total assets
     event TotalAssets(uint256 totalAssets);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice Vault constructor (for proxy)
     /// @param name_ receipt token name
@@ -173,9 +179,9 @@ contract Vault is
         _disableInitializers();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Getters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Getters */
+    /***********/
 
     /// @notice See {IERC20Metadata-decimals}.
     function decimals()
@@ -259,9 +265,9 @@ contract Vault is
             );
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// User Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /******************/
+    /* User Functions */
+    /******************/
 
     /// See {IERC4626-deposit}.
     function deposit(uint256 assets, address receiver)
@@ -353,9 +359,9 @@ contract Vault is
         _withdraw(msg.sender, receiver, owner, assets, shares, fees);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Internal Helper Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /*****************************/
+    /* Internal Helper Functions */
+    /*****************************/
 
     function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
         internal
@@ -433,9 +439,9 @@ contract Vault is
         emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Setters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Setters */
+    /***********/
 
     /// @notice Set the admin fee rate
     ///
@@ -477,9 +483,9 @@ contract Vault is
         _unpause();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Admin API ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Admin API */
+    /*************/
 
     /// @notice Approves asset to spender
     /// @param spender Spender address
@@ -506,9 +512,9 @@ contract Vault is
         token.safeTransferFrom(address(this), msg.sender, nftId);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// ERC-1271 ///
-    /////////////////////////////////////////////////////////////////////////
+    /************/
+    /* ERC-1271 */
+    /************/
 
     /// See {IERC1271-isValidSignature}
     function isValidSignature(bytes32 hash, bytes memory signature)
