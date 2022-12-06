@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
@@ -26,13 +26,13 @@ abstract contract SpiceFi4626Storage {
 // https://forum.openzeppelin.com/t/right-way-to-extend-both-multicallupgradeable-and-uupsupgradeable/14840
 /// @title SpiceFi4626
 contract SpiceFi4626 is
+    IAggregatorVault,
+    SpiceFi4626Storage,
+    UUPSUpgradeable,
     ERC4626Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
-    UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    SpiceFi4626Storage,
-    IAggregatorVault,
     Multicall
 {
     using SafeMathUpgradeable for uint256;

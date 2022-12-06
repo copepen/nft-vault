@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 /// @title Interface to a Vault
@@ -17,8 +17,4 @@ interface IVault {
     /// @param account Withdrawing account
     /// @param assets Amount of asset tokens withdrawn
     event Withdrawn(address indexed account, uint256 assets);
-
-    /////////////////////////////////////////////////////////////////////////
-    /// User Functions ///
-    /////////////////////////////////////////////////////////////////////////
 }

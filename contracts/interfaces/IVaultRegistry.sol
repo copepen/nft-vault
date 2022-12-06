@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-/// @title Interface to the Vault Registry
+/// @title IVaultRegistry
 interface IVaultRegistry {
     /////////////////////////////////////////////////////////////////////////
     /// Events ///

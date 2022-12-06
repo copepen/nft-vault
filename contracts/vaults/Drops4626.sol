@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -25,10 +25,10 @@ abstract contract Drops4626Storage {
 
 /// @title ERC4626 Wrapper for Drops CEther
 contract Drops4626 is
+    Drops4626Storage,
     Initializable,
     ERC20Upgradeable,
-    ReentrancyGuardUpgradeable,
-    Drops4626Storage
+    ReentrancyGuardUpgradeable
 {
     using MathUpgradeable for uint256;
 

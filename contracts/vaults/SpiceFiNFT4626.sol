@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
@@ -45,13 +45,13 @@ abstract contract SpiceFiNFT4626Storage {
 /// @title SpiceFiNFT4626
 contract SpiceFiNFT4626 is
     ISpiceFiNFT4626,
+    IAggregatorVault,
+    SpiceFiNFT4626Storage,
+    UUPSUpgradeable,
     ERC721Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
-    UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    SpiceFiNFT4626Storage,
-    IAggregatorVault,
     Multicall
 {
     using SafeMathUpgradeable for uint256;
