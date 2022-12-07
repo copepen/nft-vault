@@ -3,11 +3,13 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-/// @title Test ERC20 Token
+/**
+ * @title Test ERC20 Token
+ */
 contract TestERC20 is ERC20 {
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice TestERC20 constructor
     /// @notice name Token name

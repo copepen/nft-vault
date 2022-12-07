@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
@@ -11,7 +11,10 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "../interfaces/IAggregatorVault.sol";
 
-/// @title Storage for SpiceFi4626
+/**
+ * @title Storage for SpiceFi4626
+ * @author Spice Finance Inc
+ */
 abstract contract SpiceFi4626Storage {
     /// @notice withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
@@ -23,24 +26,26 @@ abstract contract SpiceFi4626Storage {
     bool public verified;
 }
 
-// https://forum.openzeppelin.com/t/right-way-to-extend-both-multicallupgradeable-and-uupsupgradeable/14840
-/// @title SpiceFi4626
+/**
+ * @title SpiceFi4626
+ * @author Spice Finance Inc
+ */
 contract SpiceFi4626 is
+    IAggregatorVault,
+    SpiceFi4626Storage,
+    UUPSUpgradeable,
     ERC4626Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
-    UUPSUpgradeable,
     ReentrancyGuardUpgradeable,
-    SpiceFi4626Storage,
-    IAggregatorVault,
     Multicall
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice Spice Multisig
     address public constant multisig =
@@ -62,9 +67,9 @@ contract SpiceFi4626 is
     /// @notice Spice role
     bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -75,9 +80,9 @@ contract SpiceFi4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice SpiceFi4626 constructor (for proxy)
     /// @param asset_ Asset token address

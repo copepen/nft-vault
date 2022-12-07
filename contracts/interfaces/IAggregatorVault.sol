@@ -1,7 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-/// @title IAggregatorVault
+/**
+ * @title IAggregatorVault
+ * @author Spice Finance Inc
+ */
 interface IAggregatorVault {
     /// @notice Deposit weth into vault and receive receipt tokens
     /// @param vault Vault address

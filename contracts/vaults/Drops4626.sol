@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -12,7 +12,10 @@ import "../interfaces/IWETH.sol";
 import "../interfaces/ICEther.sol";
 import "../helpers/WETHUnwrapper.sol";
 
-/// @title Storage for Drops4626
+/**
+ * @title Storage for Drops4626
+ * @author Spice Finance Inc
+ */
 abstract contract Drops4626Storage {
     /// @notice CEther address
     address public lpTokenAddress;
@@ -23,27 +26,30 @@ abstract contract Drops4626Storage {
     uint8 internal _decimals;
 }
 
-/// @title ERC4626 Wrapper for Drops CEther
+/**
+ * @title ERC4626 Wrapper for Drops CEther
+ * @author Spice Finance Inc
+ */
 contract Drops4626 is
+    Drops4626Storage,
     Initializable,
     ERC20Upgradeable,
-    ReentrancyGuardUpgradeable,
-    Drops4626Storage
+    ReentrancyGuardUpgradeable
 {
     using MathUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint256 public constant ONE_WAD = 1e18;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     event Deposit(
         address indexed sender,
@@ -60,9 +66,9 @@ contract Drops4626 is
         uint256 shares
     );
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -70,9 +76,9 @@ contract Drops4626 is
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice Drops4626 constructor (for proxy)
     /// @param name_ Receipt token name
@@ -113,9 +119,9 @@ contract Drops4626 is
         _disableInitializers();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Getters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Getters */
+    /***********/
 
     /// @notice See {IERC20Metadata-decimals}.
     function decimals() public view override returns (uint8) {
@@ -183,9 +189,9 @@ contract Drops4626 is
         return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// User Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /******************/
+    /* User Functions */
+    /******************/
 
     /// @notice Deposits weth into CEther and receive receipt tokens
     /// @param assets The amount of weth being deposited
@@ -267,9 +273,9 @@ contract Drops4626 is
         assets = _withdraw(msg.sender, receiver, owner, shares);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Internal Helper Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /*****************************/
+    /* Internal Helper Functions */
+    /*****************************/
 
     /// @dev Get estimated share amount for assets
     /// @param assets Asset token amount
@@ -372,9 +378,9 @@ contract Drops4626 is
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Fallbacks ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Fallbacks */
+    /*************/
 
     receive() external payable {
         require(

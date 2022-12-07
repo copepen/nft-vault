@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -9,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -17,7 +17,10 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../interfaces/IVault.sol";
 
-/// @title Storage for Vault
+/**
+ * @title Storage for Vault
+ * @author Spice Finance Inc
+ */
 abstract contract VaultStorageV1 {
     /// @dev Asset token
     IERC20Upgradeable internal _asset;
@@ -28,41 +31,47 @@ abstract contract VaultStorageV1 {
     /// @dev withdrawal fees per 10_000 units
     uint256 internal _withdrawalFees;
 
-    /// @notice Total assets value
+    /// @dev Total assets value
     uint256 internal _totalAssets;
 }
 
-/// @title Storage for Vault, aggregated
+/**
+ * @title Storage for Vault, aggregated
+ * @author Spice Finance Inc
+ */
 abstract contract VaultStorage is VaultStorageV1 {
 
 }
 
-/// @title Vault
+/**
+ * @title Vault
+ * @author Spice Finance Inc
+ */
 contract Vault is
+    IVault,
+    VaultStorage,
     Initializable,
+    UUPSUpgradeable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
     AccessControlEnumerableUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    UUPSUpgradeable,
-    VaultStorage,
-    ERC721Holder,
-    IVault
+    ERC721Holder
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using MathUpgradeable for uint256;
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constants ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Constants */
+    /*************/
 
     /// @notice Implementation version
     string public constant IMPLEMENTATION_VERSION = "1.0";
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Access Control Roles ///
-    /////////////////////////////////////////////////////////////////////////
+    /************************/
+    /* Access Control Roles */
+    /************************/
 
     /// @notice Keeper role
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
@@ -83,9 +92,9 @@ contract Vault is
     bytes32 public constant ASSET_RECEIVER_ROLE =
         keccak256("ASSET_RECEIVER_ROLE");
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Errors ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Errors */
+    /**********/
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -99,9 +108,9 @@ contract Vault is
     /// @notice Not whitelisted
     error NotWhitelisted();
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Events ///
-    /////////////////////////////////////////////////////////////////////////
+    /**********/
+    /* Events */
+    /**********/
 
     /// @notice Emitted when withdrawal fee rate is updated
     /// @param withdrawalFees New withdrawal fees per 10_000 units
@@ -111,9 +120,9 @@ contract Vault is
     /// @param totalAssets Total assets
     event TotalAssets(uint256 totalAssets);
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Constructor ///
-    /////////////////////////////////////////////////////////////////////////
+    /***************/
+    /* Constructor */
+    /***************/
 
     /// @notice Vault constructor (for proxy)
     /// @param name_ receipt token name
@@ -170,9 +179,9 @@ contract Vault is
         _disableInitializers();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Getters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Getters */
+    /***********/
 
     /// @notice See {IERC20Metadata-decimals}.
     function decimals()
@@ -256,9 +265,9 @@ contract Vault is
             );
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// User Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /******************/
+    /* User Functions */
+    /******************/
 
     /// See {IERC4626-deposit}.
     function deposit(uint256 assets, address receiver)
@@ -350,9 +359,9 @@ contract Vault is
         _withdraw(msg.sender, receiver, owner, assets, shares, fees);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Internal Helper Functions ///
-    /////////////////////////////////////////////////////////////////////////
+    /*****************************/
+    /* Internal Helper Functions */
+    /*****************************/
 
     function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
         internal
@@ -430,9 +439,9 @@ contract Vault is
         emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Setters ///
-    /////////////////////////////////////////////////////////////////////////
+    /***********/
+    /* Setters */
+    /***********/
 
     /// @notice Set the admin fee rate
     ///
@@ -474,9 +483,9 @@ contract Vault is
         _unpause();
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// Admin API ///
-    /////////////////////////////////////////////////////////////////////////
+    /*************/
+    /* Admin API */
+    /*************/
 
     /// @notice Approves asset to spender
     /// @param spender Spender address
@@ -503,9 +512,9 @@ contract Vault is
         token.safeTransferFrom(address(this), msg.sender, nftId);
     }
 
-    /////////////////////////////////////////////////////////////////////////
-    /// ERC-1271 ///
-    /////////////////////////////////////////////////////////////////////////
+    /************/
+    /* ERC-1271 */
+    /************/
 
     /// See {IERC1271-isValidSignature}
     function isValidSignature(bytes32 hash, bytes memory signature)

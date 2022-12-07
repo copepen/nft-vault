@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.17;
 
-// trimmed down version of:
-// - https://github.com/Dropsorg/drops-nft-contracts/blob/main/contracts/CEther.sol
+/**
+ * @title ICEther
+ */
 interface ICEther {
     function mint() external payable;
     function redeem(uint256 redeemTokens) external returns (uint256);
