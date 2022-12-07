@@ -89,12 +89,13 @@ describe("SpiceFiNFT4626", function () {
 
     const Vault = await ethers.getContractFactory("Vault");
 
-    vault = await upgrades.deployProxy(Vault, [
-      vaultName,
-      vaultSymbol,
-      weth.address,
-      700,
-    ]);
+    vault = await upgrades.deployProxy(
+      Vault,
+      [vaultName, vaultSymbol, weth.address, 700],
+      {
+        kind: "uups",
+      }
+    );
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
 
@@ -122,6 +123,7 @@ describe("SpiceFiNFT4626", function () {
         [ethers.constants.AddressZero, assetReceiver.address, 700],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
@@ -131,6 +133,7 @@ describe("SpiceFiNFT4626", function () {
         [strategist.address, ethers.constants.AddressZero, 700],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
@@ -140,6 +143,7 @@ describe("SpiceFiNFT4626", function () {
         [strategist.address, assetReceiver.address, 10001],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
@@ -149,6 +153,7 @@ describe("SpiceFiNFT4626", function () {
       [strategist.address, assetReceiver.address, 700],
       {
         unsafeAllow: ["delegatecall"],
+        kind: "uups",
       }
     );
 
@@ -1053,7 +1058,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1123,7 +1130,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Mint", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1193,7 +1202,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Withdraw", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1265,7 +1276,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Redeem", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1339,7 +1352,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1409,7 +1424,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Mint", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1479,7 +1496,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Withdraw", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1551,7 +1570,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Redeem", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1625,7 +1646,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1698,7 +1721,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Mint", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1771,7 +1796,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Withdraw", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);
@@ -1843,7 +1870,9 @@ describe("SpiceFiNFT4626", function () {
       describe("Redeem", function () {
         beforeEach(async function () {
           const assets = ethers.utils.parseEther("100");
-          await weth.connect(whale).approve(spiceVault.address, ethers.constants.MaxUint256);
+          await weth
+            .connect(whale)
+            .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
             ["deposit(uint256,uint256)"](0, assets);

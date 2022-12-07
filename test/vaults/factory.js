@@ -71,12 +71,13 @@ describe("SpiceFiFactory", function () {
 
     const Vault = await ethers.getContractFactory("Vault");
 
-    vault = await upgrades.deployProxy(Vault, [
-      vaultName,
-      vaultSymbol,
-      weth.address,
-      0,
-    ]);
+    vault = await upgrades.deployProxy(
+      Vault,
+      [vaultName, vaultSymbol, weth.address, 0],
+      {
+        kind: "uups",
+      }
+    );
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
 
@@ -103,6 +104,7 @@ describe("SpiceFiFactory", function () {
       [constants.tokens.WETH, strategist.address, assetReceiver.address, 700],
       {
         unsafeAllow: ["delegatecall"],
+        kind: "uups",
       }
     );
 

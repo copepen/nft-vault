@@ -53,29 +53,32 @@ describe("Vault", function () {
     const Vault = await ethers.getContractFactory("Vault");
 
     await expect(
-      upgrades.deployProxy(Vault, [
-        "Spice Vault Test Token",
-        "svTT",
-        ethers.constants.AddressZero,
-        0,
-      ])
+      upgrades.deployProxy(
+        Vault,
+        ["Spice Vault Test Token", "svTT", ethers.constants.AddressZero, 0],
+        {
+          kind: "uups",
+        }
+      )
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(Vault, [
-        "Spice Vault Test Token",
-        "svTT",
-        token.address,
-        10001,
-      ])
+      upgrades.deployProxy(
+        Vault,
+        ["Spice Vault Test Token", "svTT", token.address, 10001],
+        {
+          kind: "uups",
+        }
+      )
     ).to.be.revertedWithCustomError(Vault, "ParameterOutOfBounds");
 
-    vault = await upgrades.deployProxy(Vault, [
-      "Spice Vault Test Token",
-      "svTT",
-      token.address,
-      700,
-    ]);
+    vault = await upgrades.deployProxy(
+      Vault,
+      ["Spice Vault Test Token", "svTT", token.address, 700],
+      {
+        kind: "uups",
+      }
+    );
 
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
     keeperRole = await vault.KEEPER_ROLE();
