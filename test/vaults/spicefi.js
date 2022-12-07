@@ -88,12 +88,13 @@ describe("SpiceFi4626", function () {
 
     const Vault = await ethers.getContractFactory("Vault");
 
-    vault = await upgrades.deployProxy(Vault, [
-      vaultName,
-      vaultSymbol,
-      weth.address,
-      0,
-    ]);
+    vault = await upgrades.deployProxy(
+      Vault,
+      [vaultName, vaultSymbol, weth.address, 0],
+      {
+        kind: "uups",
+      }
+    );
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
 
@@ -126,6 +127,7 @@ describe("SpiceFi4626", function () {
         ],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
@@ -140,6 +142,7 @@ describe("SpiceFi4626", function () {
         ],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
@@ -149,6 +152,7 @@ describe("SpiceFi4626", function () {
         [weth.address, strategist.address, ethers.constants.AddressZero, 700],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
@@ -158,6 +162,7 @@ describe("SpiceFi4626", function () {
         [weth.address, strategist.address, assetReceiver.address, 10001],
         {
           unsafeAllow: ["delegatecall"],
+          kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFi4626, "ParameterOutOfBounds");
@@ -167,6 +172,7 @@ describe("SpiceFi4626", function () {
       [weth.address, strategist.address, assetReceiver.address, 700],
       {
         unsafeAllow: ["delegatecall"],
+        kind: "uups",
       }
     );
 
