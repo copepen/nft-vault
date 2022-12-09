@@ -81,21 +81,33 @@ describe("SpiceFiFactory", function () {
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
 
-    bend = await upgrades.deployProxy(Bend4626, [
-      bendVaultName,
-      bendVaultSymbol,
-      constants.contracts.BendPool,
-      constants.tokens.BendWETH,
-    ]);
+    bend = await upgrades.deployProxy(
+      Bend4626,
+      [
+        bendVaultName,
+        bendVaultSymbol,
+        constants.contracts.BendPool,
+        constants.tokens.BendWETH,
+      ],
+      {
+        kind: "uups",
+      }
+    );
 
     const Drops4626 = await ethers.getContractFactory("Drops4626");
 
-    drops = await upgrades.deployProxy(Drops4626, [
-      dropsVaultName,
-      dropsVaultSymbol,
-      constants.tokens.DropsETH,
-      unwrapper.address,
-    ]);
+    drops = await upgrades.deployProxy(
+      Drops4626,
+      [
+        dropsVaultName,
+        dropsVaultSymbol,
+        constants.tokens.DropsETH,
+        unwrapper.address,
+      ],
+      {
+        kind: "uups",
+      }
+    );
 
     const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
 

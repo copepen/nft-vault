@@ -12,6 +12,8 @@ describe("Bend4626", function () {
   let whale;
   let snapshotId;
 
+  let defaultAdminRole;
+
   const name = "Spice interest bearing WETH";
   const symbol = "spiceETH";
 
@@ -41,28 +43,38 @@ describe("Bend4626", function () {
     const Bend4626 = await ethers.getContractFactory("Bend4626");
 
     await expect(
-      upgrades.deployProxy(Bend4626, [
-        name,
-        symbol,
-        ethers.constants.AddressZero,
-        constants.tokens.BendWETH,
-      ])
+      upgrades.deployProxy(
+        Bend4626,
+        [name, symbol, ethers.constants.AddressZero, constants.tokens.BendWETH],
+        {
+          kind: "uups",
+        }
+      )
     ).to.be.revertedWithCustomError(Bend4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(Bend4626, [
-        name,
-        symbol,
-        constants.contracts.BendPool,
-        ethers.constants.AddressZero,
-      ])
+      upgrades.deployProxy(
+        Bend4626,
+        [
+          name,
+          symbol,
+          constants.contracts.BendPool,
+          ethers.constants.AddressZero,
+        ],
+        {
+          kind: "uups",
+        }
+      )
     ).to.be.revertedWithCustomError(Bend4626, "InvalidAddress");
 
-    vault = await upgrades.deployProxy(Bend4626, [
-      name,
-      symbol,
-      constants.contracts.BendPool,
-      constants.tokens.BendWETH,
-    ]);
+    vault = await upgrades.deployProxy(
+      Bend4626,
+      [name, symbol, constants.contracts.BendPool, constants.tokens.BendWETH],
+      {
+        kind: "uups",
+      }
+    );
+
+    defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
 
     await impersonateAccount(constants.accounts.Whale1);
   });
@@ -101,6 +113,20 @@ describe("Bend4626", function () {
           constants.tokens.BendWETH
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+
+    it("Should be upgraded only by default admin", async function () {
+      let Bend4626 = await ethers.getContractFactory("Bend4626", alice);
+
+      await expect(
+        upgrades.upgradeProxy(vault.address, Bend4626)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      Bend4626 = await ethers.getContractFactory("Bend4626", admin);
+
+      await upgrades.upgradeProxy(vault.address, Bend4626);
     });
   });
 

@@ -13,6 +13,8 @@ describe("Drops4626", function () {
   let whale;
   let snapshotId;
 
+  let defaultAdminRole;
+
   const name = "Spice CEther";
   const symbol = "SCEther";
   const ONE_WAD = ethers.utils.parseUnits("1", 18);
@@ -50,29 +52,34 @@ describe("Drops4626", function () {
     const Drops4626 = await ethers.getContractFactory("Drops4626");
 
     await expect(
-      upgrades.deployProxy(Drops4626, [
-        name,
-        symbol,
-        ethers.constants.AddressZero,
-        unwrapper.address,
-      ])
+      upgrades.deployProxy(
+        Drops4626,
+        [name, symbol, ethers.constants.AddressZero, unwrapper.address],
+        {
+          kind: "uups",
+        }
+      )
     ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(Drops4626, [
-        name,
-        symbol,
-        constants.tokens.DropsETH,
-        ethers.constants.AddressZero,
-      ])
+      upgrades.deployProxy(
+        Drops4626,
+        [name, symbol, constants.tokens.DropsETH, ethers.constants.AddressZero],
+        {
+          kind: "uups",
+        }
+      )
     ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
 
-    vault = await upgrades.deployProxy(Drops4626, [
-      name,
-      symbol,
-      constants.tokens.DropsETH,
-      unwrapper.address,
-    ]);
+    vault = await upgrades.deployProxy(
+      Drops4626,
+      [name, symbol, constants.tokens.DropsETH, unwrapper.address],
+      {
+        kind: "uups",
+      }
+    );
+
+    defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
 
     await impersonateAccount(whale.address);
   });
@@ -111,6 +118,20 @@ describe("Drops4626", function () {
           unwrapper.address
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+
+    it("Should be upgraded only by default admin", async function () {
+      let Drops4626 = await ethers.getContractFactory("Drops4626", alice);
+
+      await expect(
+        upgrades.upgradeProxy(vault.address, Drops4626)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      Drops4626 = await ethers.getContractFactory("Drops4626", admin);
+
+      await upgrades.upgradeProxy(vault.address, Drops4626);
     });
   });
 
