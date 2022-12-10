@@ -1,7 +1,7 @@
-const deploy = async (hre) => {
-  const { deployments, ethers } = hre;
-  const { deploy } = deployments;
-  const [deployer] = await ethers.getSigners();
+const hre = require("hardhat");
+
+async function main() {
+  const { ethers, upgrades } = hre;
 
   const WETH =
     hre.network.name === "mainnet"
@@ -9,18 +9,12 @@ const deploy = async (hre) => {
       : "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6"; // goerli weth
   const args = ["Spice Peer2Peer", "SPP", WETH, 0];
 
-  const vault = await deploy("Vault", {
-    from: deployer.address,
-    args: [],
-    log: true,
-    proxy: {
-      proxyContract: "UUPS",
-      execute: {
-        methodName: "initialize",
-        args,
-      },
-    },
-  });
+  const Vault = await ethers.getContractFactory("Vault");
+  const vault = await upgrades.deployProxy(Vault, args, { kind: "uups" });
+
+  await vault.deployed();
+
+  console.log(`Vault deployed to ${vault.address}`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
@@ -31,9 +25,9 @@ const deploy = async (hre) => {
       });
     } catch (_) {}
   }
-};
+}
 
-module.exports = deploy;
-
-deploy.tags = ["Vault"];
-deploy.dependencies = [];
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

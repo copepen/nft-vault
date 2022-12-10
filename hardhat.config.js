@@ -1,6 +1,6 @@
+require("@nomicfoundation/hardhat-toolbox");
 require("@openzeppelin/hardhat-upgrades");
 require("@nomiclabs/hardhat-etherscan");
-require("@nomiclabs/hardhat-waffle");
 require("@nomiclabs/hardhat-ethers");
 require("hardhat-deploy");
 require("solidity-coverage");
@@ -32,11 +32,13 @@ module.exports = {
       }
     },
     goerli: {
+      saveDeployments: true,
       url: process.env.GOERLI_RPC_URL || "",
       accounts:
         process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     mainnet: {
+      saveDeployments: true,
       url: process.env.MAINNET_RPC_URL || "",
       accounts:
         process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
