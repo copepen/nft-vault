@@ -58,9 +58,6 @@ async function main() {
   token = await deployTokenAndAirdrop([admin, alice, bob, carol], amount);
   weth = await ethers.getContractAt("TestERC20", constants.tokens.WETH, admin);
 
-  const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
-  const unwrapper = await WETHUnwrapper.deploy();
-
   const Vault = await ethers.getContractFactory("Vault");
 
   vault = await upgrades.deployProxy(
@@ -93,8 +90,7 @@ async function main() {
     [
       dropsVaultName,
       dropsVaultSymbol,
-      constants.tokens.DropsETH,
-      unwrapper.address,
+      constants.tokens.DropsETH
     ],
     {
       kind: "uups",

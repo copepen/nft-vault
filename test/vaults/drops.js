@@ -8,7 +8,6 @@ describe("Drops4626", function () {
   let vault;
   let token;
   let weth;
-  let unwrapper;
   let admin, alice, bob;
   let whale;
   let snapshotId;
@@ -46,25 +45,12 @@ describe("Drops4626", function () {
     );
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
-    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
-    unwrapper = await WETHUnwrapper.deploy();
-
     const Drops4626 = await ethers.getContractFactory("Drops4626");
 
     await expect(
       upgrades.deployProxy(
         Drops4626,
-        [name, symbol, ethers.constants.AddressZero, unwrapper.address],
-        {
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
-
-    await expect(
-      upgrades.deployProxy(
-        Drops4626,
-        [name, symbol, constants.tokens.DropsETH, ethers.constants.AddressZero],
+        [name, symbol, ethers.constants.AddressZero],
         {
           kind: "uups",
         }
@@ -73,7 +59,7 @@ describe("Drops4626", function () {
 
     vault = await upgrades.deployProxy(
       Drops4626,
-      [name, symbol, constants.tokens.DropsETH, unwrapper.address],
+      [name, symbol, constants.tokens.DropsETH],
       {
         kind: "uups",
       }
@@ -114,8 +100,7 @@ describe("Drops4626", function () {
         vault.initialize(
           name,
           symbol,
-          constants.tokens.DropsETH,
-          unwrapper.address
+          constants.tokens.DropsETH
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
@@ -133,15 +118,6 @@ describe("Drops4626", function () {
 
       await upgrades.upgradeProxy(vault.address, Drops4626);
     });
-  });
-
-  it("Should not receive ETH", async function () {
-    await expect(
-      admin.sendTransaction({
-        to: vault.address,
-        value: ethers.utils.parseEther("1"),
-      })
-    ).to.be.revertedWith("do not send ether");
   });
 
   describe("Getters", function () {
