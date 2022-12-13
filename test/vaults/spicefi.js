@@ -9,9 +9,6 @@ describe("SpiceFi4626", function () {
   let token;
   let weth;
 
-  // helpers
-  let unwrapper;
-
   // vaults
   let vault;
   let bend;
@@ -83,9 +80,6 @@ describe("SpiceFi4626", function () {
       admin
     );
 
-    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
-    unwrapper = await WETHUnwrapper.deploy();
-
     const Vault = await ethers.getContractFactory("Vault");
 
     vault = await upgrades.deployProxy(
@@ -115,12 +109,7 @@ describe("SpiceFi4626", function () {
 
     drops = await upgrades.deployProxy(
       Drops4626,
-      [
-        dropsVaultName,
-        dropsVaultSymbol,
-        constants.tokens.DropsETH,
-        unwrapper.address,
-      ],
+      [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
       {
         kind: "uups",
       }

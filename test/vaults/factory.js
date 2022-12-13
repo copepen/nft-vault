@@ -5,7 +5,6 @@ const constants = require("../constants");
 
 describe("SpiceFiFactory", function () {
   let weth;
-  let unwrapper;
   let vault;
   let bend;
   let drops;
@@ -66,9 +65,6 @@ describe("SpiceFiFactory", function () {
       admin
     );
 
-    const WETHUnwrapper = await ethers.getContractFactory("WETHUnwrapper");
-    unwrapper = await WETHUnwrapper.deploy();
-
     const Vault = await ethers.getContractFactory("Vault");
 
     vault = await upgrades.deployProxy(
@@ -98,12 +94,7 @@ describe("SpiceFiFactory", function () {
 
     drops = await upgrades.deployProxy(
       Drops4626,
-      [
-        dropsVaultName,
-        dropsVaultSymbol,
-        constants.tokens.DropsETH,
-        unwrapper.address,
-      ],
+      [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
       {
         kind: "uups",
       }
