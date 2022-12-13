@@ -57,12 +57,15 @@ contract SpiceLending is
     /// @notice EIP712 type hash for loan terms
     bytes32 private constant _LOAN_TERMS_TYPEHASH =
         keccak256(
-            "LoanTerms(address collateralAddress,uint256 collateralId,uint256 principal,uint160 interestRate,uint32 duration,uint32 deadline,address lender,address borrower,address currency)"
+            "LoanTerms(address collateralAddress,uint256 collateralId,uint256 principal,uint160 interestRate,uint32 duration,uint256 deadline,address lender,address borrower,address currency)"
         );
 
     /**********/
     /* Errors */
     /**********/
+
+    /// @notice LoanTerms expired
+    error LoanTermsExpired();
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
@@ -124,6 +127,11 @@ contract SpiceLending is
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external returns (uint256 loanId) {
+        // check loan terms expiration
+        if (block.timestamp > _terms.deadline) {
+            revert LoanTermsExpired();
+        }
+
         // get current loanId and increment for next function call
         loanId = loanIdTracker.current();
         loanIdTracker.increment();

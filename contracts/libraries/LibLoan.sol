@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.17;
 
-
 /**
  * @title LibLoan
  * @author Spice Finance Inc
@@ -22,7 +21,7 @@ library LibLoan {
         uint256 principal;
         uint160 interestRate;
         uint32 duration;
-        uint32 deadline;
+        uint256 deadline;
         address lender;
         address borrower;
         address currency;
