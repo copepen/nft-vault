@@ -12,19 +12,25 @@ interface ISpiceLending {
     /* Events */
     /**********/
 
+    /// @notice Emitted when interest fee rate is updated
+    /// @param interestFee New interest fee rate
+    event InterestFeeUpdated(uint256 interestFee);
+
     /// @notice Emitted when a new loan is started
     /// @param loanId Loan Id
     /// @param borrower Borrower address
     event LoanStarted(uint256 indexed loanId, address borrower);
+
+    /// @notice Emitted when the loan is repaid
+    /// @param loanId Loan Id
+    event LoanRepaid(uint256 loanId);
 
     /******************/
     /* User Functions */
     /******************/
 
     /// @notice Initiate a new loan
-    ///
-    /// Emits {LoanStarted} event
-    ///
+    /// @dev Emits {LoanStarted} event
     /// @param _terms Loan Terms
     /// @param _signature Signature
     ///
@@ -33,4 +39,15 @@ interface ISpiceLending {
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external returns (uint256 loanId);
+
+    /// @notice Partialy repay the loan
+    /// @dev Emits {LoanRepaid} event
+    /// @param _loanId The loan ID
+    /// @param _principalPayment Payment for principal
+    /// @param _interestPayment Payment for interest
+    function partialRepay(
+        uint256 _loanId,
+        uint256 _principalPayment,
+        uint256 _interestPayment
+    ) external;
 }

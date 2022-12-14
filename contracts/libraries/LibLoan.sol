@@ -33,7 +33,7 @@ library LibLoan {
         LoanTerms terms;
         uint256 startedAt;
         uint256 balance;
-        uint256 balancePaid;
-        uint256 feesAccrued;
+        uint256 interestAccrued;
+        uint256 repaidAt;
     }
 }

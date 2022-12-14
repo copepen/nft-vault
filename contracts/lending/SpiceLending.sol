@@ -34,6 +34,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Lender Note
     INote public note;
+
+    /// @notice Interest fee rate
+    uint256 public interestFee;
 }
 
 /**
@@ -58,11 +61,20 @@ contract SpiceLending is
     /* Constants */
     /*************/
 
+    /// @notice Spice role
+    bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
+
     /// @notice EIP712 type hash for loan terms
     bytes32 private constant _LOAN_TERMS_TYPEHASH =
         keccak256(
             "LoanTerms(address collateralAddress,uint256 collateralId,uint256 principal,uint160 interestRate,uint32 duration,uint256 deadline,address lender,address borrower,address currency)"
         );
+
+    /// @notice Interest denominator
+    uint256 public constant DENOMINATOR = 10000;
+
+    /// @notice Seconds per year
+    uint256 public constant ONE_YEAR = 365 days;
 
     /**********/
     /* Errors */
@@ -74,11 +86,18 @@ contract SpiceLending is
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
 
+    /// @notice Parameter out of bounds
+    error ParameterOutOfBounds();
+
     /// @notice Invalid Signature
     error InvalidSignature();
 
     /// @notice Invalid Signer
     error InvalidSigner();
+
+    /// @notice Invalid Loan State
+    /// @param state Current loan state
+    error InvalidState(LibLoan.LoanState state);
 
     /***************/
     /* Constructor */
@@ -87,12 +106,19 @@ contract SpiceLending is
     /// @notice SpiceLending constructor (for proxy)
     /// @param _signer Signer address
     /// @param _note Note contract address
-    function initialize(address _signer, INote _note) external initializer {
+    function initialize(
+        address _signer,
+        INote _note,
+        uint256 _interestFee
+    ) external initializer {
         if (_signer == address(0)) {
             revert InvalidAddress();
         }
         if (address(_note) == address(0)) {
             revert InvalidAddress();
+        }
+        if (_interestFee > DENOMINATOR) {
+            revert ParameterOutOfBounds();
         }
 
         __EIP712_init("SpiceLending", "1");
@@ -101,6 +127,7 @@ contract SpiceLending is
 
         signer = _signer;
         note = _note;
+        interestFee = _interestFee;
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -125,6 +152,23 @@ contract SpiceLending is
         }
 
         signer = _newSigner;
+    }
+
+    /// @notice Set the interest fee rate
+    ///
+    /// Emits a {InterestFeeUpdated} event.
+    ///
+    /// @param _interestFee Interest fee rate
+    function setInterestFee(uint256 _interestFee)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_interestFee > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
+        interestFee = _interestFee;
+
+        emit InterestFeeUpdated(_interestFee);
     }
 
     /******************/
@@ -183,8 +227,8 @@ contract SpiceLending is
             terms: _terms,
             startedAt: block.timestamp,
             balance: _terms.principal,
-            balancePaid: 0,
-            feesAccrued: 0
+            interestAccrued: 0,
+            repaidAt: block.timestamp
         });
 
         // mint notes
@@ -205,6 +249,56 @@ contract SpiceLending is
         emit LoanStarted(loanId, msg.sender);
     }
 
+    /// @notice See {ISpiceLending-partialRepay}
+    function partialRepay(
+        uint256 _loanId,
+        uint256 _principalPayment,
+        uint256 _interestPayment
+    ) external nonReentrant {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+
+        address lender = note.ownerOf(_loanId);
+        address borrower = data.terms.borrower;
+
+        if (_principalPayment > data.balance) {
+            _principalPayment = data.balance;
+        }
+
+        // calc total interest to pay
+        uint256 interestToPay = _calcInterest(data);
+        if (_interestPayment > interestToPay) {
+            _interestPayment = interestToPay;
+        }
+
+        /// update loan state
+        data.balance -= _principalPayment;
+        data.interestAccrued = interestToPay - _interestPayment;
+        data.repaidAt = block.timestamp;
+
+        IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
+        currency.safeTransferFrom(
+            borrower,
+            address(this),
+            _principalPayment + _interestPayment
+        );
+
+        uint256 fee = (_interestPayment * interestFee) / DENOMINATOR;
+        currency.safeTransfer(
+            lender,
+            _principalPayment + _interestPayment - fee
+        );
+
+        address feesAddr = getRoleMember(SPICE_ROLE, 0);
+        if (feesAddr != address(0)) {
+            currency.safeTransfer(feesAddr, fee);
+        }
+
+        emit LoanRepaid(_loanId);
+    }
+
     /**********************/
     /* Internal Functions */
     /**********************/
@@ -214,5 +308,24 @@ contract SpiceLending is
     /// @param _lender Lender address to receive note
     function _mintNote(uint256 _loanId, address _lender) internal {
         note.mint(_lender, _loanId);
+    }
+
+    /// @dev Calc total interest to pay
+    ///      Total Interest = Interest Accrued + New Interest since last repayment
+    /// @param _data Loan data
+    /// @return interest Total interest
+    function _calcInterest(LibLoan.LoanData storage _data)
+        internal
+        view
+        returns (uint256 interest)
+    {
+        uint256 timeElapsed = block.timestamp - _data.repaidAt;
+        uint256 newInterest = (_data.balance *
+            _data.terms.interestRate *
+            timeElapsed) /
+            DENOMINATOR /
+            ONE_YEAR;
+
+        return _data.interestAccrued + newInterest;
     }
 }
