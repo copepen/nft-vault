@@ -32,11 +32,8 @@ abstract contract SpiceLendingStorage {
     /// @notice keep track of loans
     mapping(uint256 => LibLoan.LoanData) internal loans;
 
-    /// @notice Borrower Note
-    INote public borrowerNote;
-
     /// @notice Lender Note
-    INote public lenderNote;
+    INote public note;
 }
 
 /**
@@ -89,20 +86,12 @@ contract SpiceLending is
 
     /// @notice SpiceLending constructor (for proxy)
     /// @param _signer Signer address
-    /// @param _borrowerNote Borrower Note contract address
-    /// @param _lenderNote Lender Note contract address
-    function initialize(
-        address _signer,
-        INote _borrowerNote,
-        INote _lenderNote
-    ) external initializer {
+    /// @param _note Note contract address
+    function initialize(address _signer, INote _note) external initializer {
         if (_signer == address(0)) {
             revert InvalidAddress();
         }
-        if (address(_borrowerNote) == address(0)) {
-            revert InvalidAddress();
-        }
-        if (address(_lenderNote) == address(0)) {
+        if (address(_note) == address(0)) {
             revert InvalidAddress();
         }
 
@@ -111,8 +100,7 @@ contract SpiceLending is
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         signer = _signer;
-        borrowerNote = _borrowerNote;
-        lenderNote = _lenderNote;
+        note = _note;
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -200,7 +188,7 @@ contract SpiceLending is
         });
 
         // mint notes
-        _mintLoanNotes(loanId, _terms.borrower, _terms.lender);
+        _mintNote(loanId, _terms.lender);
 
         IERC721Upgradeable(_terms.collateralAddress).safeTransferFrom(
             msg.sender,
@@ -221,16 +209,10 @@ contract SpiceLending is
     /* Internal Functions */
     /**********************/
 
-    /// @dev Mint a borrower and lender notes
+    /// @dev Mints new note
     /// @param _loanId Loan ID
-    /// @param _borrower Borrower address to receive borrower note
-    /// @param _lender Lender address to receive lender note
-    function _mintLoanNotes(
-        uint256 _loanId,
-        address _borrower,
-        address _lender
-    ) internal {
-        borrowerNote.mint(_borrower, _loanId);
-        lenderNote.mint(_lender, _loanId);
+    /// @param _lender Lender address to receive note
+    function _mintNote(uint256 _loanId, address _lender) internal {
+        note.mint(_lender, _loanId);
     }
 }

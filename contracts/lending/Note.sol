@@ -21,9 +21,6 @@ contract Note is ERC721, AccessControlEnumerable, INote {
     /// @dev Note can be initialized only once
     bool private initialized;
 
-    /// @dev Indicates if note can be transferable
-    bool private transferable;
-
     /*************/
     /* Constants */
     /*************/
@@ -62,8 +59,7 @@ contract Note is ERC721, AccessControlEnumerable, INote {
     /// @notice Initialize Note contract. Grants owner access to the lending contract.
     /// @dev Admin role is immutable once set and cannot be updated.
     /// @param _lending The lending contract address
-    /// @param _transferable The note can be _transferable or not
-    function initialize(address _lending, bool _transferable) external {
+    function initialize(address _lending) external {
         if (initialized) revert AlreadyInitialized();
         if (_msgSender() != owner) revert NotOwner();
 
@@ -71,7 +67,6 @@ contract Note is ERC721, AccessControlEnumerable, INote {
         _setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 
         owner = _lending;
-        transferable = _transferable;
         initialized = true;
     }
 
@@ -109,20 +104,5 @@ contract Note is ERC721, AccessControlEnumerable, INote {
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
-    }
-
-    /// @dev See {ERC721-_beforeTokenTransfer}
-    function _beforeTokenTransfer(
-        address from,
-        address to,
-        uint256 tokenId
-    ) internal virtual override {
-        if (!transferable) {
-            if (from != address(0) && to != address(0)) {
-                revert NonTransferable();
-            }
-        }
-
-        super._beforeTokenTransfer(from, to, tokenId);
     }
 }
