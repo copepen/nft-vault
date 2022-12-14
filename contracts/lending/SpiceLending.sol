@@ -16,6 +16,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "../interfaces/ISpiceLending.sol";
+import "../interfaces/INote.sol";
 
 /**
  * @title Storage for SpiceLending
@@ -30,6 +31,12 @@ abstract contract SpiceLendingStorage {
 
     /// @notice keep track of loans
     mapping(uint256 => LibLoan.LoanData) internal loans;
+
+    /// @notice Borrower Note
+    INote public borrowerNote;
+
+    /// @notice Lender Note
+    INote public lenderNote;
 }
 
 /**
@@ -81,9 +88,21 @@ contract SpiceLending is
     /***************/
 
     /// @notice SpiceLending constructor (for proxy)
-    /// @param _signer signer address
-    function initialize(address _signer) external initializer {
+    /// @param _signer Signer address
+    /// @param _borrowerNote Borrower Note contract address
+    /// @param _lenderNote Lender Note contract address
+    function initialize(
+        address _signer,
+        INote _borrowerNote,
+        INote _lenderNote
+    ) external initializer {
         if (_signer == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(_borrowerNote) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(_lenderNote) == address(0)) {
             revert InvalidAddress();
         }
 
@@ -92,6 +111,8 @@ contract SpiceLending is
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         signer = _signer;
+        borrowerNote = _borrowerNote;
+        lenderNote = _lenderNote;
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -126,7 +147,7 @@ contract SpiceLending is
     function initiateLoan(
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
-    ) external returns (uint256 loanId) {
+    ) external nonReentrant returns (uint256 loanId) {
         // check loan terms expiration
         if (block.timestamp > _terms.deadline) {
             revert LoanTermsExpired();
@@ -178,11 +199,15 @@ contract SpiceLending is
             feesAccrued: 0
         });
 
+        // mint notes
+        _mintLoanNotes(loanId, _terms.borrower, _terms.lender);
+
         IERC721Upgradeable(_terms.collateralAddress).safeTransferFrom(
             msg.sender,
             address(this),
             _terms.collateralId
         );
+
         IERC20Upgradeable(_terms.currency).safeTransferFrom(
             _terms.lender,
             msg.sender,
@@ -190,5 +215,22 @@ contract SpiceLending is
         );
 
         emit LoanStarted(loanId, msg.sender);
+    }
+
+    /**********************/
+    /* Internal Functions */
+    /**********************/
+
+    /// @dev Mint a borrower and lender notes
+    /// @param _loanId Loan ID
+    /// @param _borrower Borrower address to receive borrower note
+    /// @param _lender Lender address to receive lender note
+    function _mintLoanNotes(
+        uint256 _loanId,
+        address _borrower,
+        address _lender
+    ) internal {
+        borrowerNote.mint(_borrower, _loanId);
+        lenderNote.mint(_lender, _loanId);
     }
 }
