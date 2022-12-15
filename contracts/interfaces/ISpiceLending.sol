@@ -43,11 +43,6 @@ interface ISpiceLending {
     /// @notice Partialy repay the loan
     /// @dev Emits {LoanRepaid} event
     /// @param _loanId The loan ID
-    /// @param _principalPayment Payment for principal
-    /// @param _interestPayment Payment for interest
-    function partialRepay(
-        uint256 _loanId,
-        uint256 _principalPayment,
-        uint256 _interestPayment
-    ) external;
+    /// @param _payment Repayment amount
+    function partialRepay(uint256 _loanId, uint256 _payment) external;
 }

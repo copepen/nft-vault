@@ -250,11 +250,10 @@ contract SpiceLending is
     }
 
     /// @notice See {ISpiceLending-partialRepay}
-    function partialRepay(
-        uint256 _loanId,
-        uint256 _principalPayment,
-        uint256 _interestPayment
-    ) external nonReentrant {
+    function partialRepay(uint256 _loanId, uint256 _payment)
+        external
+        nonReentrant
+    {
         LibLoan.LoanData storage data = loans[_loanId];
         if (data.state != LibLoan.LoanState.Active) {
             revert InvalidState(data.state);
@@ -263,33 +262,33 @@ contract SpiceLending is
         address lender = note.ownerOf(_loanId);
         address borrower = data.terms.borrower;
 
-        if (_principalPayment > data.balance) {
-            _principalPayment = data.balance;
-        }
-
         // calc total interest to pay
         uint256 interestToPay = _calcInterest(data);
-        if (_interestPayment > interestToPay) {
-            _interestPayment = interestToPay;
+        uint256 totalAmountToPay = data.balance + interestToPay;
+
+        if (_payment > totalAmountToPay) {
+            _payment = totalAmountToPay;
+        }
+
+        uint256 interestPayment;
+        uint256 principalPayment;
+        if (_payment > interestToPay) {
+            interestPayment = interestToPay;
+            principalPayment = _payment - interestToPay;
+        } else {
+            interestPayment = _payment;
         }
 
         /// update loan state
-        data.balance -= _principalPayment;
-        data.interestAccrued = interestToPay - _interestPayment;
+        data.balance -= principalPayment;
+        data.interestAccrued = interestToPay - interestPayment;
         data.repaidAt = block.timestamp;
 
         IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
-        currency.safeTransferFrom(
-            borrower,
-            address(this),
-            _principalPayment + _interestPayment
-        );
+        currency.safeTransferFrom(borrower, address(this), _payment);
 
-        uint256 fee = (_interestPayment * interestFee) / DENOMINATOR;
-        currency.safeTransfer(
-            lender,
-            _principalPayment + _interestPayment - fee
-        );
+        uint256 fee = (interestPayment * interestFee) / DENOMINATOR;
+        currency.safeTransfer(lender, _payment - fee);
 
         address feesAddr = getRoleMember(SPICE_ROLE, 0);
         if (feesAddr != address(0)) {
