@@ -100,8 +100,7 @@ contract SpiceLending is
     error InvalidState(LibLoan.LoanState state);
 
     /// @notice Loan Ended
-    /// @param loanId Loan Id
-    error LoanEnded(uint256 loanId);
+    error LoanNotEnded();
 
     /*************/
     /* Modifiers */
@@ -272,7 +271,7 @@ contract SpiceLending is
             interestPayment = _payment;
         }
 
-        /// update loan state
+        // update loan data
         data.balance -= principalPayment;
         data.interestAccrued = interestToPay - interestPayment;
         data.updatedAt = block.timestamp;
@@ -287,6 +286,73 @@ contract SpiceLending is
         if (feesAddr != address(0)) {
             currency.safeTransfer(feesAddr, fee);
         }
+
+        // if loan is fully repaid
+        if (_payment == totalAmountToPay) {
+            data.state = LibLoan.LoanState.Repaid;
+
+            // burn lender note
+            note.burn(_loanId);
+
+            // return collateral NFT to borrower
+            IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
+                .safeTransferFrom(
+                    address(this),
+                    borrower,
+                    data.terms.baseTerms.collateralId
+                );
+        }
+
+        emit LoanRepaid(_loanId);
+    }
+
+    /// @notice See {ISpiceLending-repay}
+    function repay(uint256 _loanId) external nonReentrant {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+
+        // update loan state to Repaid
+        data.state = LibLoan.LoanState.Repaid;
+
+        address lender = note.ownerOf(_loanId);
+        address borrower = data.terms.baseTerms.borrower;
+
+        if (msg.sender != borrower) {
+            revert InvalidMsgSender();
+        }
+
+        // calc total interest to pay
+        uint256 interestToPay = _calcInterest(data);
+        uint256 payment = data.balance + interestToPay;
+
+        // update loan data
+        delete data.balance;
+        delete data.interestAccrued;
+        data.updatedAt = block.timestamp;
+
+        IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
+        currency.safeTransferFrom(borrower, address(this), payment);
+
+        uint256 fee = (interestToPay * interestFee) / DENOMINATOR;
+        currency.safeTransfer(lender, payment - fee);
+
+        address feesAddr = getRoleMember(SPICE_ROLE, 0);
+        if (feesAddr != address(0)) {
+            currency.safeTransfer(feesAddr, fee);
+        }
+
+        // burn lender note
+        note.burn(_loanId);
+
+        // return collateral NFT to borrower
+        IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
+            .safeTransferFrom(
+                address(this),
+                borrower,
+                data.terms.baseTerms.collateralId
+            );
 
         emit LoanRepaid(_loanId);
     }
@@ -319,6 +385,8 @@ contract SpiceLending is
             msg.sender,
             _terms.additionalPrincipal
         );
+
+        emit LoanExtended(_loanId);
     }
 
     /// @notice See {ISpiceLending-increaseLoan}
@@ -348,6 +416,54 @@ contract SpiceLending is
             msg.sender,
             _terms.additionalPrincipal
         );
+
+        emit LoanIncreased(_loanId);
+    }
+
+    /// @notice See {ISpiceLending-liquidate}
+    function liquidate(uint256 _loanId) external nonReentrant {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+
+        uint256 loanEndTime = data.startedAt + data.terms.duration;
+        if (loanEndTime > block.timestamp) {
+            revert LoanNotEnded();
+        }
+
+        // update loan state to Defaulted
+        data.state = LibLoan.LoanState.Defaulted;
+
+        // burn lender note
+        note.burn(_loanId);
+
+        IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
+            .safeTransferFrom(
+                address(this),
+                note.ownerOf(_loanId),
+                data.terms.baseTerms.collateralId
+            );
+
+        emit LoanLiquidated(_loanId);
+    }
+
+    /******************/
+    /* View Functions */
+    /******************/
+
+    /// @notice See {ISpiceLending-getLoanData}
+    function getLoanData(uint256 _loanId)
+        external
+        view
+        returns (LibLoan.LoanData memory)
+    {
+        return loans[_loanId];
+    }
+
+    /// @notice See {ISpiceLending-getNextLoanId}
+    function getNextLoanId() external view returns (uint256) {
+        return loanIdTracker.current();
     }
 
     /**********************/
