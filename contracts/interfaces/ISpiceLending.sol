@@ -45,4 +45,24 @@ interface ISpiceLending {
     /// @param _loanId The loan ID
     /// @param _payment Repayment amount
     function partialRepay(uint256 _loanId, uint256 _payment) external;
+
+    /// @notice Extend loan principal and duration
+    /// @param _loanId The loan ID
+    /// @param _terms Extend Loan Terms
+    /// @param _signature Signature
+    function extendLoan(
+        uint256 _loanId,
+        LibLoan.ExtendLoanTerms calldata _terms,
+        bytes calldata _signature
+    ) external;
+
+    /// @notice Increase loan principal
+    /// @param _loanId The loan ID
+    /// @param _terms Increase Loan Terms
+    /// @param _signature Signature
+    function increaseLoan(
+        uint256 _loanId,
+        LibLoan.IncreaseLoanTerms calldata _terms,
+        bytes calldata _signature
+    ) external;
 }

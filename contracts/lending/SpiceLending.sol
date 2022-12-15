@@ -64,12 +64,6 @@ contract SpiceLending is
     /// @notice Spice role
     bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
 
-    /// @notice EIP712 type hash for loan terms
-    bytes32 private constant _LOAN_TERMS_TYPEHASH =
-        keccak256(
-            "LoanTerms(address collateralAddress,uint256 collateralId,uint256 principal,uint160 interestRate,uint32 duration,uint256 deadline,address lender,address borrower,address currency)"
-        );
-
     /// @notice Interest denominator
     uint256 public constant DENOMINATOR = 10000;
 
@@ -83,6 +77,9 @@ contract SpiceLending is
     /// @notice LoanTerms expired
     error LoanTermsExpired();
 
+    /// @notice Invalid loan terms
+    error InvalidLoanTerms();
+
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
 
@@ -95,9 +92,31 @@ contract SpiceLending is
     /// @notice Invalid Signer
     error InvalidSigner();
 
+    /// @notice Invalid msg.sender
+    error InvalidMsgSender();
+
     /// @notice Invalid Loan State
     /// @param state Current loan state
     error InvalidState(LibLoan.LoanState state);
+
+    /// @notice Loan Ended
+    /// @param loanId Loan Id
+    error LoanEnded(uint256 loanId);
+
+    /*************/
+    /* Modifiers */
+    /*************/
+
+    modifier updateInterest(uint256 _loanId) {
+        // get loan data
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        // update interestAccrued and updatedAt
+        data.interestAccrued = _calcInterest(data);
+        data.updatedAt = block.timestamp;
+
+        _;
+    }
 
     /***************/
     /* Constructor */
@@ -181,45 +200,15 @@ contract SpiceLending is
         bytes calldata _signature
     ) external nonReentrant returns (uint256 loanId) {
         // check loan terms expiration
-        if (block.timestamp > _terms.deadline) {
+        if (block.timestamp > _terms.baseTerms.expiration) {
             revert LoanTermsExpired();
         }
+
+        _verifyLoanTermsSignature(_terms, _signature);
 
         // get current loanId and increment for next function call
         loanId = loanIdTracker.current();
         loanIdTracker.increment();
-
-        // check if the loan terms is signed by signer
-        bytes32 termsHash = keccak256(
-            abi.encode(
-                _LOAN_TERMS_TYPEHASH,
-                _terms.collateralAddress,
-                _terms.collateralId,
-                _terms.principal,
-                _terms.interestRate,
-                _terms.duration,
-                _terms.deadline,
-                _terms.lender,
-                _terms.borrower,
-                _terms.currency
-            )
-        );
-        bytes32 hash = _hashTypedDataV4(termsHash);
-        address recoveredSigner = ECDSA.recover(hash, _signature);
-        if (recoveredSigner != signer) {
-            revert InvalidSignature();
-        }
-
-        if (signer != _terms.lender) {
-            bytes4 magicValue = IERC1271(_terms.lender).isValidSignature(
-                hash,
-                _signature
-            );
-            // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
-            if (magicValue != 0x1626ba7e) {
-                revert InvalidSigner();
-            }
-        }
 
         // initiate new loan
         loans[loanId] = LibLoan.LoanData({
@@ -228,20 +217,20 @@ contract SpiceLending is
             startedAt: block.timestamp,
             balance: _terms.principal,
             interestAccrued: 0,
-            repaidAt: block.timestamp
+            updatedAt: block.timestamp
         });
 
         // mint notes
-        _mintNote(loanId, _terms.lender);
+        _mintNote(loanId, _terms.baseTerms.lender);
 
-        IERC721Upgradeable(_terms.collateralAddress).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _terms.collateralId
-        );
+        IERC721Upgradeable(_terms.baseTerms.collateralAddress).safeTransferFrom(
+                msg.sender,
+                address(this),
+                _terms.baseTerms.collateralId
+            );
 
         IERC20Upgradeable(_terms.currency).safeTransferFrom(
-            _terms.lender,
+            _terms.baseTerms.lender,
             msg.sender,
             _terms.principal
         );
@@ -260,7 +249,11 @@ contract SpiceLending is
         }
 
         address lender = note.ownerOf(_loanId);
-        address borrower = data.terms.borrower;
+        address borrower = data.terms.baseTerms.borrower;
+
+        if (msg.sender != borrower) {
+            revert InvalidMsgSender();
+        }
 
         // calc total interest to pay
         uint256 interestToPay = _calcInterest(data);
@@ -282,7 +275,7 @@ contract SpiceLending is
         /// update loan state
         data.balance -= principalPayment;
         data.interestAccrued = interestToPay - interestPayment;
-        data.repaidAt = block.timestamp;
+        data.updatedAt = block.timestamp;
 
         IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
         currency.safeTransferFrom(borrower, address(this), _payment);
@@ -298,9 +291,158 @@ contract SpiceLending is
         emit LoanRepaid(_loanId);
     }
 
+    /// @notice See {ISpiceLending-extendLoan}
+    function extendLoan(
+        uint256 _loanId,
+        LibLoan.ExtendLoanTerms calldata _terms,
+        bytes calldata _signature
+    ) external nonReentrant updateInterest(_loanId) {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+
+        if (msg.sender != data.terms.baseTerms.borrower) {
+            revert InvalidMsgSender();
+        }
+
+        _verifyExtendLoanTermsSignature(_terms, _signature);
+        _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+
+        data.terms.principal += _terms.additionalPrincipal;
+        data.balance += _terms.additionalPrincipal;
+        data.terms.interestRate = _terms.newInterestRate;
+        data.terms.duration += _terms.additionalDuration;
+
+        IERC20Upgradeable(data.terms.currency).safeTransferFrom(
+            note.ownerOf(_loanId),
+            msg.sender,
+            _terms.additionalPrincipal
+        );
+    }
+
+    /// @notice See {ISpiceLending-increaseLoan}
+    function increaseLoan(
+        uint256 _loanId,
+        LibLoan.IncreaseLoanTerms calldata _terms,
+        bytes calldata _signature
+    ) external nonReentrant updateInterest(_loanId) {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+
+        if (msg.sender != data.terms.baseTerms.borrower) {
+            revert InvalidMsgSender();
+        }
+
+        _verifyIncreaseLoanTermsSignature(_terms, _signature);
+        _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+
+        data.terms.principal += _terms.additionalPrincipal;
+        data.balance += _terms.additionalPrincipal;
+        data.terms.interestRate = _terms.newInterestRate;
+
+        IERC20Upgradeable(data.terms.currency).safeTransferFrom(
+            note.ownerOf(_loanId),
+            msg.sender,
+            _terms.additionalPrincipal
+        );
+    }
+
     /**********************/
     /* Internal Functions */
     /**********************/
+
+    /// @dev Verify loan terms signature
+    /// @param _terms Loan terms
+    /// @param _signature Signature
+    function _verifyLoanTermsSignature(
+        LibLoan.LoanTerms calldata _terms,
+        bytes calldata _signature
+    ) internal view {
+        // check if the loan terms is signed by signer
+        bytes32 termsHash = LibLoan.getLoanTermsHash(_terms);
+        _verifySignature(termsHash, _signature, _terms.baseTerms.lender);
+    }
+
+    /// @dev Verify extend loan terms signature
+    /// @param _terms Extend loan terms
+    /// @param _signature Signature
+    function _verifyExtendLoanTermsSignature(
+        LibLoan.ExtendLoanTerms calldata _terms,
+        bytes calldata _signature
+    ) internal view {
+        // check if the loan terms is signed by signer
+        bytes32 termsHash = LibLoan.getExtendLoanTermsHash(_terms);
+        _verifySignature(termsHash, _signature, _terms.baseTerms.lender);
+    }
+
+    /// @dev Verify increase loan terms signature
+    /// @param _terms Increase loan terms
+    /// @param _signature Signature
+    function _verifyIncreaseLoanTermsSignature(
+        LibLoan.IncreaseLoanTerms calldata _terms,
+        bytes calldata _signature
+    ) internal view {
+        // check if the loan terms is signed by signer
+        bytes32 termsHash = LibLoan.getIncreaseLoanTermsHash(_terms);
+        _verifySignature(termsHash, _signature, _terms.baseTerms.lender);
+    }
+
+    /// @dev Verify signature
+    /// @param _termsHash Hash for terms
+    /// @param _signature Signature
+    /// @param _lender Lender address
+    function _verifySignature(
+        bytes32 _termsHash,
+        bytes calldata _signature,
+        address _lender
+    ) internal view {
+        bytes32 hash = _hashTypedDataV4(_termsHash);
+        address recoveredSigner = ECDSA.recover(hash, _signature);
+        if (recoveredSigner != signer) {
+            revert InvalidSignature();
+        }
+
+        if (signer != _lender) {
+            bytes4 magicValue = IERC1271(_lender).isValidSignature(
+                hash,
+                _signature
+            );
+            // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
+            if (magicValue != 0x1626ba7e) {
+                revert InvalidSigner();
+            }
+        }
+    }
+
+    /// @dev Validate base loan terms
+    /// @param _terms Current base terms
+    /// @param _newTerms New base terms
+    function _validateBaseTerms(
+        LibLoan.BaseTerms storage _terms,
+        LibLoan.BaseTerms calldata _newTerms
+    ) internal view {
+        // check loan terms expiration
+        if (block.timestamp > _newTerms.expiration) {
+            revert LoanTermsExpired();
+        }
+
+        // check if terms are valid
+        if (_terms.collateralAddress != _newTerms.collateralAddress) {
+            revert InvalidLoanTerms();
+        }
+        if (_terms.collateralId != _newTerms.collateralId) {
+            revert InvalidLoanTerms();
+        }
+        if (_terms.lender != _newTerms.lender) {
+            revert InvalidLoanTerms();
+        }
+        if (_terms.borrower != _newTerms.borrower) {
+            revert InvalidLoanTerms();
+        }
+    }
 
     /// @dev Mints new note
     /// @param _loanId Loan ID
@@ -318,7 +460,10 @@ contract SpiceLending is
         view
         returns (uint256 interest)
     {
-        uint256 timeElapsed = block.timestamp - _data.repaidAt;
+        uint256 loanEndTime = _data.startedAt + _data.terms.duration;
+        uint256 timeElapsed = (
+            block.timestamp < loanEndTime ? block.timestamp : loanEndTime
+        ) - _data.updatedAt;
         uint256 newInterest = (_data.balance *
             _data.terms.interestRate *
             timeElapsed) /
