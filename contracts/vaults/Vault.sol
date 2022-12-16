@@ -531,7 +531,7 @@ contract Vault is
             err == ECDSA.RecoverError.NoError &&
             signer == getRoleMember(DEFAULT_ADMIN_ROLE, 0)
         ) {
-            // bytes4(keccak256("isValidSignature(bytes32,bytes)")
+            // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
         } else {
             return 0xffffffff;

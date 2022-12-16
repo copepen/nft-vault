@@ -28,20 +28,18 @@ module.exports = {
     hardhat: {
       forking: {
         url: process.env.MAINNET_RPC_URL || "",
-        blockNumber: 15975316
-      }
+        blockNumber: 15975316,
+      },
     },
     goerli: {
       saveDeployments: true,
       url: process.env.GOERLI_RPC_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
     mainnet: {
       saveDeployments: true,
       url: process.env.MAINNET_RPC_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },
   etherscan: {
