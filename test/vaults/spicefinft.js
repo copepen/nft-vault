@@ -836,8 +836,20 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWithCustomError(spiceVault, "WithdrawBeforeReveal");
       });
 
+      it("When withdraw is not enabled", async function () {
+        await spiceVault.setBaseURI("uri://");
+
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(whale)
+            ["withdraw(uint256,uint256,address)"](1, assets, alice.address)
+        ).to.be.revertedWithCustomError(spiceVault, "WithdrawDisabled");
+      });
+
       it("When token does not exist", async function () {
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
 
         const assets = ethers.utils.parseEther("10");
         await expect(
@@ -849,6 +861,8 @@ describe("SpiceFiNFT4626", function () {
 
       it("When not owning token", async function () {
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
         await spiceVault
           .connect(whale)
           ["safeTransferFrom(address,address,uint256)"](
@@ -867,6 +881,7 @@ describe("SpiceFiNFT4626", function () {
 
       it("When share balance is not enough", async function () {
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
 
         const assets = ethers.utils.parseEther("100");
         await expect(
@@ -886,6 +901,7 @@ describe("SpiceFiNFT4626", function () {
         const fees2 = fees.sub(fees1);
 
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
 
         const shares = await spiceVault
           .connect(whale)
@@ -974,8 +990,20 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWithCustomError(spiceVault, "WithdrawBeforeReveal");
       });
 
+      it("When withdraw is not enabled", async function () {
+        await spiceVault.setBaseURI("uri://");
+
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(whale)
+            ["redeem(uint256,uint256,address)"](1, shares, alice.address)
+        ).to.be.revertedWithCustomError(spiceVault, "WithdrawDisabled");
+      });
+
       it("When token does not exist", async function () {
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
 
         const shares = ethers.utils.parseEther("100");
         await expect(
@@ -987,6 +1015,7 @@ describe("SpiceFiNFT4626", function () {
 
       it("When not owning token", async function () {
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
         await spiceVault
           .connect(whale)
           ["safeTransferFrom(address,address,uint256)"](
@@ -1005,6 +1034,7 @@ describe("SpiceFiNFT4626", function () {
 
       it("When share balance is not enough", async function () {
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
 
         const shares = ethers.utils.parseEther("110");
         await expect(
@@ -1021,6 +1051,7 @@ describe("SpiceFiNFT4626", function () {
         const beforeBalance3 = await weth.balanceOf(alice.address);
 
         await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
 
         const assets = await spiceVault
           .connect(whale)
@@ -1999,6 +2030,16 @@ describe("SpiceFiNFT4626", function () {
       await spiceVault.connect(spiceAdmin).setVerified(true);
 
       expect(await spiceVault.verified()).to.be.eq(true);
+    });
+
+    it("Set withdrawable", async function () {
+      await expect(
+        spiceVault.connect(alice).setWithdrawable(true)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await spiceVault.connect(admin).setWithdrawable(true);
     });
 
     it("Pause", async function () {

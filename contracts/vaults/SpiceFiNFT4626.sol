@@ -43,6 +43,9 @@ abstract contract SpiceFiNFT4626Storage {
 
     /// @notice Revealed;
     bool internal _revealed;
+
+    /// @notice Withdrawable
+    bool internal _withdrawable;
 }
 
 /**
@@ -121,6 +124,9 @@ contract SpiceFiNFT4626 is
 
     /// @notice Withdraw before reveal
     error WithdrawBeforeReveal();
+
+    /// @notice Withdraw is disabled
+    error WithdrawDisabled();
 
     /// @notice Insufficient share balance
     error InsufficientShareBalance();
@@ -210,10 +216,19 @@ contract SpiceFiNFT4626 is
         _baseUri = baseUri;
     }
 
-    /// @notice set verified
-    /// @param verified_ new verified value
+    /// @notice Set verified
+    /// @param verified_ New verified value
     function setVerified(bool verified_) external onlyRole(SPICE_ROLE) {
         verified = verified_;
+    }
+
+    /// @notice Set withdrawable
+    /// @param withdrawable_ New withdrawable value
+    function setWithdrawable(bool withdrawable_)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        _withdrawable = withdrawable_;
     }
 
     /// @notice trigger paused state
@@ -510,6 +525,9 @@ contract SpiceFiNFT4626 is
     ) internal {
         if (!_revealed) {
             revert WithdrawBeforeReveal();
+        }
+        if (!_withdrawable) {
+            revert WithdrawDisabled();
         }
         if (ownerOf(tokenId) != caller) {
             revert InvalidTokenId();
