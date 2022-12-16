@@ -17,6 +17,7 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "../interfaces/ISpiceLending.sol";
 import "../interfaces/INote.sol";
+import "../interfaces/ISpiceFiNFT4626.sol";
 
 /**
  * @title Storage for SpiceLending
@@ -63,6 +64,9 @@ contract SpiceLending is
 
     /// @notice Spice role
     bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
+
+    /// @notice Spice NFT role
+    bytes32 public constant SPICE_NFT_ROLE = keccak256("SPICE_NFT_ROLE");
 
     /// @notice Interest denominator
     uint256 public constant DENOMINATOR = 10000;
@@ -277,7 +281,14 @@ contract SpiceLending is
         data.updatedAt = block.timestamp;
 
         IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
-        currency.safeTransferFrom(borrower, address(this), _payment);
+
+        _transferRepayment(
+            data.terms.baseTerms.collateralAddress,
+            data.terms.baseTerms.collateralId,
+            data.terms.currency,
+            borrower,
+            _payment
+        );
 
         uint256 fee = (interestPayment * interestFee) / DENOMINATOR;
         currency.safeTransfer(lender, _payment - fee);
@@ -333,7 +344,14 @@ contract SpiceLending is
         data.updatedAt = block.timestamp;
 
         IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
-        currency.safeTransferFrom(borrower, address(this), payment);
+
+        _transferRepayment(
+            data.terms.baseTerms.collateralAddress,
+            data.terms.baseTerms.collateralId,
+            address(currency),
+            borrower,
+            payment
+        );
 
         uint256 fee = (interestToPay * interestFee) / DENOMINATOR;
         currency.safeTransfer(lender, payment - fee);
@@ -565,6 +583,39 @@ contract SpiceLending is
     /// @param _lender Lender address to receive note
     function _mintNote(uint256 _loanId, address _lender) internal {
         note.mint(_lender, _loanId);
+    }
+
+    /// @dev Transfer repayment from borrower.
+    ///      If the collateral NFT is Spice NFT, then withdraw from the vault
+    /// @param _collateralAddress Collateral NFT address
+    /// @param _collateralId Collateral NFT Id
+    /// @param _currency Currenty address
+    /// @param _borrower Borrower address
+    /// @param _payment Repayment amount
+    function _transferRepayment(
+        address _collateralAddress,
+        uint256 _collateralId,
+        address _currency,
+        address _borrower,
+        uint256 _payment
+    ) internal {
+        if (
+            hasRole(SPICE_NFT_ROLE, _collateralAddress) &&
+            ISpiceFiNFT4626(_collateralAddress).asset() == _currency
+        ) {
+            // withdraw assets from spice nft vault
+            ISpiceFiNFT4626(_collateralAddress).withdraw(
+                _collateralId,
+                _payment,
+                address(this)
+            );
+        } else {
+            IERC20Upgradeable(_currency).safeTransferFrom(
+                _borrower,
+                address(this),
+                _payment
+            );
+        }
     }
 
     /// @dev Calc total interest to pay
