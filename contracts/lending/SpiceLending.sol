@@ -285,7 +285,7 @@ contract SpiceLending is
         _transferRepayment(
             data.terms.baseTerms.collateralAddress,
             data.terms.baseTerms.collateralId,
-            data.terms.currency,
+            address(currency),
             borrower,
             _payment
         );
