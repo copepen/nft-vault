@@ -16,6 +16,10 @@ interface ISpiceLending {
     /// @param interestFee New interest fee rate
     event InterestFeeUpdated(uint256 interestFee);
 
+    /// @notice Emitted when liquidation ratio is updated
+    /// @param liquidationRatio New liquidation ratio
+    event LiquidationRatioUpdated(uint256 liquidationRatio);
+
     /// @notice Emitted when a new loan is started
     /// @param loanId Loan Id
     /// @param borrower Borrower address

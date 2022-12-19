@@ -17,7 +17,23 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "../interfaces/ISpiceLending.sol";
 import "../interfaces/INote.sol";
-import "../interfaces/ISpiceFiNFT4626.sol";
+
+interface ISpiceFiNFT4626 {
+    function asset() external view returns (address);
+
+    function tokenShares(uint256 tokenId) external view returns (uint256);
+
+    function previewRedeem(uint256 shares)
+        external
+        view
+        returns (uint256 assets);
+
+    function withdraw(
+        uint256 tokenId,
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
+}
 
 /**
  * @title Storage for SpiceLending
@@ -38,6 +54,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Interest fee rate
     uint256 public interestFee;
+
+    /// @notice Liquidation ratio
+    uint256 public liquidationRatio;
 }
 
 /**
@@ -104,7 +123,7 @@ contract SpiceLending is
     error InvalidState(LibLoan.LoanState state);
 
     /// @notice Loan Ended
-    error LoanNotEnded();
+    error NotLiquidatible();
 
     /*************/
     /* Modifiers */
@@ -128,10 +147,13 @@ contract SpiceLending is
     /// @notice SpiceLending constructor (for proxy)
     /// @param _signer Signer address
     /// @param _note Note contract address
+    /// @param _interestFee Interest fee rate
+    /// @param _liquidationRatio Liquidation ratio
     function initialize(
         address _signer,
         INote _note,
-        uint256 _interestFee
+        uint256 _interestFee,
+        uint256 _liquidationRatio
     ) external initializer {
         if (_signer == address(0)) {
             revert InvalidAddress();
@@ -142,6 +164,9 @@ contract SpiceLending is
         if (_interestFee > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
+        if (_liquidationRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
 
         __EIP712_init("SpiceLending", "1");
 
@@ -150,6 +175,7 @@ contract SpiceLending is
         signer = _signer;
         note = _note;
         interestFee = _interestFee;
+        liquidationRatio = _liquidationRatio;
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -191,6 +217,23 @@ contract SpiceLending is
         interestFee = _interestFee;
 
         emit InterestFeeUpdated(_interestFee);
+    }
+
+    /// @notice Set the liquidation ratio
+    ///
+    /// Emits a {LiquidationRatioUpdated} event.
+    ///
+    /// @param _liquidationRatio Liquidation ratio
+    function setLiquidationRatio(uint256 _liquidationRatio)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_liquidationRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
+        liquidationRatio = _liquidationRatio;
+
+        emit LiquidationRatioUpdated(_liquidationRatio);
     }
 
     /******************/
@@ -445,9 +488,20 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
-        uint256 loanEndTime = data.startedAt + data.terms.duration;
-        if (loanEndTime > block.timestamp) {
-            revert LoanNotEnded();
+        uint32 duration = data.terms.duration;
+        if (duration != type(uint32).max) {
+            uint256 loanEndTime = data.startedAt + duration;
+            if (loanEndTime > block.timestamp) {
+                revert NotLiquidatible();
+            }
+        } else {
+            uint256 collateral = _getCollateralAmount(
+                data.terms.baseTerms.collateralAddress,
+                data.terms.baseTerms.collateralId
+            );
+            if (data.balance <= (collateral * liquidationRatio) / DENOMINATOR) {
+                revert NotLiquidatible();
+            }
         }
 
         // update loan state to Defaulted
@@ -616,6 +670,20 @@ contract SpiceLending is
                 _payment
             );
         }
+    }
+
+    /// @dev Get collateral amount for Spice NFT
+    /// @param _collateralAddress Collateral NFT address
+    /// @param _collateralId Collateral NFT Id
+    /// @return assets Collateral amount
+    function _getCollateralAmount(
+        address _collateralAddress,
+        uint256 _collateralId
+    ) internal view returns (uint256 assets) {
+        uint256 shares = ISpiceFiNFT4626(_collateralAddress).tokenShares(
+            _collateralId
+        );
+        assets = ISpiceFiNFT4626(_collateralAddress).previewRedeem(shares);
     }
 
     /// @dev Calc total interest to pay
