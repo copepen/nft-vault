@@ -65,6 +65,21 @@ const ExtendLoanTerms = [
   },
 ];
 
+const IncreaseLoanTerms = [
+  {
+    name: "baseTerms",
+    type: "BaseTerms",
+  },
+  {
+    name: "additionalPrincipal",
+    type: "uint256",
+  },
+  {
+    name: "newInterestRate",
+    type: "uint160",
+  },
+];
+
 const signLoanTerms = async (signer, verifier, terms) => {
   const types = {
     LoanTerms,
@@ -76,6 +91,14 @@ const signLoanTerms = async (signer, verifier, terms) => {
 const signExtendLoanTerms = async (signer, verifier, terms) => {
   const types = {
     ExtendLoanTerms,
+    BaseTerms,
+  };
+  return await sign(signer, verifier, types, terms);
+};
+
+const signIncreaseLoanTerms = async (signer, verifier, terms) => {
+  const types = {
+    IncreaseLoanTerms,
     BaseTerms,
   };
   return await sign(signer, verifier, types, terms);
@@ -96,4 +119,5 @@ const sign = async (signer, verifier, types, terms) => {
 module.exports = {
   signLoanTerms,
   signExtendLoanTerms,
+  signIncreaseLoanTerms,
 };
