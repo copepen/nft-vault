@@ -1,28 +1,5 @@
 const { BigNumber } = require("ethers");
 
-const LoanTerms = [
-  {
-    name: "baseTerms",
-    type: "BaseTerms",
-  },
-  {
-    name: "principal",
-    type: "uint256",
-  },
-  {
-    name: "interestRate",
-    type: "uint160",
-  },
-  {
-    name: "duration",
-    type: "uint32",
-  },
-  {
-    name: "currency",
-    type: "address",
-  },
-];
-
 const BaseTerms = [
   {
     name: "collateralAddress",
@@ -46,7 +23,65 @@ const BaseTerms = [
   },
 ];
 
+const LoanTerms = [
+  {
+    name: "baseTerms",
+    type: "BaseTerms",
+  },
+  {
+    name: "principal",
+    type: "uint256",
+  },
+  {
+    name: "interestRate",
+    type: "uint160",
+  },
+  {
+    name: "duration",
+    type: "uint32",
+  },
+  {
+    name: "currency",
+    type: "address",
+  },
+];
+
+const ExtendLoanTerms = [
+  {
+    name: "baseTerms",
+    type: "BaseTerms",
+  },
+  {
+    name: "additionalPrincipal",
+    type: "uint256",
+  },
+  {
+    name: "newInterestRate",
+    type: "uint160",
+  },
+  {
+    name: "additionalDuration",
+    type: "uint32",
+  },
+];
+
 const signLoanTerms = async (signer, verifier, terms) => {
+  const types = {
+    LoanTerms,
+    BaseTerms,
+  };
+  return await sign(signer, verifier, types, terms);
+};
+
+const signExtendLoanTerms = async (signer, verifier, terms) => {
+  const types = {
+    ExtendLoanTerms,
+    BaseTerms,
+  };
+  return await sign(signer, verifier, types, terms);
+};
+
+const sign = async (signer, verifier, types, terms) => {
   const chainId = BigNumber.from(await signer.getChainId());
   const domain = {
     name: "SpiceLending",
@@ -54,14 +89,11 @@ const signLoanTerms = async (signer, verifier, terms) => {
     chainId,
     verifyingContract: verifier,
   };
-  const types = {
-    LoanTerms,
-    BaseTerms,
-  };
   const signature = await signer._signTypedData(domain, types, terms);
   return signature;
 };
 
 module.exports = {
   signLoanTerms,
+  signExtendLoanTerms,
 };

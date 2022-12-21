@@ -433,8 +433,8 @@ contract SpiceLending is
             revert InvalidMsgSender();
         }
 
-        _verifyExtendLoanTermsSignature(_terms, _signature);
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+        _verifyExtendLoanTermsSignature(_terms, _signature);
 
         data.terms.principal += _terms.additionalPrincipal;
         data.balance += _terms.additionalPrincipal;
@@ -465,8 +465,8 @@ contract SpiceLending is
             revert InvalidMsgSender();
         }
 
-        _verifyIncreaseLoanTermsSignature(_terms, _signature);
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+        _verifyIncreaseLoanTermsSignature(_terms, _signature);
 
         data.terms.principal += _terms.additionalPrincipal;
         data.balance += _terms.additionalPrincipal;
