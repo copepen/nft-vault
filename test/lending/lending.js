@@ -8,6 +8,7 @@ const {
   signIncreaseLoanTerms,
 } = require("../helpers/sign");
 const constants = require("../constants");
+const { increaseTime } = require("../helpers/time");
 
 const INVALID_SIGNATURE1 = "0x0000";
 const INVALID_SIGNATURE2 =
@@ -20,7 +21,7 @@ describe("Spice Lending", function () {
   let nft1, nft2;
   let weth;
   let spiceNft;
-  let admin, alice, bob, strategist, assetReceiver, signer;
+  let admin, alice, bob, strategist, assetReceiver, signer, spiceAdmin;
   let whale;
   let snapshotId;
 
@@ -38,7 +39,7 @@ describe("Spice Lending", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, strategist, assetReceiver, signer] =
+    [admin, alice, bob, strategist, assetReceiver, signer, spiceAdmin] =
       await ethers.getSigners();
     whale = await ethers.getSigner(constants.accounts.Whale1);
     await impersonateAccount(constants.accounts.Whale1);
@@ -129,10 +130,27 @@ describe("Spice Lending", function () {
     spiceRole = await lending.SPICE_ROLE();
     spiceNftRole = await lending.SPICE_NFT_ROLE();
 
+    await lending.connect(admin).grantRole(spiceRole, spiceAdmin.address);
+    await lending.connect(admin).grantRole(spiceNftRole, spiceNft.address);
+
     await note.initialize(lending.address);
 
     const adminRole = await note.ADMIN_ROLE();
     await checkRole(note, lending.address, adminRole, true);
+
+    await spiceNft.grantRole(spiceRole, spiceAdmin.address);
+
+    const amount = ethers.utils.parseEther("100");
+    await weth
+      .connect(whale)
+      .transfer(alice.address, amount.add(ethers.utils.parseEther("0.08")));
+    await weth
+      .connect(alice)
+      .approve(spiceNft.address, ethers.constants.MaxUint256);
+    await spiceNft.connect(alice)["deposit(uint256,uint256)"](0, amount);
+
+    await spiceNft.setBaseURI("uri://");
+    await spiceNft.setWithdrawable(true);
   });
 
   beforeEach(async () => {
@@ -346,7 +364,7 @@ describe("Spice Lending", function () {
     let loanId;
     let terms;
 
-    before(async function () {
+    beforeEach(async function () {
       const loanTerms = {
         baseTerms: {
           collateralAddress: nft1.address,
@@ -369,9 +387,7 @@ describe("Spice Lending", function () {
         .connect(alice)
         .callStatic.initiateLoan(loanTerms, signature);
       await lending.connect(alice).initiateLoan(loanTerms, signature);
-    });
 
-    beforeEach(function () {
       terms = {
         baseTerms: {
           collateralAddress: nft1.address,
@@ -480,7 +496,7 @@ describe("Spice Lending", function () {
     let loanId;
     let terms;
 
-    before(async function () {
+    beforeEach(async function () {
       const loanTerms = {
         baseTerms: {
           collateralAddress: nft1.address,
@@ -503,9 +519,7 @@ describe("Spice Lending", function () {
         .connect(alice)
         .callStatic.initiateLoan(loanTerms, signature);
       await lending.connect(alice).initiateLoan(loanTerms, signature);
-    });
 
-    beforeEach(function () {
       terms = {
         baseTerms: {
           collateralAddress: nft1.address,
@@ -608,6 +622,164 @@ describe("Spice Lending", function () {
       );
       expect(newLoanData.terms.duration).to.be.eq(oldLoanData.terms.duration);
       expect(newLoanData.terms.interestRate).to.be.eq(terms.newInterestRate);
+    });
+  });
+
+  describe("Partial Repay", function () {
+    let loanId1, loanId2;
+
+    beforeEach(async function () {
+      const loanTerms1 = {
+        baseTerms: {
+          collateralAddress: nft1.address,
+          collateralId: 1,
+          expiration: Math.floor(Date.now() / 1000) + 30 * 60,
+          lender: signer.address,
+          borrower: alice.address,
+        },
+        principal: ethers.utils.parseEther("10"),
+        interestRate: 500,
+        duration: 10 * 24 * 3600, // 10 days
+        currency: weth.address,
+      };
+      await nft1.connect(alice).setApprovalForAll(lending.address, true);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature1 = await signLoanTerms(
+        signer,
+        lending.address,
+        loanTerms1
+      );
+      loanId1 = await lending
+        .connect(alice)
+        .callStatic.initiateLoan(loanTerms1, signature1);
+      await lending.connect(alice).initiateLoan(loanTerms1, signature1);
+
+      const loanTerms2 = {
+        baseTerms: {
+          collateralAddress: spiceNft.address,
+          collateralId: 1,
+          expiration: Math.floor(Date.now() / 1000) + 30 * 60,
+          lender: signer.address,
+          borrower: alice.address,
+        },
+        principal: ethers.utils.parseEther("10"),
+        interestRate: 500,
+        duration: 10 * 24 * 3600, // 10 days
+        currency: weth.address,
+      };
+      await spiceNft.connect(alice).setApprovalForAll(lending.address, true);
+      const signature2 = await signLoanTerms(
+        signer,
+        lending.address,
+        loanTerms2
+      );
+      loanId2 = await lending
+        .connect(alice)
+        .callStatic.initiateLoan(loanTerms2, signature2);
+      await lending.connect(alice).initiateLoan(loanTerms2, signature2);
+    });
+
+    it("When loan is not active", async function () {
+      const payment = ethers.utils.parseEther("5");
+      await expect(lending.connect(alice).partialRepay(100, payment))
+        .to.be.revertedWithCustomError(lending, "InvalidState")
+        .withArgs(0);
+    });
+
+    it("When caller is not borrower", async function () {
+      const payment = ethers.utils.parseEther("5");
+      await expect(
+        lending.connect(bob).partialRepay(loanId1, payment)
+      ).to.be.revertedWithCustomError(lending, "InvalidMsgSender");
+    });
+
+    it("When partially repaying for normal NFT loan", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(alice.address);
+
+      const payment = ethers.utils.parseEther("5");
+      const tx = await lending.connect(alice).partialRepay(loanId1, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+      expect(await weth.balanceOf(alice.address)).to.be.eq(
+        beforeBalance.sub(payment)
+      );
+      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+    });
+
+    it("When partially repaying for Spice NFT loan", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(alice.address);
+      let shares = await spiceNft.tokenShares(1);
+      const beforeWithdrawable = await spiceNft.previewRedeem(shares);
+
+      const payment = ethers.utils.parseEther("5");
+      const tx = await lending.connect(alice).partialRepay(loanId2, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId2);
+      expect(await weth.balanceOf(alice.address)).to.be.eq(beforeBalance);
+      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+
+      shares = await spiceNft.tokenShares(1);
+      const afterWithdrawable = await spiceNft.previewRedeem(shares);
+      expect(beforeWithdrawable).to.be.eq(afterWithdrawable.add(payment));
+    });
+
+    it("When repaying very small payment", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(alice.address);
+
+      const payment = 10000;
+      const tx = await lending.connect(alice).partialRepay(loanId1, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+      expect(await weth.balanceOf(alice.address)).to.be.eq(
+        beforeBalance.sub(payment)
+      );
+      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+    });
+
+    it("When repaying full payment", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(alice.address);
+
+      const payment = ethers.utils.parseEther("11");
+      const tx = await lending.connect(alice).partialRepay(loanId1, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+      expect(await weth.balanceOf(alice.address)).to.be.gt(
+        beforeBalance.sub(payment)
+      );
+      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+
+      const loanData = await lending.getLoanData(loanId1);
+      expect(loanData.state).to.be.eq(2);
+      expect(loanData.interestAccrued).to.be.eq(0);
+
+      expect(await nft1.ownerOf(1)).to.be.eq(alice.address);
+      await expect(note.ownerOf(loanId1)).to.be.revertedWith("ERC721: invalid token ID");
     });
   });
 });
