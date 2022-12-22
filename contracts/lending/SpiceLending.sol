@@ -507,13 +507,15 @@ contract SpiceLending is
         // update loan state to Defaulted
         data.state = LibLoan.LoanState.Defaulted;
 
+        address lender = note.ownerOf(_loanId);
+
         // burn lender note
         note.burn(_loanId);
 
         IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
             .safeTransferFrom(
                 address(this),
-                note.ownerOf(_loanId),
+                lender,
                 data.terms.baseTerms.collateralId
             );
 
