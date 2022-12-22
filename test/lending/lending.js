@@ -779,7 +779,135 @@ describe("Spice Lending", function () {
       expect(loanData.interestAccrued).to.be.eq(0);
 
       expect(await nft1.ownerOf(1)).to.be.eq(alice.address);
-      await expect(note.ownerOf(loanId1)).to.be.revertedWith("ERC721: invalid token ID");
+      await expect(note.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+    });
+  });
+
+  describe("Repay", function () {
+    let loanId1, loanId2;
+
+    beforeEach(async function () {
+      const loanTerms1 = {
+        baseTerms: {
+          collateralAddress: nft1.address,
+          collateralId: 1,
+          expiration: Math.floor(Date.now() / 1000) + 30 * 60,
+          lender: signer.address,
+          borrower: alice.address,
+        },
+        principal: ethers.utils.parseEther("10"),
+        interestRate: 500,
+        duration: 10 * 24 * 3600, // 10 days
+        currency: weth.address,
+      };
+      await nft1.connect(alice).setApprovalForAll(lending.address, true);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature1 = await signLoanTerms(
+        signer,
+        lending.address,
+        loanTerms1
+      );
+      loanId1 = await lending
+        .connect(alice)
+        .callStatic.initiateLoan(loanTerms1, signature1);
+      await lending.connect(alice).initiateLoan(loanTerms1, signature1);
+
+      const loanTerms2 = {
+        baseTerms: {
+          collateralAddress: spiceNft.address,
+          collateralId: 1,
+          expiration: Math.floor(Date.now() / 1000) + 30 * 60,
+          lender: signer.address,
+          borrower: alice.address,
+        },
+        principal: ethers.utils.parseEther("10"),
+        interestRate: 500,
+        duration: 10 * 24 * 3600, // 10 days
+        currency: weth.address,
+      };
+      await spiceNft.connect(alice).setApprovalForAll(lending.address, true);
+      const signature2 = await signLoanTerms(
+        signer,
+        lending.address,
+        loanTerms2
+      );
+      loanId2 = await lending
+        .connect(alice)
+        .callStatic.initiateLoan(loanTerms2, signature2);
+      await lending.connect(alice).initiateLoan(loanTerms2, signature2);
+    });
+
+    it("When loan is not active", async function () {
+      await expect(lending.connect(alice).repay(100))
+        .to.be.revertedWithCustomError(lending, "InvalidState")
+        .withArgs(0);
+    });
+
+    it("When caller is not borrower", async function () {
+      await expect(
+        lending.connect(bob).repay(loanId1)
+      ).to.be.revertedWithCustomError(lending, "InvalidMsgSender");
+    });
+
+    it("When repaying for normal NFT loan", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(alice.address);
+
+      const tx = await lending.connect(alice).repay(loanId1);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+      expect(await weth.balanceOf(alice.address)).to.be.lt(beforeBalance);
+      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+    });
+
+    it("When repaying for Spice NFT loan", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(alice.address);
+      let shares = await spiceNft.tokenShares(1);
+      const beforeWithdrawable = await spiceNft.previewRedeem(shares);
+
+      const tx = await lending.connect(alice).repay(loanId2);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId2);
+      expect(await weth.balanceOf(alice.address)).to.be.eq(beforeBalance);
+      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+
+      shares = await spiceNft.tokenShares(1);
+      const afterWithdrawable = await spiceNft.previewRedeem(shares);
+      expect(beforeWithdrawable).to.be.gt(afterWithdrawable);
+    });
+
+    it("Should burn note and transfer collateral", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      await lending.connect(alice).repay(loanId1);
+
+      const loanData = await lending.getLoanData(loanId1);
+      expect(loanData.state).to.be.eq(2);
+      expect(loanData.interestAccrued).to.be.eq(0);
+
+      expect(await nft1.ownerOf(1)).to.be.eq(alice.address);
+      await expect(note.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
     });
   });
 });
