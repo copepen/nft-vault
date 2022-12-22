@@ -433,8 +433,8 @@ contract SpiceLending is
             revert InvalidMsgSender();
         }
 
-        _verifyExtendLoanTermsSignature(_terms, _signature);
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+        _verifyExtendLoanTermsSignature(_terms, _signature);
 
         data.terms.principal += _terms.additionalPrincipal;
         data.balance += _terms.additionalPrincipal;
@@ -465,8 +465,8 @@ contract SpiceLending is
             revert InvalidMsgSender();
         }
 
-        _verifyIncreaseLoanTermsSignature(_terms, _signature);
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+        _verifyIncreaseLoanTermsSignature(_terms, _signature);
 
         data.terms.principal += _terms.additionalPrincipal;
         data.balance += _terms.additionalPrincipal;
@@ -507,13 +507,15 @@ contract SpiceLending is
         // update loan state to Defaulted
         data.state = LibLoan.LoanState.Defaulted;
 
+        address lender = note.ownerOf(_loanId);
+
         // burn lender note
         note.burn(_loanId);
 
         IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
             .safeTransferFrom(
                 address(this),
-                note.ownerOf(_loanId),
+                lender,
                 data.terms.baseTerms.collateralId
             );
 
