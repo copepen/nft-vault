@@ -3,7 +3,7 @@ const hre = require("hardhat");
 async function main() {
   const { ethers, upgrades } = hre;
 
-  const vaultAddress = "0x0743be73d48dc949f8d097a40a1e194657960f80";
+  const vaultAddress = "0xAb271E6fe425338A27883aeB195ea3f15364367b";
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
   await upgrades.upgradeProxy(vaultAddress, SpiceFi4626, {
     unsafeAllow: ["delegatecall"],
