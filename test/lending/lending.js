@@ -92,8 +92,8 @@ describe("Spice Lending", function () {
   before("Deploy", async function () {
     [admin, alice, bob, strategist, assetReceiver, signer, spiceAdmin] =
       await ethers.getSigners();
-    whale = await ethers.getSigner(constants.accounts.Whale1);
-    await impersonateAccount(constants.accounts.Whale1);
+    await impersonateAccount(constants.accounts.Whale);
+    whale = await ethers.getSigner(constants.accounts.Whale);
 
     nft1 = await deployNFT();
     nft2 = await deployNFT();
@@ -443,7 +443,7 @@ describe("Spice Lending", function () {
         .withArgs(loanId, alice.address);
 
       expect(await lenderNote.ownerOf(loanId)).to.be.eq(signer.address);
-      expect(await borrower.ownerOf(loanId)).to.be.eq(alice.address);
+      expect(await borrowerNote.ownerOf(loanId)).to.be.eq(alice.address);
       expect(await weth.balanceOf(alice.address)).to.be.eq(loanTerms.principal);
       expect(await nft1.ownerOf(1)).to.be.eq(lending.address);
 

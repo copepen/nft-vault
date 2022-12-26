@@ -1,7 +1,6 @@
 module.exports = {
   accounts: {
-    Whale1: "0x06920C9fC643De77B99cB7670A944AD31eaAA260",
-    Whale2: "0x8EB8a3b98659Cce290402893d0123abb75E3ab28",
+    Whale: "0x8EB8a3b98659Cce290402893d0123abb75E3ab28",
     Multisig: "0x7B15f2B26C25e1815Dc4FB8957cE76a0C5319582",
   },
   tokens: {

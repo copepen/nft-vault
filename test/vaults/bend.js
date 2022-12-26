@@ -18,20 +18,9 @@ describe("Bend4626", function () {
   const symbol = "spiceETH";
 
   before("Deploy", async function () {
-    // mainnet fork
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.MAINNET_RPC_URL || "",
-          },
-        },
-      ],
-    });
-
     [admin, alice, bob] = await ethers.getSigners();
-    whale = await ethers.getSigner(constants.accounts.Whale1);
+    await impersonateAccount(constants.accounts.Whale);
+    whale = await ethers.getSigner(constants.accounts.Whale);
 
     token = await ethers.getContractAt(
       "TestERC20",
@@ -75,8 +64,6 @@ describe("Bend4626", function () {
     );
 
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
-
-    await impersonateAccount(constants.accounts.Whale1);
   });
 
   beforeEach(async () => {
