@@ -2,9 +2,18 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/IERC721Metadata.sol";
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 
+import "../libraries/LibLoan.sol";
 import "../interfaces/INote.sol";
+
+interface ISpiceLending {
+    function loans(uint256 loanId)
+        external
+        view
+        returns (LibLoan.LoanData memory);
+}
 
 /**
  * @title Note
@@ -20,6 +29,9 @@ contract Note is ERC721, AccessControlEnumerable, INote {
 
     /// @dev Note can be initialized only once
     bool private initialized;
+
+    /// @dev Indicates if note can be transferable
+    bool private transferable;
 
     /*************/
     /* Constants */
@@ -59,7 +71,8 @@ contract Note is ERC721, AccessControlEnumerable, INote {
     /// @notice Initialize Note contract. Grants owner access to the lending contract.
     /// @dev Admin role is immutable once set and cannot be updated.
     /// @param _lending The lending contract address
-    function initialize(address _lending) external {
+    /// @param _transferable The note can be _transferable or not
+    function initialize(address _lending, bool _transferable) external {
         if (initialized) revert AlreadyInitialized();
         if (_msgSender() != owner) revert NotOwner();
 
@@ -67,6 +80,7 @@ contract Note is ERC721, AccessControlEnumerable, INote {
         _setRoleAdmin(ADMIN_ROLE, ADMIN_ROLE);
 
         owner = _lending;
+        transferable = _transferable;
         initialized = true;
     }
 
@@ -104,5 +118,42 @@ contract Note is ERC721, AccessControlEnumerable, INote {
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    /// @dev See {ERC721-supportsInterface}.
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override
+        returns (string memory)
+    {
+        // if note is transferable, it's lender note
+        if (transferable) {
+            return super.tokenURI(tokenId);
+        }
+
+        _requireMinted(tokenId);
+
+        LibLoan.LoanData memory data = ISpiceLending(owner).loans(tokenId);
+
+        return
+            IERC721Metadata(data.terms.baseTerms.collateralAddress).tokenURI(
+                data.terms.baseTerms.collateralId
+            );
+    }
+
+    /// @dev See {ERC721-_beforeTokenTransfer}
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 tokenId
+    ) internal virtual override {
+        if (!transferable) {
+            if (from != address(0) && to != address(0)) {
+                revert NonTransferable();
+            }
+        }
+
+        super._beforeTokenTransfer(from, to, tokenId);
     }
 }
