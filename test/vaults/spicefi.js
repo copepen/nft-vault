@@ -271,7 +271,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -292,7 +291,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -313,7 +311,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -334,7 +331,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -355,7 +351,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -376,7 +371,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -400,7 +394,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("When totalSupply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -426,7 +419,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("When totalSupply is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -450,7 +442,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("When balance is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -474,7 +465,6 @@ describe("SpiceFi4626", function () {
       });
 
       it("When balance is non-zero", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, assets);
         await spiceVault
@@ -491,7 +481,6 @@ describe("SpiceFi4626", function () {
   describe("User Actions", function () {
     describe("Deposit", function () {
       it("When there are no accounts with USER_ROLE", async function () {
-        await spiceVault.revokeRole(userRole, admin.address);
         const amount = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, amount);
         await spiceVault
@@ -533,7 +522,6 @@ describe("SpiceFi4626", function () {
 
     describe("Withdraw", function () {
       beforeEach(async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, amount);
         await spiceVault
@@ -572,7 +560,6 @@ describe("SpiceFi4626", function () {
 
     describe("Transfer", function () {
       beforeEach(async function () {
-        await spiceVault.grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, amount);
         await spiceVault
@@ -609,7 +596,6 @@ describe("SpiceFi4626", function () {
     describe("Vault", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -680,7 +666,6 @@ describe("SpiceFi4626", function () {
 
       describe("Mint", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -751,7 +736,6 @@ describe("SpiceFi4626", function () {
 
       describe("Withdraw", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -824,7 +808,6 @@ describe("SpiceFi4626", function () {
 
       describe("Redeem", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -899,7 +882,6 @@ describe("SpiceFi4626", function () {
     describe("Bend", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -970,7 +952,6 @@ describe("SpiceFi4626", function () {
 
       describe("Mint", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -1041,7 +1022,6 @@ describe("SpiceFi4626", function () {
 
       describe("Withdraw", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -1114,7 +1094,6 @@ describe("SpiceFi4626", function () {
 
       describe("Redeem", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -1189,7 +1168,6 @@ describe("SpiceFi4626", function () {
     describe("Drops", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -1263,7 +1241,6 @@ describe("SpiceFi4626", function () {
 
       describe("Mint", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -1337,7 +1314,6 @@ describe("SpiceFi4626", function () {
 
       describe("Withdraw", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
@@ -1410,7 +1386,6 @@ describe("SpiceFi4626", function () {
 
       describe("Redeem", function () {
         beforeEach(async function () {
-          await spiceVault.grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth.connect(whale).approve(spiceVault.address, assets);
           await spiceVault
