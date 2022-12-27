@@ -11,14 +11,7 @@ describe("SpiceFiFactory", function () {
   let impl;
   let factory;
 
-  let admin,
-    alice,
-    bob,
-    carol,
-    strategist,
-    spiceAdmin,
-    assetReceiver,
-    vaultReceiver;
+  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury;
 
   let snapshotId;
 
@@ -44,7 +37,7 @@ describe("SpiceFiFactory", function () {
       strategist,
       spiceAdmin,
       assetReceiver,
-      vaultReceiver,
+      treasury,
     ] = await ethers.getSigners();
 
     weth = await ethers.getContractAt(
@@ -57,7 +50,7 @@ describe("SpiceFiFactory", function () {
 
     vault = await upgrades.deployProxy(
       Vault,
-      [vaultName, vaultSymbol, weth.address, 0],
+      [vaultName, vaultSymbol, weth.address, 0, treasury.address],
       {
         kind: "uups",
       }

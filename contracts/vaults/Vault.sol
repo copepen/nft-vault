@@ -29,7 +29,10 @@ abstract contract VaultStorageV1 {
     uint8 internal _decimals;
 
     /// @dev withdrawal fees per 10_000 units
-    uint256 internal _withdrawalFees;
+    uint256 public withdrawalFees;
+
+    /// @notice Fee recipient address
+    address public feeRecipient;
 
     /// @dev Total assets value
     uint256 internal _totalAssets;
@@ -88,10 +91,6 @@ contract Vault is
     /// @notice Marketplace role
     bytes32 public constant MARKETPLACE_ROLE = keccak256("MARKETPLACE_ROLE");
 
-    /// @notice Asset receiver role
-    bytes32 public constant ASSET_RECEIVER_ROLE =
-        keccak256("ASSET_RECEIVER_ROLE");
-
     /**********/
     /* Errors */
     /**********/
@@ -116,6 +115,10 @@ contract Vault is
     /// @param withdrawalFees New withdrawal fees per 10_000 units
     event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
 
+    /// @notice Emitted when fee recipient is updated
+    /// @param feeRecipient New fee recipient address
+    event FeeRecipientUpdated(address feeRecipient);
+
     /// @notice Emitted when totalAssets is updated
     /// @param totalAssets Total assets
     event TotalAssets(uint256 totalAssets);
@@ -133,7 +136,8 @@ contract Vault is
         string calldata name_,
         string calldata symbol_,
         IERC20Upgradeable asset_,
-        uint256 withdrawalFees_
+        uint256 withdrawalFees_,
+        address feeRecipient_
     ) external initializer {
         if (address(asset_) == address(0)) {
             revert InvalidAddress();
@@ -141,16 +145,19 @@ contract Vault is
         if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
         }
+        if (feeRecipient_ == address(0)) {
+            revert InvalidAddress();
+        }
 
         __ERC20_init(name_, symbol_);
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
 
-        _withdrawalFees = withdrawalFees_;
+        withdrawalFees = withdrawalFees_;
+        feeRecipient = feeRecipient_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ASSET_RECEIVER_ROLE, msg.sender);
         _grantRole(KEEPER_ROLE, msg.sender);
         _grantRole(LIQUIDATOR_ROLE, msg.sender);
 
@@ -227,14 +234,14 @@ contract Vault is
     function maxWithdraw(address owner) external view returns (uint256) {
         return
             _convertToAssets(
-                balanceOf(owner).mulDiv(10_000 - _withdrawalFees, 10_000),
+                balanceOf(owner).mulDiv(10_000 - withdrawalFees, 10_000),
                 MathUpgradeable.Rounding.Up
             );
     }
 
     /// @notice See {IERC4626-maxRedeem}
     function maxRedeem(address owner) external view returns (uint256) {
-        return balanceOf(owner).mulDiv(10_000 - _withdrawalFees, 10_000);
+        return balanceOf(owner).mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @notice See {IERC4626-previewDeposit}
@@ -251,7 +258,7 @@ contract Vault is
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         return
             _convertToShares(
-                assets.mulDiv(10_000, 10_000 - _withdrawalFees),
+                assets.mulDiv(10_000, 10_000 - withdrawalFees),
                 MathUpgradeable.Rounding.Up
             );
     }
@@ -260,7 +267,7 @@ contract Vault is
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return
             _convertToAssets(
-                shares.mulDiv(10_000 - _withdrawalFees, 10_000),
+                shares.mulDiv(10_000 - withdrawalFees, 10_000),
                 MathUpgradeable.Rounding.Down
             );
     }
@@ -431,8 +438,7 @@ contract Vault is
 
         _asset.safeTransfer(receiver, assets);
 
-        address feesAddr = getRoleMember(ASSET_RECEIVER_ROLE, 0);
-        _asset.safeTransfer(feesAddr, fees);
+        _asset.safeTransfer(feeRecipient, fees);
 
         _totalAssets = _totalAssets - assets;
 
@@ -447,16 +453,32 @@ contract Vault is
     ///
     /// Emits a {WithdrawalFeeRateUpdated} event.
     ///
-    /// @param withdrawalFees Withdrawal fees per 10_000 units
-    function setWithdrawalFees(uint256 withdrawalFees)
+    /// @param _withdrawalFees Withdrawal fees per 10_000 units
+    function setWithdrawalFees(uint256 _withdrawalFees)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (withdrawalFees > 10_000) {
+        if (_withdrawalFees > 10_000) {
             revert ParameterOutOfBounds();
         }
-        _withdrawalFees = withdrawalFees;
-        emit WithdrawalFeeRateUpdated(withdrawalFees);
+        withdrawalFees = _withdrawalFees;
+        emit WithdrawalFeeRateUpdated(_withdrawalFees);
+    }
+
+    /// @notice Set the fee recipient address
+    ///
+    /// Emits a {FeeRecipientUpdated} event.
+    ///
+    /// @param _feeRecipient New fee recipient address
+    function setFeeRecipient(address _feeRecipient)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_feeRecipient == address(0)) {
+            revert InvalidAddress();
+        }
+        feeRecipient = _feeRecipient;
+        emit FeeRecipientUpdated(_feeRecipient);
     }
 
     /// @notice Set total assets

@@ -16,7 +16,7 @@ describe("SpiceFi4626", function () {
   let spiceVault;
 
   // accounts
-  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver;
+  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury;
   let whale;
 
   // snapshot ID
@@ -54,8 +54,16 @@ describe("SpiceFi4626", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver] =
-      await ethers.getSigners();
+    [
+      admin,
+      alice,
+      bob,
+      carol,
+      strategist,
+      spiceAdmin,
+      assetReceiver,
+      treasury,
+    ] = await ethers.getSigners();
 
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
@@ -72,7 +80,7 @@ describe("SpiceFi4626", function () {
 
     vault = await upgrades.deployProxy(
       Vault,
-      [vaultName, vaultSymbol, weth.address, 0],
+      [vaultName, vaultSymbol, weth.address, 0, treasury.address],
       {
         kind: "uups",
       }
