@@ -5,11 +5,22 @@ async function main() {
 
   const vaultAddress = "0x3ad4119e2beb50944723eccb3d4e4424e182be47";
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
+  const impl = await upgrades.deployImplementation(SpiceFiNFT4626);
   await upgrades.upgradeProxy(vaultAddress, SpiceFiNFT4626, {
     unsafeAllow: ["delegatecall"],
   });
 
   console.log("SpiceFiNFT4626 successfully upgraded!");
+
+  if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
+    try {
+      await hre.run("verify:verify", {
+        address: impl,
+        contract: "contracts/vaults/SpiceFiNFT4626.sol:SpiceFiNFT4626",
+        constructorArguments: [],
+      });
+    } catch (_) {}
+  }
 }
 
 main().catch((error) => {
