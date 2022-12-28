@@ -34,7 +34,7 @@ describe("Drops4626", function () {
     );
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
-    const Drops4626 = await ethers.getContractFactory("Drops4626");
+    const Drops4626 = await ethers.getContractFactory("Drops4626", alice);
 
     await expect(
       upgrades.deployProxy(
@@ -93,15 +93,15 @@ describe("Drops4626", function () {
     });
 
     it("Should be upgraded only by default admin", async function () {
-      let Drops4626 = await ethers.getContractFactory("Drops4626", alice);
+      let Drops4626 = await ethers.getContractFactory("Drops4626", bob);
 
       await expect(
         upgrades.upgradeProxy(vault.address, Drops4626)
       ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+        `AccessControl: account ${bob.address.toLowerCase()} is missing role ${defaultAdminRole}`
       );
 
-      Drops4626 = await ethers.getContractFactory("Drops4626", admin);
+      Drops4626 = await ethers.getContractFactory("Drops4626", alice);
 
       await upgrades.upgradeProxy(vault.address, Drops4626);
     });
@@ -428,7 +428,6 @@ describe("Drops4626", function () {
 
         await vault.connect(whale).withdraw(
           assets,
-
           bob.address,
           whale.address
         );
