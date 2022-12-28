@@ -80,7 +80,14 @@ describe("SpiceFi4626", function () {
 
     vault = await upgrades.deployProxy(
       Vault,
-      [vaultName, vaultSymbol, weth.address, 0, treasury.address],
+      [
+        vaultName,
+        vaultSymbol,
+        weth.address,
+        0,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         kind: "uups",
       }
@@ -121,6 +128,8 @@ describe("SpiceFi4626", function () {
           strategist.address,
           assetReceiver.address,
           700,
+          constants.accounts.Multisig,
+          treasury.address,
         ],
         {
           unsafeAllow: ["delegatecall"],
@@ -136,6 +145,8 @@ describe("SpiceFi4626", function () {
           ethers.constants.AddressZero,
           assetReceiver.address,
           700,
+          constants.accounts.Multisig,
+          treasury.address,
         ],
         {
           unsafeAllow: ["delegatecall"],
@@ -146,7 +157,14 @@ describe("SpiceFi4626", function () {
     await expect(
       upgrades.deployProxy(
         SpiceFi4626,
-        [weth.address, strategist.address, ethers.constants.AddressZero, 700],
+        [
+          weth.address,
+          strategist.address,
+          ethers.constants.AddressZero,
+          700,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           unsafeAllow: ["delegatecall"],
           kind: "uups",
@@ -156,17 +174,65 @@ describe("SpiceFi4626", function () {
     await expect(
       upgrades.deployProxy(
         SpiceFi4626,
-        [weth.address, strategist.address, assetReceiver.address, 10001],
+        [
+          weth.address,
+          strategist.address,
+          assetReceiver.address,
+          10001,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           unsafeAllow: ["delegatecall"],
           kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFi4626, "ParameterOutOfBounds");
+    await expect(
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [
+          weth.address,
+          strategist.address,
+          assetReceiver.address,
+          700,
+          ethers.constants.AddressZero,
+          treasury.address,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
+    await expect(
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [
+          weth.address,
+          strategist.address,
+          assetReceiver.address,
+          700,
+          constants.accounts.Multisig,
+          ethers.constants.AddressZero,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
 
     spiceVault = await upgrades.deployProxy(
       SpiceFi4626,
-      [weth.address, strategist.address, assetReceiver.address, 700],
+      [
+        weth.address,
+        strategist.address,
+        assetReceiver.address,
+        700,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         unsafeAllow: ["delegatecall"],
         kind: "uups",
@@ -243,7 +309,9 @@ describe("SpiceFi4626", function () {
           weth.address,
           strategist.address,
           assetReceiver.address,
-          700
+          700,
+          constants.accounts.Multisig,
+          treasury.address
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
@@ -539,8 +607,10 @@ describe("SpiceFi4626", function () {
 
       it("Split fees properly", async function () {
         const amount = ethers.utils.parseEther("93");
-        const beforeBalance1 = await weth.balanceOf(assetReceiver.address);
-        const beforeBalance2 = await weth.balanceOf(spiceAdmin.address);
+        const beforeBalance1 = await weth.balanceOf(
+          constants.accounts.Multisig
+        );
+        const beforeBalance2 = await weth.balanceOf(treasury.address);
         const beforeBalance3 = await weth.balanceOf(whale.address);
         const fees = amount.mul(700).div(9300);
         const fees1 = fees.div(2);
@@ -554,10 +624,10 @@ describe("SpiceFi4626", function () {
             whale.address
           );
 
-        expect(await weth.balanceOf(assetReceiver.address)).to.be.eq(
+        expect(await weth.balanceOf(constants.accounts.Multisig)).to.be.eq(
           beforeBalance1.add(fees1)
         );
-        expect(await weth.balanceOf(spiceAdmin.address)).to.be.eq(
+        expect(await weth.balanceOf(treasury.address)).to.be.eq(
           beforeBalance2.add(fees2)
         );
         expect(await weth.balanceOf(whale.address)).to.be.eq(

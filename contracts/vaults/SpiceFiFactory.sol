@@ -16,6 +16,12 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @notice SpiceFi4626 implementation
     SpiceFi4626 public immutable implementation;
 
+    /// @notice Spice Multisig address
+    address public multisig;
+
+    /// @notice Fee recipient address
+    address public feeRecipient;
+
     /*************/
     /* Constants */
     /*************/
@@ -45,20 +51,76 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @param vault Vault address
     event VaultCreated(address indexed owner, address vault);
 
+    /// @notice Emitted when multisig is updated
+    /// @param multisig New multisig address
+    event MultisigUpdated(address multisig);
+
+    /// @notice Emitted when fee recipient is updated
+    /// @param feeRecipient New fee recipient address
+    event FeeRecipientUpdated(address feeRecipient);
+
     /***************/
     /* Constructor */
     /***************/
 
     /// @notice Constructor
     /// @param implementation_ SpiceFi4626 implementation address
-    constructor(SpiceFi4626 implementation_) {
+    /// @param multisig_ Initial multisig address
+    /// @param feeRecipient_ Initial fee recipient address
+    constructor(
+        SpiceFi4626 implementation_,
+        address multisig_,
+        address feeRecipient_
+    ) {
         if (address(implementation_) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (multisig_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (feeRecipient_ == address(0)) {
             revert InvalidAddress();
         }
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
         implementation = implementation_;
+        multisig = multisig_;
+        feeRecipient = feeRecipient_;
+    }
+
+    /***********/
+    /* Setters */
+    /***********/
+
+    /// @notice Set the multisig address
+    ///
+    /// Emits a {MultisigUpdated} event.
+    ///
+    /// @param _multisig New multisig address
+    function setMultisig(
+        address _multisig
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_multisig == address(0)) {
+            revert InvalidAddress();
+        }
+        multisig = _multisig;
+        emit MultisigUpdated(_multisig);
+    }
+
+    /// @notice Set the fee recipient address
+    ///
+    /// Emits a {FeeRecipientUpdated} event.
+    ///
+    /// @param _feeRecipient New fee recipient address
+    function setFeeRecipient(
+        address _feeRecipient
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_feeRecipient == address(0)) {
+            revert InvalidAddress();
+        }
+        feeRecipient = _feeRecipient;
+        emit FeeRecipientUpdated(_feeRecipient);
     }
 
     /*************/
@@ -85,7 +147,14 @@ contract SpiceFiFactory is AccessControlEnumerable {
         }
 
         vault = SpiceFi4626(address(implementation).clone());
-        vault.initialize(asset, msg.sender, assetReceiver, withdrawalFees);
+        vault.initialize(
+            asset,
+            msg.sender,
+            assetReceiver,
+            withdrawalFees,
+            multisig,
+            feeRecipient
+        );
 
         uint256 length = vaults.length;
         bytes32 VAULT_ROLE_ = vault.VAULT_ROLE();

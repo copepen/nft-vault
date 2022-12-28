@@ -81,7 +81,14 @@ describe("SpiceFiNFT4626", function () {
 
     vault = await upgrades.deployProxy(
       Vault,
-      [vaultName, vaultSymbol, weth.address, 700, treasury.address],
+      [
+        vaultName,
+        vaultSymbol,
+        weth.address,
+        0,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         kind: "uups",
       }
@@ -117,7 +124,13 @@ describe("SpiceFiNFT4626", function () {
     await expect(
       upgrades.deployProxy(
         SpiceFiNFT4626,
-        [ethers.constants.AddressZero, assetReceiver.address, 700],
+        [
+          ethers.constants.AddressZero,
+          assetReceiver.address,
+          700,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           unsafeAllow: ["delegatecall"],
           kind: "uups",
@@ -127,7 +140,13 @@ describe("SpiceFiNFT4626", function () {
     await expect(
       upgrades.deployProxy(
         SpiceFiNFT4626,
-        [strategist.address, ethers.constants.AddressZero, 700],
+        [
+          strategist.address,
+          ethers.constants.AddressZero,
+          700,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           unsafeAllow: ["delegatecall"],
           kind: "uups",
@@ -137,17 +156,61 @@ describe("SpiceFiNFT4626", function () {
     await expect(
       upgrades.deployProxy(
         SpiceFiNFT4626,
-        [strategist.address, assetReceiver.address, 10001],
+        [
+          strategist.address,
+          assetReceiver.address,
+          10001,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           unsafeAllow: ["delegatecall"],
           kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
+    await expect(
+      upgrades.deployProxy(
+        SpiceFiNFT4626,
+        [
+          strategist.address,
+          assetReceiver.address,
+          700,
+          ethers.constants.AddressZero,
+          treasury.address,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
+    await expect(
+      upgrades.deployProxy(
+        SpiceFiNFT4626,
+        [
+          strategist.address,
+          assetReceiver.address,
+          700,
+          constants.accounts.Multisig,
+          ethers.constants.AddressZero,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
 
     spiceVault = await upgrades.deployProxy(
       SpiceFiNFT4626,
-      [strategist.address, assetReceiver.address, 700],
+      [
+        strategist.address,
+        assetReceiver.address,
+        700,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         unsafeAllow: ["delegatecall"],
         kind: "uups",
@@ -214,7 +277,13 @@ describe("SpiceFiNFT4626", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        spiceVault.initialize(strategist.address, assetReceiver.address, 700)
+        spiceVault.initialize(
+          strategist.address,
+          assetReceiver.address,
+          700,
+          constants.accounts.Multisig,
+          treasury.address
+        )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 
@@ -889,8 +958,10 @@ describe("SpiceFiNFT4626", function () {
 
       it("Split fees properly", async function () {
         const amount = ethers.utils.parseEther("93");
-        const beforeBalance1 = await weth.balanceOf(assetReceiver.address);
-        const beforeBalance2 = await weth.balanceOf(spiceAdmin.address);
+        const beforeBalance1 = await weth.balanceOf(
+          constants.accounts.Multisig
+        );
+        const beforeBalance2 = await weth.balanceOf(treasury.address);
         const beforeBalance3 = await weth.balanceOf(alice.address);
         const fees = amount.mul(700).div(9300);
         const fees1 = fees.div(2);
@@ -911,10 +982,10 @@ describe("SpiceFiNFT4626", function () {
           .connect(whale)
           ["withdraw(uint256,uint256,address)"](1, amount, alice.address);
 
-        expect(await weth.balanceOf(assetReceiver.address)).to.be.eq(
+        expect(await weth.balanceOf(constants.accounts.Multisig)).to.be.eq(
           beforeBalance1.add(fees1)
         );
-        expect(await weth.balanceOf(spiceAdmin.address)).to.be.eq(
+        expect(await weth.balanceOf(treasury.address)).to.be.eq(
           beforeBalance2.add(fees2)
         );
         expect(await weth.balanceOf(alice.address)).to.be.eq(
@@ -1042,8 +1113,10 @@ describe("SpiceFiNFT4626", function () {
 
       it("Split fees properly", async function () {
         const shares = ethers.utils.parseEther("100");
-        const beforeBalance1 = await weth.balanceOf(assetReceiver.address);
-        const beforeBalance2 = await weth.balanceOf(spiceAdmin.address);
+        const beforeBalance1 = await weth.balanceOf(
+          constants.accounts.Multisig
+        );
+        const beforeBalance2 = await weth.balanceOf(treasury.address);
         const beforeBalance3 = await weth.balanceOf(alice.address);
 
         await spiceVault.setBaseURI("uri://");
@@ -1065,10 +1138,10 @@ describe("SpiceFiNFT4626", function () {
           .connect(whale)
           ["redeem(uint256,uint256,address)"](1, shares, alice.address);
 
-        expect(await weth.balanceOf(assetReceiver.address)).to.be.eq(
+        expect(await weth.balanceOf(constants.accounts.Multisig)).to.be.eq(
           beforeBalance1.add(fees1)
         );
-        expect(await weth.balanceOf(spiceAdmin.address)).to.be.eq(
+        expect(await weth.balanceOf(treasury.address)).to.be.eq(
           beforeBalance2.add(fees2)
         );
         expect(await weth.balanceOf(alice.address)).to.be.eq(

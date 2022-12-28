@@ -50,7 +50,14 @@ describe("SpiceFiFactory", function () {
 
     vault = await upgrades.deployProxy(
       Vault,
-      [vaultName, vaultSymbol, weth.address, 0, treasury.address],
+      [
+        vaultName,
+        vaultSymbol,
+        weth.address,
+        0,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         kind: "uups",
       }
@@ -85,7 +92,14 @@ describe("SpiceFiFactory", function () {
 
     impl = await upgrades.deployProxy(
       SpiceFi4626,
-      [constants.tokens.WETH, strategist.address, assetReceiver.address, 700],
+      [
+        constants.tokens.WETH,
+        strategist.address,
+        assetReceiver.address,
+        700,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         unsafeAllow: ["delegatecall"],
         kind: "uups",
@@ -97,13 +111,35 @@ describe("SpiceFiFactory", function () {
     const SpiceFiFactory = await ethers.getContractFactory("SpiceFiFactory");
 
     await expect(
-      SpiceFiFactory.deploy(ethers.constants.AddressZero)
+      SpiceFiFactory.deploy(
+        ethers.constants.AddressZero,
+        constants.accounts.Multisig,
+        treasury.address
+      )
+    ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
+    await expect(
+      SpiceFiFactory.deploy(
+        impl.address,
+        ethers.constants.AddressZero,
+        treasury.address
+      )
+    ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
+    await expect(
+      SpiceFiFactory.deploy(
+        impl.address,
+        constants.accounts.Multisig,
+        ethers.constants.AddressZero
+      )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
 
     const implAddr = await upgrades.erc1967.getImplementationAddress(
       impl.address
     );
-    factory = await SpiceFiFactory.deploy(implAddr);
+    factory = await SpiceFiFactory.deploy(
+      implAddr,
+      constants.accounts.Multisig,
+      treasury.address
+    );
 
     vaultRole = await factory.VAULT_ROLE();
     aggregatorRole = await factory.AGGREGATOR_ROLE();
