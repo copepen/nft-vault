@@ -31,6 +31,9 @@ abstract contract VaultStorageV1 {
     /// @dev withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
 
+    /// @notice Spice Multisig address
+    address public multisig;
+
     /// @notice Fee recipient address
     address public feeRecipient;
 
@@ -115,6 +118,10 @@ contract Vault is
     /// @param withdrawalFees New withdrawal fees per 10_000 units
     event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
 
+    /// @notice Emitted when multisig is updated
+    /// @param multisig New multisig address
+    event MultisigUpdated(address multisig);
+
     /// @notice Emitted when fee recipient is updated
     /// @param feeRecipient New fee recipient address
     event FeeRecipientUpdated(address feeRecipient);
@@ -132,11 +139,14 @@ contract Vault is
     /// @param symbol_ receipt token symbol
     /// @param asset_ asset token contract
     /// @param withdrawalFees_ initial withdrawal fees
+    /// @param multisig_ initial multisig address
+    /// @param feeRecipient_ initial fee recipient address
     function initialize(
         string calldata name_,
         string calldata symbol_,
         IERC20Upgradeable asset_,
         uint256 withdrawalFees_,
+        address multisig_,
         address feeRecipient_
     ) external initializer {
         if (address(asset_) == address(0)) {
@@ -144,6 +154,9 @@ contract Vault is
         }
         if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
+        }
+        if (multisig_ == address(0)) {
+            revert InvalidAddress();
         }
         if (feeRecipient_ == address(0)) {
             revert InvalidAddress();
@@ -155,6 +168,7 @@ contract Vault is
         __ReentrancyGuard_init();
 
         withdrawalFees = withdrawalFees_;
+        multisig = multisig_;
         feeRecipient = feeRecipient_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -438,7 +452,9 @@ contract Vault is
 
         _asset.safeTransfer(receiver, assets);
 
-        _asset.safeTransfer(feeRecipient, fees);
+        uint256 half = fees / 2;
+        _asset.safeTransfer(multisig, half);
+        _asset.safeTransfer(feeRecipient, fees - half);
 
         _totalAssets = _totalAssets - assets;
 
@@ -479,6 +495,22 @@ contract Vault is
         }
         feeRecipient = _feeRecipient;
         emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    /// @notice Set the multisig address
+    ///
+    /// Emits a {MultisigUpdated} event.
+    ///
+    /// @param _multisig New multisig address
+    function setMultisig(address _multisig)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_multisig == address(0)) {
+            revert InvalidAddress();
+        }
+        multisig = _multisig;
+        emit MultisigUpdated(_multisig);
     }
 
     /// @notice Set total assets
