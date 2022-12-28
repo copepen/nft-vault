@@ -117,8 +117,6 @@ contract SpiceFi4626 is
         _setupRole(STRATEGIST_ROLE, strategist_);
         _setupRole(ASSET_RECEIVER_ROLE, assetReceiver_);
 
-        _setupRole(USER_ROLE, _msgSender());
-
         withdrawalFees = withdrawalFees_;
     }
 

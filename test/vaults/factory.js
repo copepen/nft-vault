@@ -36,18 +36,6 @@ describe("SpiceFiFactory", function () {
   }
 
   before("Deploy", async function () {
-    // mainnet fork
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.MAINNET_RPC_URL || "",
-          },
-        },
-      ],
-    });
-
     [
       admin,
       alice,

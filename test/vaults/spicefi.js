@@ -54,23 +54,11 @@ describe("SpiceFi4626", function () {
   }
 
   before("Deploy", async function () {
-    // mainnet fork
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.MAINNET_RPC_URL || "",
-          },
-        },
-      ],
-    });
-
     [admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver] =
       await ethers.getSigners();
 
-    whale = await ethers.getSigner(constants.accounts.Whale1);
-    await impersonateAccount(constants.accounts.Whale1);
+    await impersonateAccount(constants.accounts.Whale);
+    whale = await ethers.getSigner(constants.accounts.Whale);
 
     const amount = ethers.utils.parseEther("1000000");
     token = await deployTokenAndAirdrop([admin, alice, bob, carol], amount);

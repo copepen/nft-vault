@@ -51,8 +51,8 @@ async function main() {
     vaultReceiver,
   ] = await ethers.getSigners();
 
-  whale = await ethers.getSigner(constants.accounts.Whale1);
-  await impersonateAccount(constants.accounts.Whale1);
+  await impersonateAccount(constants.accounts.Whale);
+  whale = await ethers.getSigner(constants.accounts.Whale);
 
   const amount = ethers.utils.parseEther("1000000");
   token = await deployTokenAndAirdrop([admin, alice, bob, carol], amount);

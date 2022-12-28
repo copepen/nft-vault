@@ -50,7 +50,10 @@ abstract contract SpiceLendingStorage {
     mapping(uint256 => LibLoan.LoanData) internal loans;
 
     /// @notice Lender Note
-    INote public note;
+    INote public lenderNote;
+
+    /// @notice Borrwoer Note
+    INote public borrowerNote;
 
     /// @notice Interest fee rate
     uint256 public interestFee;
@@ -146,19 +149,24 @@ contract SpiceLending is
 
     /// @notice SpiceLending constructor (for proxy)
     /// @param _signer Signer address
-    /// @param _note Note contract address
+    /// @param _lenderNote Lender note contract address
+    /// @param _borrowerNote Borrower note contract address
     /// @param _interestFee Interest fee rate
     /// @param _liquidationRatio Liquidation ratio
     function initialize(
         address _signer,
-        INote _note,
+        INote _lenderNote,
+        INote _borrowerNote,
         uint256 _interestFee,
         uint256 _liquidationRatio
     ) external initializer {
         if (_signer == address(0)) {
             revert InvalidAddress();
         }
-        if (address(_note) == address(0)) {
+        if (address(_lenderNote) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(_borrowerNote) == address(0)) {
             revert InvalidAddress();
         }
         if (_interestFee > DENOMINATOR) {
@@ -173,7 +181,8 @@ contract SpiceLending is
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
         signer = _signer;
-        note = _note;
+        lenderNote = _lenderNote;
+        borrowerNote = _borrowerNote;
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
     }
@@ -267,7 +276,7 @@ contract SpiceLending is
         });
 
         // mint notes
-        _mintNote(loanId, _terms.baseTerms.lender);
+        _mintNote(loanId, _terms.baseTerms.lender, _terms.baseTerms.borrower);
 
         IERC721Upgradeable(_terms.baseTerms.collateralAddress).safeTransferFrom(
                 msg.sender,
@@ -294,7 +303,7 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
-        address lender = note.ownerOf(_loanId);
+        address lender = lenderNote.ownerOf(_loanId);
         address borrower = data.terms.baseTerms.borrower;
 
         if (msg.sender != borrower) {
@@ -345,8 +354,9 @@ contract SpiceLending is
         if (_payment == totalAmountToPay) {
             data.state = LibLoan.LoanState.Repaid;
 
-            // burn lender note
-            note.burn(_loanId);
+            // burn notes
+            lenderNote.burn(_loanId);
+            borrowerNote.burn(_loanId);
 
             // return collateral NFT to borrower
             IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
@@ -370,7 +380,7 @@ contract SpiceLending is
         // update loan state to Repaid
         data.state = LibLoan.LoanState.Repaid;
 
-        address lender = note.ownerOf(_loanId);
+        address lender = lenderNote.ownerOf(_loanId);
         address borrower = data.terms.baseTerms.borrower;
 
         if (msg.sender != borrower) {
@@ -404,8 +414,9 @@ contract SpiceLending is
             currency.safeTransfer(feesAddr, fee);
         }
 
-        // burn lender note
-        note.burn(_loanId);
+        // burn notes
+        lenderNote.burn(_loanId);
+        borrowerNote.burn(_loanId);
 
         // return collateral NFT to borrower
         IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
@@ -442,7 +453,7 @@ contract SpiceLending is
         data.terms.duration += _terms.additionalDuration;
 
         IERC20Upgradeable(data.terms.currency).safeTransferFrom(
-            note.ownerOf(_loanId),
+            lenderNote.ownerOf(_loanId),
             msg.sender,
             _terms.additionalPrincipal
         );
@@ -473,7 +484,7 @@ contract SpiceLending is
         data.terms.interestRate = _terms.newInterestRate;
 
         IERC20Upgradeable(data.terms.currency).safeTransferFrom(
-            note.ownerOf(_loanId),
+            lenderNote.ownerOf(_loanId),
             msg.sender,
             _terms.additionalPrincipal
         );
@@ -507,10 +518,11 @@ contract SpiceLending is
         // update loan state to Defaulted
         data.state = LibLoan.LoanState.Defaulted;
 
-        address lender = note.ownerOf(_loanId);
+        address lender = lenderNote.ownerOf(_loanId);
 
-        // burn lender note
-        note.burn(_loanId);
+        // burn notes
+        lenderNote.burn(_loanId);
+        borrowerNote.burn(_loanId);
 
         IERC721Upgradeable(data.terms.baseTerms.collateralAddress)
             .safeTransferFrom(
@@ -634,11 +646,13 @@ contract SpiceLending is
         }
     }
 
-    /// @dev Mints new note
+    /// @dev Mints new notes
     /// @param _loanId Loan ID
-    /// @param _lender Lender address to receive note
-    function _mintNote(uint256 _loanId, address _lender) internal {
-        note.mint(_lender, _loanId);
+    /// @param _lender Lender address to receive lender note
+    /// @param _borrower Lender address to receive lender note
+    function _mintNote(uint256 _loanId, address _lender, address _borrower) internal {
+        lenderNote.mint(_lender, _loanId);
+        borrowerNote.mint(_borrower, _loanId);
     }
 
     /// @dev Transfer repayment from borrower.

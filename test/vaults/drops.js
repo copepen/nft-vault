@@ -23,20 +23,9 @@ describe("Drops4626", function () {
   };
 
   before("Deploy", async function () {
-    // mainnet fork
-    await network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.MAINNET_RPC_URL || "",
-          },
-        },
-      ],
-    });
-
     [admin, alice, bob] = await ethers.getSigners();
-    whale = await ethers.getSigner(constants.accounts.Whale1);
+    await impersonateAccount(constants.accounts.Whale);
+    whale = await ethers.getSigner(constants.accounts.Whale);
 
     token = await ethers.getContractAt(
       "ICEther",
@@ -66,8 +55,6 @@ describe("Drops4626", function () {
     );
 
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
-
-    await impersonateAccount(whale.address);
   });
 
   beforeEach(async () => {

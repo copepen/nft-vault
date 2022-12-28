@@ -17,7 +17,7 @@ const INVALID_SIGNATURE2 =
 describe("Spice Lending", function () {
   let vault;
   let lending;
-  let note;
+  let lenderNote, borrowerNote;
   let nft1, nft2;
   let weth;
   let spiceNft;
@@ -92,8 +92,8 @@ describe("Spice Lending", function () {
   before("Deploy", async function () {
     [admin, alice, bob, strategist, assetReceiver, signer, spiceAdmin] =
       await ethers.getSigners();
-    whale = await ethers.getSigner(constants.accounts.Whale1);
-    await impersonateAccount(constants.accounts.Whale1);
+    await impersonateAccount(constants.accounts.Whale);
+    whale = await ethers.getSigner(constants.accounts.Whale);
 
     nft1 = await deployNFT();
     nft2 = await deployNFT();
@@ -124,15 +124,27 @@ describe("Spice Lending", function () {
 
     const Note = await ethers.getContractFactory("Note");
 
-    note = await Note.deploy("Spice Note", "Spice Note");
-    await note.deployed();
+    lenderNote = await Note.deploy("Spice Lender Note", "Spice Lender Note");
+    await lenderNote.deployed();
+
+    borrowerNote = await Note.deploy(
+      "Spice Borrower Note",
+      "Spice Borrower Note"
+    );
+    await borrowerNote.deployed();
 
     const SpiceLending = await ethers.getContractFactory("SpiceLending");
 
     await expect(
       upgrades.deployProxy(
         SpiceLending,
-        [ethers.constants.AddressZero, note.address, 500, 8000],
+        [
+          ethers.constants.AddressZero,
+          lenderNote.address,
+          borrowerNote.address,
+          500,
+          8000,
+        ],
         {
           kind: "uups",
         }
@@ -142,7 +154,13 @@ describe("Spice Lending", function () {
     await expect(
       upgrades.deployProxy(
         SpiceLending,
-        [signer.address, ethers.constants.AddressZero, 500, 8000],
+        [
+          signer.address,
+          ethers.constants.AddressZero,
+          borrowerNote.address,
+          500,
+          8000,
+        ],
         {
           kind: "uups",
         }
@@ -152,7 +170,23 @@ describe("Spice Lending", function () {
     await expect(
       upgrades.deployProxy(
         SpiceLending,
-        [signer.address, note.address, 10001, 8000],
+        [
+          signer.address,
+          lenderNote.address,
+          ethers.constants.AddressZero,
+          500,
+          8000,
+        ],
+        {
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
+
+    await expect(
+      upgrades.deployProxy(
+        SpiceLending,
+        [signer.address, lenderNote.address, borrowerNote.address, 10001, 8000],
         {
           kind: "uups",
         }
@@ -162,7 +196,7 @@ describe("Spice Lending", function () {
     await expect(
       upgrades.deployProxy(
         SpiceLending,
-        [signer.address, note.address, 500, 10001],
+        [signer.address, lenderNote.address, borrowerNote.address, 500, 10001],
         {
           kind: "uups",
         }
@@ -171,7 +205,7 @@ describe("Spice Lending", function () {
 
     lending = await upgrades.deployProxy(
       SpiceLending,
-      [signer.address, note.address, 500, 8000],
+      [signer.address, lenderNote.address, borrowerNote.address, 500, 8000],
       {
         kind: "uups",
       }
@@ -184,10 +218,12 @@ describe("Spice Lending", function () {
     await lending.connect(admin).grantRole(spiceRole, spiceAdmin.address);
     await lending.connect(admin).grantRole(spiceNftRole, spiceNft.address);
 
-    await note.initialize(lending.address);
+    await lenderNote.initialize(lending.address, true);
+    await borrowerNote.initialize(lending.address, false);
 
-    const adminRole = await note.ADMIN_ROLE();
-    await checkRole(note, lending.address, adminRole, true);
+    const adminRole = await lenderNote.ADMIN_ROLE();
+    await checkRole(lenderNote, lending.address, adminRole, true);
+    await checkRole(borrowerNote, lending.address, adminRole, true);
 
     await spiceNft.grantRole(spiceRole, spiceAdmin.address);
 
@@ -217,8 +253,9 @@ describe("Spice Lending", function () {
       expect(await lending["signer()"]()).to.equal(signer.address);
     });
 
-    it("Should set the correct note", async function () {
-      expect(await lending.note()).to.equal(note.address);
+    it("Should set the correct notes", async function () {
+      expect(await lending.lenderNote()).to.equal(lenderNote.address);
+      expect(await lending.borrowerNote()).to.equal(borrowerNote.address);
     });
 
     it("Should set the correct interest fee", async function () {
@@ -231,7 +268,13 @@ describe("Spice Lending", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        lending.initialize(signer.address, note.address, 500, 8000)
+        lending.initialize(
+          signer.address,
+          lenderNote.address,
+          borrowerNote.address,
+          500,
+          8000
+        )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 
@@ -399,7 +442,8 @@ describe("Spice Lending", function () {
         .to.emit(lending, "LoanStarted")
         .withArgs(loanId, alice.address);
 
-      expect(await note.ownerOf(loanId)).to.be.eq(signer.address);
+      expect(await lenderNote.ownerOf(loanId)).to.be.eq(signer.address);
+      expect(await borrowerNote.ownerOf(loanId)).to.be.eq(alice.address);
       expect(await weth.balanceOf(alice.address)).to.be.eq(loanTerms.principal);
       expect(await nft1.ownerOf(1)).to.be.eq(lending.address);
 
@@ -742,7 +786,10 @@ describe("Spice Lending", function () {
       expect(loanData.interestAccrued).to.be.eq(0);
 
       expect(await nft1.ownerOf(1)).to.be.eq(alice.address);
-      await expect(note.ownerOf(loanId1)).to.be.revertedWith(
+      await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
     });
@@ -806,7 +853,7 @@ describe("Spice Lending", function () {
       expect(beforeWithdrawable).to.be.gt(afterWithdrawable);
     });
 
-    it("Should burn note and transfer collateral", async function () {
+    it("Should burn notes and transfer collateral", async function () {
       await increaseTime(24 * 3600);
 
       await weth
@@ -820,7 +867,10 @@ describe("Spice Lending", function () {
       expect(loanData.interestAccrued).to.be.eq(0);
 
       expect(await nft1.ownerOf(1)).to.be.eq(alice.address);
-      await expect(note.ownerOf(loanId1)).to.be.revertedWith(
+      await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
     });
@@ -867,7 +917,10 @@ describe("Spice Lending", function () {
       expect(loanData.state).to.be.eq(3);
 
       expect(await nft1.ownerOf(1)).to.be.eq(signer.address);
-      await expect(note.ownerOf(loanId1)).to.be.revertedWith(
+      await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
     });
@@ -906,7 +959,10 @@ describe("Spice Lending", function () {
       expect(loanData.state).to.be.eq(3);
 
       expect(await spiceNft.ownerOf(1)).to.be.eq(signer.address);
-      await expect(note.ownerOf(loanId2)).to.be.revertedWith(
+      await expect(lenderNote.ownerOf(loanId2)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId2)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
     });
