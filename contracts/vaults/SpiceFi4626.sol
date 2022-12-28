@@ -24,6 +24,12 @@ abstract contract SpiceFi4626Storage {
 
     /// @notice Indicates whether the vault is verified or not
     bool public verified;
+
+    /// @notice Spice Multisig address
+    address public multisig;
+
+    /// @notice Fee recipient address
+    address public feeRecipient;
 }
 
 /**
@@ -46,10 +52,6 @@ contract SpiceFi4626 is
     /*************/
     /* Constants */
     /*************/
-
-    /// @notice Spice Multisig
-    address public constant multisig =
-        address(0x7B15f2B26C25e1815Dc4FB8957cE76a0C5319582);
 
     /// @notice Rebalance vault assets using ERC4626 client interface
     bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
@@ -80,20 +82,40 @@ contract SpiceFi4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
+    /**********/
+    /* Events */
+    /**********/
+
+    /// @notice Emitted when withdrawal fee rate is updated
+    /// @param withdrawalFees New withdrawal fees per 10_000 units
+    event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
+
+    /// @notice Emitted when multisig is updated
+    /// @param multisig New multisig address
+    event MultisigUpdated(address multisig);
+
+    /// @notice Emitted when fee recipient is updated
+    /// @param feeRecipient New fee recipient address
+    event FeeRecipientUpdated(address feeRecipient);
+
     /***************/
     /* Constructor */
     /***************/
 
     /// @notice SpiceFi4626 constructor (for proxy)
     /// @param asset_ Asset token address
-    /// @param strategist_ Default strategist address
-    /// @param assetReceiver_ Default asset receiver address
-    /// @param withdrawalFees_ Default withdrawal fees
+    /// @param strategist_ Initial strategist address
+    /// @param assetReceiver_ Initial asset receiver address
+    /// @param withdrawalFees_ Initial withdrawal fees
+    /// @param multisig_ Initial multisig address
+    /// @param feeRecipient_ Initial fee recipient address
     function initialize(
         address asset_,
         address strategist_,
         address assetReceiver_,
-        uint256 withdrawalFees_
+        uint256 withdrawalFees_,
+        address multisig_,
+        address feeRecipient_
     ) public initializer {
         if (asset_ == address(0)) {
             revert InvalidAddress();
@@ -107,50 +129,87 @@ contract SpiceFi4626 is
         if (withdrawalFees_ >= 10_000) {
             revert ParameterOutOfBounds();
         }
+        if (multisig_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (feeRecipient_ == address(0)) {
+            revert InvalidAddress();
+        }
 
         __ERC4626_init(IERC20MetadataUpgradeable(asset_));
         __ERC20_init("SpiceToken", "SPICE");
+
+        withdrawalFees = withdrawalFees_;
+        multisig = multisig_;
+        feeRecipient = feeRecipient_;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(DEFAULT_ADMIN_ROLE, multisig);
 
         _setupRole(STRATEGIST_ROLE, strategist_);
         _setupRole(ASSET_RECEIVER_ROLE, assetReceiver_);
-
-        withdrawalFees = withdrawalFees_;
     }
 
     /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        override
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    /// @notice set withdrawal fees
-    /// @param withdrawalFees_ withdrawal fees
-    function setWithdrawalFees(uint256 withdrawalFees_)
-        public
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    /// @notice Set withdrawal fees
+    ///
+    /// Emits a {WithdrawalFeeRateUpdated} event.
+    ///
+    /// @param withdrawalFees_ New withdrawal fees per 10_000 units
+    function setWithdrawalFees(
+        uint256 withdrawalFees_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (withdrawalFees_ >= 10_000) {
             revert ParameterOutOfBounds();
         }
-
         withdrawalFees = withdrawalFees_;
+        emit WithdrawalFeeRateUpdated(withdrawalFees_);
+    }
+
+    /// @notice Set the multisig address
+    ///
+    /// Emits a {MultisigUpdated} event.
+    ///
+    /// @param _multisig New multisig address
+    function setMultisig(
+        address _multisig
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_multisig == address(0)) {
+            revert InvalidAddress();
+        }
+        multisig = _multisig;
+        emit MultisigUpdated(_multisig);
+    }
+
+    /// @notice Set the fee recipient address
+    ///
+    /// Emits a {FeeRecipientUpdated} event.
+    ///
+    /// @param _feeRecipient New fee recipient address
+    function setFeeRecipient(
+        address _feeRecipient
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_feeRecipient == address(0)) {
+            revert InvalidAddress();
+        }
+        feeRecipient = _feeRecipient;
+        emit FeeRecipientUpdated(_feeRecipient);
     }
 
     /// @notice set max total supply
     /// @param maxTotalSupply_ max total supply
-    function setMaxTotalSupply(uint256 maxTotalSupply_)
-        public
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setMaxTotalSupply(
+        uint256 maxTotalSupply_
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
         maxTotalSupply = maxTotalSupply_;
     }
 
@@ -255,12 +314,9 @@ contract SpiceFi4626 is
     }
 
     /// @inheritdoc IERC4626Upgradeable
-    function previewWithdraw(uint256 assets)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function previewWithdraw(
+        uint256 assets
+    ) public view override returns (uint256) {
         return
             _convertToShares(
                 assets.mulDiv(10_000, 10_000 - withdrawalFees),
@@ -269,12 +325,9 @@ contract SpiceFi4626 is
     }
 
     /// @inheritdoc IERC4626Upgradeable
-    function previewRedeem(uint256 shares)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function previewRedeem(
+        uint256 shares
+    ) public view override returns (uint256) {
         return
             _convertToAssets(
                 shares.mulDiv(10_000 - withdrawalFees, 10_000),
@@ -290,22 +343,20 @@ contract SpiceFi4626 is
         uint256 assets,
         uint256 shares
     ) internal override nonReentrant {
-        address feesAddr1 = getRoleMember(ASSET_RECEIVER_ROLE, 0);
-        address feesAddr2 = getRoleMember(SPICE_ROLE, 0);
         uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
             assets;
-        uint256 fees1 = fees.div(2);
+        uint256 half = fees / 2;
 
         super._withdraw(caller, receiver, owner, assets, shares);
         SafeERC20Upgradeable.safeTransfer(
             IERC20MetadataUpgradeable(asset()),
-            feesAddr1,
-            fees1
+            multisig,
+            half
         );
         SafeERC20Upgradeable.safeTransfer(
             IERC20MetadataUpgradeable(asset()),
-            feesAddr2,
-            fees.sub(fees1)
+            feeRecipient,
+            fees - half
         );
     }
 

@@ -15,7 +15,7 @@ async function main() {
   let spiceVault;
 
   // accounts
-  let admin, alice, bob, carol, strategist, assetReceiver;
+  let admin, alice, bob, carol, strategist, assetReceiver, treasury;
 
   // constants
   const vaultName = "Spice Vault Test Token";
@@ -40,16 +40,8 @@ async function main() {
     return token;
   }
 
-  [
-    admin,
-    alice,
-    bob,
-    carol,
-    strategist,
-    spiceAdmin,
-    assetReceiver,
-    vaultReceiver,
-  ] = await ethers.getSigners();
+  [admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury] =
+    await ethers.getSigners();
 
   await impersonateAccount(constants.accounts.Whale);
   whale = await ethers.getSigner(constants.accounts.Whale);
@@ -62,7 +54,7 @@ async function main() {
 
   vault = await upgrades.deployProxy(
     Vault,
-    [vaultName, vaultSymbol, weth.address, 0],
+    [vaultName, vaultSymbol, weth.address, 0, treasury.address],
     {
       kind: "uups",
     }
@@ -87,11 +79,7 @@ async function main() {
 
   drops = await upgrades.deployProxy(
     Drops4626,
-    [
-      dropsVaultName,
-      dropsVaultSymbol,
-      constants.tokens.DropsETH
-    ],
+    [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
     {
       kind: "uups",
     }

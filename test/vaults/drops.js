@@ -84,11 +84,7 @@ describe("Drops4626", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        vault.initialize(
-          name,
-          symbol,
-          constants.tokens.DropsETH
-        )
+        vault.initialize(name, symbol, constants.tokens.DropsETH)
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 

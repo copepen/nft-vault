@@ -20,7 +20,14 @@ describe("Spice Lending", function () {
   let nft1, nft2;
   let weth;
   let spiceNft;
-  let admin, alice, bob, strategist, assetReceiver, signer, spiceAdmin;
+  let admin,
+    alice,
+    bob,
+    treasury,
+    strategist,
+    assetReceiver,
+    signer,
+    spiceAdmin;
   let whale;
   let snapshotId;
 
@@ -89,8 +96,16 @@ describe("Spice Lending", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, strategist, assetReceiver, signer, spiceAdmin] =
-      await ethers.getSigners();
+    [
+      admin,
+      alice,
+      bob,
+      treasury,
+      strategist,
+      assetReceiver,
+      signer,
+      spiceAdmin,
+    ] = await ethers.getSigners();
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
 
@@ -114,7 +129,13 @@ describe("Spice Lending", function () {
 
     spiceNft = await upgrades.deployProxy(
       SpiceFiNFT4626,
-      [strategist.address, assetReceiver.address, 700],
+      [
+        strategist.address,
+        assetReceiver.address,
+        700,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         unsafeAllow: ["delegatecall"],
         kind: "uups",

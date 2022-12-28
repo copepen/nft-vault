@@ -29,7 +29,13 @@ abstract contract VaultStorageV1 {
     uint8 internal _decimals;
 
     /// @dev withdrawal fees per 10_000 units
-    uint256 internal _withdrawalFees;
+    uint256 public withdrawalFees;
+
+    /// @notice Spice Multisig address
+    address public multisig;
+
+    /// @notice Fee recipient address
+    address public feeRecipient;
 
     /// @dev Total assets value
     uint256 internal _totalAssets;
@@ -88,10 +94,6 @@ contract Vault is
     /// @notice Marketplace role
     bytes32 public constant MARKETPLACE_ROLE = keccak256("MARKETPLACE_ROLE");
 
-    /// @notice Asset receiver role
-    bytes32 public constant ASSET_RECEIVER_ROLE =
-        keccak256("ASSET_RECEIVER_ROLE");
-
     /**********/
     /* Errors */
     /**********/
@@ -116,6 +118,14 @@ contract Vault is
     /// @param withdrawalFees New withdrawal fees per 10_000 units
     event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
 
+    /// @notice Emitted when multisig is updated
+    /// @param multisig New multisig address
+    event MultisigUpdated(address multisig);
+
+    /// @notice Emitted when fee recipient is updated
+    /// @param feeRecipient New fee recipient address
+    event FeeRecipientUpdated(address feeRecipient);
+
     /// @notice Emitted when totalAssets is updated
     /// @param totalAssets Total assets
     event TotalAssets(uint256 totalAssets);
@@ -125,15 +135,19 @@ contract Vault is
     /***************/
 
     /// @notice Vault constructor (for proxy)
-    /// @param name_ receipt token name
-    /// @param symbol_ receipt token symbol
-    /// @param asset_ asset token contract
-    /// @param withdrawalFees_ initial withdrawal fees
+    /// @param name_ Receipt token name
+    /// @param symbol_ Receipt token symbol
+    /// @param asset_ Asset token contract
+    /// @param withdrawalFees_ Initial withdrawal fees
+    /// @param multisig_ Initial multisig address
+    /// @param feeRecipient_ Initial fee recipient address
     function initialize(
         string calldata name_,
         string calldata symbol_,
         IERC20Upgradeable asset_,
-        uint256 withdrawalFees_
+        uint256 withdrawalFees_,
+        address multisig_,
+        address feeRecipient_
     ) external initializer {
         if (address(asset_) == address(0)) {
             revert InvalidAddress();
@@ -141,16 +155,23 @@ contract Vault is
         if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
         }
+        if (multisig_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (feeRecipient_ == address(0)) {
+            revert InvalidAddress();
+        }
 
         __ERC20_init(name_, symbol_);
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
 
-        _withdrawalFees = withdrawalFees_;
+        withdrawalFees = withdrawalFees_;
+        multisig = multisig_;
+        feeRecipient = feeRecipient_;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ASSET_RECEIVER_ROLE, msg.sender);
         _grantRole(KEEPER_ROLE, msg.sender);
         _grantRole(LIQUIDATOR_ROLE, msg.sender);
 
@@ -168,11 +189,9 @@ contract Vault is
     }
 
     /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        override
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -227,14 +246,14 @@ contract Vault is
     function maxWithdraw(address owner) external view returns (uint256) {
         return
             _convertToAssets(
-                balanceOf(owner).mulDiv(10_000 - _withdrawalFees, 10_000),
+                balanceOf(owner).mulDiv(10_000 - withdrawalFees, 10_000),
                 MathUpgradeable.Rounding.Up
             );
     }
 
     /// @notice See {IERC4626-maxRedeem}
     function maxRedeem(address owner) external view returns (uint256) {
-        return balanceOf(owner).mulDiv(10_000 - _withdrawalFees, 10_000);
+        return balanceOf(owner).mulDiv(10_000 - withdrawalFees, 10_000);
     }
 
     /// @notice See {IERC4626-previewDeposit}
@@ -251,7 +270,7 @@ contract Vault is
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         return
             _convertToShares(
-                assets.mulDiv(10_000, 10_000 - _withdrawalFees),
+                assets.mulDiv(10_000, 10_000 - withdrawalFees),
                 MathUpgradeable.Rounding.Up
             );
     }
@@ -260,7 +279,7 @@ contract Vault is
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return
             _convertToAssets(
-                shares.mulDiv(10_000 - _withdrawalFees, 10_000),
+                shares.mulDiv(10_000 - withdrawalFees, 10_000),
                 MathUpgradeable.Rounding.Down
             );
     }
@@ -270,12 +289,10 @@ contract Vault is
     /******************/
 
     /// See {IERC4626-deposit}.
-    function deposit(uint256 assets, address receiver)
-        external
-        whenNotPaused
-        nonReentrant
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) external whenNotPaused nonReentrant returns (uint256 shares) {
         // Validate amount
         if (assets == 0) {
             revert ParameterOutOfBounds();
@@ -291,12 +308,10 @@ contract Vault is
     }
 
     /// See {IERC4626-mint}.
-    function mint(uint256 shares, address receiver)
-        external
-        whenNotPaused
-        nonReentrant
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        address receiver
+    ) external whenNotPaused nonReentrant returns (uint256 assets) {
         // Validate amount
         if (shares == 0) {
             revert ParameterOutOfBounds();
@@ -363,11 +378,10 @@ contract Vault is
     /* Internal Helper Functions */
     /*****************************/
 
-    function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
-        internal
-        view
-        returns (uint256 shares)
-    {
+    function _convertToShares(
+        uint256 assets,
+        MathUpgradeable.Rounding rounding
+    ) internal view returns (uint256 shares) {
         uint256 supply = totalSupply();
         return
             (assets == 0 || supply == 0)
@@ -375,11 +389,10 @@ contract Vault is
                 : assets.mulDiv(supply, totalAssets(), rounding);
     }
 
-    function _convertToAssets(uint256 shares, MathUpgradeable.Rounding rounding)
-        internal
-        view
-        returns (uint256 assets)
-    {
+    function _convertToAssets(
+        uint256 shares,
+        MathUpgradeable.Rounding rounding
+    ) internal view returns (uint256 assets) {
         uint256 supply = totalSupply();
         return
             (supply == 0)
@@ -431,8 +444,9 @@ contract Vault is
 
         _asset.safeTransfer(receiver, assets);
 
-        address feesAddr = getRoleMember(ASSET_RECEIVER_ROLE, 0);
-        _asset.safeTransfer(feesAddr, fees);
+        uint256 half = fees / 2;
+        _asset.safeTransfer(multisig, half);
+        _asset.safeTransfer(feeRecipient, fees - half);
 
         _totalAssets = _totalAssets - assets;
 
@@ -447,16 +461,45 @@ contract Vault is
     ///
     /// Emits a {WithdrawalFeeRateUpdated} event.
     ///
-    /// @param withdrawalFees Withdrawal fees per 10_000 units
-    function setWithdrawalFees(uint256 withdrawalFees)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
-        if (withdrawalFees > 10_000) {
+    /// @param _withdrawalFees Withdrawal fees per 10_000 units
+    function setWithdrawalFees(
+        uint256 _withdrawalFees
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_withdrawalFees > 10_000) {
             revert ParameterOutOfBounds();
         }
-        _withdrawalFees = withdrawalFees;
-        emit WithdrawalFeeRateUpdated(withdrawalFees);
+        withdrawalFees = _withdrawalFees;
+        emit WithdrawalFeeRateUpdated(_withdrawalFees);
+    }
+
+    /// @notice Set the fee recipient address
+    ///
+    /// Emits a {FeeRecipientUpdated} event.
+    ///
+    /// @param _feeRecipient New fee recipient address
+    function setFeeRecipient(
+        address _feeRecipient
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_feeRecipient == address(0)) {
+            revert InvalidAddress();
+        }
+        feeRecipient = _feeRecipient;
+        emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    /// @notice Set the multisig address
+    ///
+    /// Emits a {MultisigUpdated} event.
+    ///
+    /// @param _multisig New multisig address
+    function setMultisig(
+        address _multisig
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_multisig == address(0)) {
+            revert InvalidAddress();
+        }
+        multisig = _multisig;
+        emit MultisigUpdated(_multisig);
     }
 
     /// @notice Set total assets
@@ -464,10 +507,9 @@ contract Vault is
     /// Emits a {TotalAssets} event.
     ///
     /// @param totalAssets_ New total assets value
-    function setTotalAssets(uint256 totalAssets_)
-        external
-        onlyRole(KEEPER_ROLE)
-    {
+    function setTotalAssets(
+        uint256 totalAssets_
+    ) external onlyRole(KEEPER_ROLE) {
         _totalAssets = totalAssets_;
 
         emit TotalAssets(totalAssets_);
@@ -502,10 +544,10 @@ contract Vault is
     /// @notice Transfer NFT out of vault
     /// @param nft NFT contract address
     /// @param nftId NFT token ID
-    function transferNFT(address nft, uint256 nftId)
-        external
-        onlyRole(LIQUIDATOR_ROLE)
-    {
+    function transferNFT(
+        address nft,
+        uint256 nftId
+    ) external onlyRole(LIQUIDATOR_ROLE) {
         IERC721Upgradeable token = IERC721Upgradeable(nft);
         require(token.ownerOf(nftId) == address(this));
 
@@ -517,11 +559,10 @@ contract Vault is
     /************/
 
     /// See {IERC1271-isValidSignature}
-    function isValidSignature(bytes32 hash, bytes memory signature)
-        external
-        view
-        returns (bytes4 magicValue)
-    {
+    function isValidSignature(
+        bytes32 hash,
+        bytes memory signature
+    ) external view returns (bytes4 magicValue) {
         // Validate signatures
         (address signer, ECDSA.RecoverError err) = ECDSA.tryRecover(
             hash,

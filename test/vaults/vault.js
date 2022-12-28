@@ -1,12 +1,13 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
+const constants = require("../constants");
 
 describe("Vault", function () {
   let vault;
   let token;
   let nft;
-  let admin, alice, bob, carol, dave;
+  let admin, alice, bob, carol, dave, treasury;
   let snapshotId;
 
   let defaultAdminRole,
@@ -14,8 +15,7 @@ describe("Vault", function () {
     liquidatorRole,
     bidderRole,
     whitelistRole,
-    marketplaceRole,
-    assetReceiverRole;
+    marketplaceRole;
 
   async function deployTokenAndAirdrop(users, amount) {
     const Token = await ethers.getContractFactory("TestERC20");
@@ -40,7 +40,7 @@ describe("Vault", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, carol, dave] = await ethers.getSigners();
+    [admin, alice, bob, carol, dave, treasury] = await ethers.getSigners();
 
     const amount = ethers.utils.parseEther("1000000");
     token = await deployTokenAndAirdrop(
@@ -55,7 +55,14 @@ describe("Vault", function () {
     await expect(
       upgrades.deployProxy(
         Vault,
-        ["Spice Vault Test Token", "svTT", ethers.constants.AddressZero, 0],
+        [
+          "Spice Vault Test Token",
+          "svTT",
+          ethers.constants.AddressZero,
+          0,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           kind: "uups",
         }
@@ -65,16 +72,64 @@ describe("Vault", function () {
     await expect(
       upgrades.deployProxy(
         Vault,
-        ["Spice Vault Test Token", "svTT", token.address, 10001],
+        [
+          "Spice Vault Test Token",
+          "svTT",
+          token.address,
+          10001,
+          constants.accounts.Multisig,
+          treasury.address,
+        ],
         {
           kind: "uups",
         }
       )
     ).to.be.revertedWithCustomError(Vault, "ParameterOutOfBounds");
 
+    await expect(
+      upgrades.deployProxy(
+        Vault,
+        [
+          "Spice Vault Test Token",
+          "svTT",
+          token.address,
+          0,
+          ethers.constants.AddressZero,
+          treasury.address,
+        ],
+        {
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
+
+    await expect(
+      upgrades.deployProxy(
+        Vault,
+        [
+          "Spice Vault Test Token",
+          "svTT",
+          token.address,
+          0,
+          constants.accounts.Multisig,
+          ethers.constants.AddressZero,
+        ],
+        {
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
+
     vault = await upgrades.deployProxy(
       Vault,
-      ["Spice Vault Test Token", "svTT", token.address, 700],
+      [
+        "Spice Vault Test Token",
+        "svTT",
+        token.address,
+        700,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
       {
         kind: "uups",
       }
@@ -86,7 +141,6 @@ describe("Vault", function () {
     bidderRole = await vault.BIDDER_ROLE();
     whitelistRole = await vault.WHITELIST_ROLE();
     marketplaceRole = await vault.MARKETPLACE_ROLE();
-    assetReceiverRole = await vault.ASSET_RECEIVER_ROLE();
   });
 
   beforeEach(async () => {
@@ -116,7 +170,6 @@ describe("Vault", function () {
 
     it("Should set the correct role", async function () {
       await checkRole(admin.address, defaultAdminRole, true);
-      await checkRole(admin.address, assetReceiverRole, true);
       await checkRole(admin.address, keeperRole, true);
       await checkRole(admin.address, liquidatorRole, true);
       await checkRole(admin.address, whitelistRole, false);
@@ -124,7 +177,6 @@ describe("Vault", function () {
       await checkRole(admin.address, marketplaceRole, false);
 
       await checkRole(alice.address, defaultAdminRole, false);
-      await checkRole(alice.address, assetReceiverRole, false);
       await checkRole(alice.address, keeperRole, false);
       await checkRole(alice.address, liquidatorRole, false);
       await checkRole(alice.address, whitelistRole, false);
@@ -138,7 +190,14 @@ describe("Vault", function () {
 
     it("Should initialize once", async function () {
       await expect(
-        vault.initialize("Spice Vault Test Token", "svTT", token.address, 0)
+        vault.initialize(
+          "Spice Vault Test Token",
+          "svTT",
+          token.address,
+          0,
+          constants.accounts.Multisig,
+          treasury.address
+        )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
 
@@ -727,17 +786,20 @@ describe("Vault", function () {
         expect(shares).to.be.eq(assets.mul(10000).div(9300));
         const fees = shares.sub(await vault.convertToShares(assets));
 
-        const beforeFeeBalance = await token.balanceOf(admin.address);
+        const beforeFeeBalance1 = await token.balanceOf(treasury.address);
+        const beforeFeeBalance2 = await token.balanceOf(constants.accounts.Multisig);
         const beforeAssetBalance = await token.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(alice.address);
 
         await vault.connect(alice).withdraw(assets, bob.address, alice.address);
 
-        const afterFeeBalance = await token.balanceOf(admin.address);
+        const afterFeeBalance1 = await token.balanceOf(treasury.address);
+        const afterFeeBalance2 = await token.balanceOf(constants.accounts.Multisig);
         const afterAssetBalance = await token.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(alice.address);
 
-        expect(afterFeeBalance).to.be.eq(beforeFeeBalance.add(fees));
+        expect(afterFeeBalance1).to.be.closeTo(beforeFeeBalance1.add(fees.div(2)), 1);
+        expect(afterFeeBalance2).to.be.closeTo(beforeFeeBalance2.add(fees.div(2)), 1);
         expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
         expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
@@ -811,17 +873,20 @@ describe("Vault", function () {
         expect(assets).to.be.eq(shares.mul(9300).div(10000));
         const fees = (await vault.convertToAssets(shares)).sub(assets);
 
-        const beforeFeeBalance = await token.balanceOf(admin.address);
+        const beforeFeeBalance1 = await token.balanceOf(treasury.address);
+        const beforeFeeBalance2 = await token.balanceOf(constants.accounts.Multisig);
         const beforeAssetBalance = await token.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(alice.address);
 
         await vault.connect(alice).redeem(shares, bob.address, alice.address);
 
-        const afterFeeBalance = await token.balanceOf(admin.address);
+        const afterFeeBalance1 = await token.balanceOf(treasury.address);
+        const afterFeeBalance2 = await token.balanceOf(constants.accounts.Multisig);
         const afterAssetBalance = await token.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(alice.address);
 
-        expect(afterFeeBalance).to.be.eq(beforeFeeBalance.add(fees));
+        expect(afterFeeBalance1).to.be.closeTo(beforeFeeBalance1.add(fees.div(2)), 1);
+        expect(afterFeeBalance2).to.be.closeTo(beforeFeeBalance2.add(fees.div(2)), 1);
         expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
         expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
@@ -845,6 +910,24 @@ describe("Vault", function () {
       await expect(tx)
         .to.emit(vault, "WithdrawalFeeRateUpdated")
         .withArgs(1000);
+    });
+
+    it("Set Fee Recipient", async function () {
+      await expect(
+        vault.connect(alice).setFeeRecipient(dave.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        vault.connect(admin).setFeeRecipient(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+
+      const tx = await vault.connect(admin).setFeeRecipient(dave.address);
+
+      await expect(tx)
+        .to.emit(vault, "FeeRecipientUpdated")
+        .withArgs(dave.address);
     });
 
     it("Set total assets", async function () {
