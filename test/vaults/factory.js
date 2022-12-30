@@ -116,7 +116,9 @@ describe("SpiceFiFactory", function () {
     await expect(
       SpiceFiFactory.deploy(
         ethers.constants.AddressZero,
+        constants.accounts.Dev,
         constants.accounts.Multisig,
+        700,
         treasury.address
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
@@ -124,13 +126,35 @@ describe("SpiceFiFactory", function () {
       SpiceFiFactory.deploy(
         impl.address,
         ethers.constants.AddressZero,
+        constants.accounts.Multisig,
+        700,
         treasury.address
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
     await expect(
       SpiceFiFactory.deploy(
         impl.address,
+        constants.accounts.Dev,
+        ethers.constants.AddressZero,
+        700,
+        treasury.address
+      )
+    ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
+    await expect(
+      SpiceFiFactory.deploy(
+        impl.address,
+        constants.accounts.Dev,
         constants.accounts.Multisig,
+        10001,
+        treasury.address
+      )
+    ).to.be.revertedWithCustomError(SpiceFiFactory, "ParameterOutOfBounds");
+    await expect(
+      SpiceFiFactory.deploy(
+        impl.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        700,
         ethers.constants.AddressZero
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
@@ -140,7 +164,9 @@ describe("SpiceFiFactory", function () {
     );
     factory = await SpiceFiFactory.deploy(
       implAddr,
+      constants.accounts.Dev,
       constants.accounts.Multisig,
+      700,
       treasury.address
     );
 
@@ -164,11 +190,11 @@ describe("SpiceFiFactory", function () {
     await expect(
       factory
         .connect(alice)
-        .createVault(
-          constants.tokens.WETH,
-          [vault.address, bend.address, drops.address],
-          700
-        )
+        .createVault(constants.tokens.WETH, [
+          vault.address,
+          bend.address,
+          drops.address,
+        ])
     ).to.be.revertedWith(
       `AccessControl: account ${constants.tokens.WETH.toLowerCase()} is missing role ${assetRole}`
     );
@@ -179,11 +205,11 @@ describe("SpiceFiFactory", function () {
     await expect(
       factory
         .connect(alice)
-        .createVault(
-          constants.tokens.WETH,
-          [vault.address, bend.address, drops.address],
-          700
-        )
+        .createVault(constants.tokens.WETH, [
+          vault.address,
+          bend.address,
+          drops.address,
+        ])
     ).to.be.revertedWith(
       `AccessControl: account ${vault.address.toLowerCase()} is missing role ${vaultRole}`
     );
@@ -192,13 +218,7 @@ describe("SpiceFiFactory", function () {
   it("When asset is 0x0", async function () {
     const SpiceFiFactory = await ethers.getContractFactory("SpiceFiFactory");
     await expect(
-      factory
-        .connect(alice)
-        .createVault(
-          ethers.constants.AddressZero,
-          [],
-          700
-        )
+      factory.connect(alice).createVault(ethers.constants.AddressZero, [])
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
   });
 
@@ -208,25 +228,21 @@ describe("SpiceFiFactory", function () {
     await factory.grantRole(vaultRole, bend.address);
     await factory.grantRole(vaultRole, drops.address);
 
-    await factory.setDev(constants.accounts.Dev);
-    await factory.setMultisig(constants.accounts.Multisig);
-    await factory.setFeeRecipient(treasury.address);
-
     const created = await factory
       .connect(alice)
-      .callStatic.createVault(
-        constants.tokens.WETH,
-        [vault.address, bend.address, drops.address],
-        700
-      );
+      .callStatic.createVault(constants.tokens.WETH, [
+        vault.address,
+        bend.address,
+        drops.address,
+      ]);
 
     const tx = await factory
       .connect(alice)
-      .createVault(
-        constants.tokens.WETH,
-        [vault.address, bend.address, drops.address],
-        700
-      );
+      .createVault(constants.tokens.WETH, [
+        vault.address,
+        bend.address,
+        drops.address,
+      ]);
 
     await expect(tx)
       .to.emit(factory, "VaultCreated")

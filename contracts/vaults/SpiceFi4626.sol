@@ -146,7 +146,7 @@ contract SpiceFi4626 is
         if (_multisig == address(0)) {
             revert InvalidAddress();
         }
-        if (_withdrawalFees >= 10_000) {
+        if (_withdrawalFees > 10_000) {
             revert ParameterOutOfBounds();
         }
         if (_feeRecipient == address(0)) {
@@ -198,7 +198,7 @@ contract SpiceFi4626 is
     function setWithdrawalFees(
         uint256 withdrawalFees_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (withdrawalFees_ >= 10_000) {
+        if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
         }
         withdrawalFees = withdrawalFees_;
