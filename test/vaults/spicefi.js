@@ -86,10 +86,12 @@ describe("SpiceFi4626", function () {
     vault = await upgrades.deployProxy(
       Vault,
       [
-        vaultName,
-        vaultSymbol,
+        "Spice Vault Test Token",
+        "svTT",
         weth.address,
-        0,
+        [],
+        admin.address,
+        constants.accounts.Dev,
         constants.accounts.Multisig,
         treasury.address,
       ],
@@ -136,7 +138,6 @@ describe("SpiceFi4626", function () {
           admin.address,
           constants.accounts.Dev,
           constants.accounts.Multisig,
-          700,
           treasury.address,
         ],
         {
@@ -156,7 +157,6 @@ describe("SpiceFi4626", function () {
           ethers.constants.AddressZero,
           constants.accounts.Dev,
           constants.accounts.Multisig,
-          700,
           treasury.address,
         ],
         {
@@ -176,7 +176,6 @@ describe("SpiceFi4626", function () {
           admin.address,
           ethers.constants.AddressZero,
           constants.accounts.Multisig,
-          700,
           treasury.address,
         ],
         {
@@ -196,7 +195,6 @@ describe("SpiceFi4626", function () {
           admin.address,
           constants.accounts.Dev,
           ethers.constants.AddressZero,
-          700,
           treasury.address,
         ],
         {
@@ -216,27 +214,6 @@ describe("SpiceFi4626", function () {
           admin.address,
           constants.accounts.Dev,
           constants.accounts.Multisig,
-          10001,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFi4626, "ParameterOutOfBounds");
-    await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          weth.address,
-          [vault.address, bend.address, drops.address],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          700,
           ethers.constants.AddressZero,
         ],
         {
@@ -256,7 +233,6 @@ describe("SpiceFi4626", function () {
         admin.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
-        700,
         treasury.address,
       ],
       {
@@ -290,6 +266,8 @@ describe("SpiceFi4626", function () {
     await checkRole(spiceVault, spiceAdmin.address, spiceRole, true);
 
     await spiceVault.connect(dev).grantRole(defaultAdminRole, admin.address);
+
+    await spiceVault.connect(dev).setWithdrawalFees(700);
   });
 
   beforeEach(async () => {
@@ -355,7 +333,6 @@ describe("SpiceFi4626", function () {
           admin.address,
           constants.accounts.Dev,
           constants.accounts.Multisig,
-          700,
           treasury.address
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
@@ -656,6 +633,7 @@ describe("SpiceFi4626", function () {
     describe("Withdraw", function () {
       beforeEach(async function () {
         await spiceVault.connect(dev).grantRole(userRole, whale.address);
+        await spiceVault.connect(dev).setWithdrawalFees(700);
         const amount = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, amount);
         await spiceVault

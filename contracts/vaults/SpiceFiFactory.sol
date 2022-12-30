@@ -23,9 +23,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @notice Spice Multisig address
     address public multisig;
 
-    /// @notice Withdrawal fees per 10_000 units
-    uint256 public withdrawalFees;
-
     /// @notice Fee recipient address
     address public feeRecipient;
 
@@ -73,10 +70,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /// @param feeRecipient New fee recipient address
     event FeeRecipientUpdated(address feeRecipient);
 
-    /// @notice Emitted when withdrawal fee rate is updated
-    /// @param withdrawalFees New withdrawal fees per 10_000 units
-    event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
-
     /***************/
     /* Constructor */
     /***************/
@@ -89,7 +82,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
         SpiceFi4626 _implementation,
         address _dev,
         address _multisig,
-        uint256 _withdrawalFees,
         address _feeRecipient
     ) {
         if (address(_implementation) == address(0)) {
@@ -101,9 +93,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
         if (_multisig == address(0)) {
             revert InvalidAddress();
         }
-        if (_withdrawalFees > 10_000) {
-            revert ParameterOutOfBounds();
-        }
         if (_feeRecipient == address(0)) {
             revert InvalidAddress();
         }
@@ -113,7 +102,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
         implementation = _implementation;
         dev = _dev;
         multisig = _multisig;
-        withdrawalFees = _withdrawalFees;
         feeRecipient = _feeRecipient;
     }
 
@@ -164,21 +152,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
         emit FeeRecipientUpdated(_feeRecipient);
     }
 
-    /// @notice Set withdrawal fees
-    ///
-    /// Emits a {WithdrawalFeeRateUpdated} event.
-    ///
-    /// @param _withdrawalFees New withdrawal fees per 10_000 units
-    function setWithdrawalFees(
-        uint256 _withdrawalFees
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_withdrawalFees > 10_000) {
-            revert ParameterOutOfBounds();
-        }
-        withdrawalFees = _withdrawalFees;
-        emit WithdrawalFeeRateUpdated(_withdrawalFees);
-    }
-
     /*************/
     /* Functions */
     /*************/
@@ -216,7 +189,6 @@ contract SpiceFiFactory is AccessControlEnumerable {
             msg.sender,
             dev,
             multisig,
-            withdrawalFees,
             feeRecipient
         );
 

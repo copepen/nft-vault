@@ -51,10 +51,12 @@ describe("SpiceFiFactory", function () {
     vault = await upgrades.deployProxy(
       Vault,
       [
-        vaultName,
-        vaultSymbol,
+        "Spice Vault Test Token",
+        "svTT",
         weth.address,
-        0,
+        [],
+        admin.address,
+        constants.accounts.Dev,
         constants.accounts.Multisig,
         treasury.address,
       ],
@@ -100,7 +102,6 @@ describe("SpiceFiFactory", function () {
         admin.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
-        700,
         treasury.address,
       ],
       {
@@ -118,7 +119,6 @@ describe("SpiceFiFactory", function () {
         ethers.constants.AddressZero,
         constants.accounts.Dev,
         constants.accounts.Multisig,
-        700,
         treasury.address
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
@@ -127,7 +127,6 @@ describe("SpiceFiFactory", function () {
         impl.address,
         ethers.constants.AddressZero,
         constants.accounts.Multisig,
-        700,
         treasury.address
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
@@ -136,7 +135,6 @@ describe("SpiceFiFactory", function () {
         impl.address,
         constants.accounts.Dev,
         ethers.constants.AddressZero,
-        700,
         treasury.address
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
@@ -145,16 +143,6 @@ describe("SpiceFiFactory", function () {
         impl.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
-        10001,
-        treasury.address
-      )
-    ).to.be.revertedWithCustomError(SpiceFiFactory, "ParameterOutOfBounds");
-    await expect(
-      SpiceFiFactory.deploy(
-        impl.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        700,
         ethers.constants.AddressZero
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
@@ -166,7 +154,6 @@ describe("SpiceFiFactory", function () {
       implAddr,
       constants.accounts.Dev,
       constants.accounts.Multisig,
-      700,
       treasury.address
     );
 

@@ -121,7 +121,6 @@ contract SpiceFi4626 is
     /// @param _creator Creator address
     /// @param _dev Spice dev wallet
     /// @param _multisig Spice multisig wallet
-    /// @param _withdrawalFees Initial withdrawal fees
     /// @param _feeRecipient Initial fee recipient address
     function initialize(
         string memory _name,
@@ -131,7 +130,6 @@ contract SpiceFi4626 is
         address _creator,
         address _dev,
         address _multisig,
-        uint256 _withdrawalFees,
         address _feeRecipient
     ) public initializer {
         if (_asset == address(0)) {
@@ -146,9 +144,6 @@ contract SpiceFi4626 is
         if (_multisig == address(0)) {
             revert InvalidAddress();
         }
-        if (_withdrawalFees > 10_000) {
-            revert ParameterOutOfBounds();
-        }
         if (_feeRecipient == address(0)) {
             revert InvalidAddress();
         }
@@ -156,7 +151,6 @@ contract SpiceFi4626 is
         __ERC4626_init(IERC20MetadataUpgradeable(_asset));
         __ERC20_init(_name, _symbol);
 
-        withdrawalFees = _withdrawalFees;
         dev = _dev;
         multisig = _multisig;
         feeRecipient = _feeRecipient;
@@ -170,14 +164,14 @@ contract SpiceFi4626 is
         }
 
         _setupRole(CREATOR_ROLE, _creator);
-        _setupRole(DEFAULT_ADMIN_ROLE, dev);
-        _setupRole(DEFAULT_ADMIN_ROLE, multisig);
-        _setupRole(STRATEGIST_ROLE, dev);
-        _setupRole(ASSET_RECEIVER_ROLE, multisig);
-        _setupRole(USER_ROLE, dev);
-        _setupRole(USER_ROLE, multisig);
+        _setupRole(DEFAULT_ADMIN_ROLE, _dev);
+        _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
+        _setupRole(STRATEGIST_ROLE, _dev);
+        _setupRole(ASSET_RECEIVER_ROLE, _multisig);
+        _setupRole(USER_ROLE, _dev);
+        _setupRole(USER_ROLE, _multisig);
         _setupRole(USER_ROLE, _creator);
-        _setupRole(SPICE_ROLE, multisig);
+        _setupRole(SPICE_ROLE, _multisig);
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -215,9 +209,10 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        _revokeRole(DEFAULT_ADMIN_ROLE, dev);
-        _revokeRole(STRATEGIST_ROLE, dev);
-        _revokeRole(USER_ROLE, dev);
+        address oldDev = dev;
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldDev);
+        _revokeRole(STRATEGIST_ROLE, oldDev);
+        _revokeRole(USER_ROLE, oldDev);
 
         dev = _dev;
 
@@ -240,10 +235,11 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        _revokeRole(DEFAULT_ADMIN_ROLE, multisig);
-        _revokeRole(ASSET_RECEIVER_ROLE, multisig);
-        _revokeRole(USER_ROLE, multisig);
-        _revokeRole(SPICE_ROLE, multisig);
+        address oldMultisig = multisig;
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldMultisig);
+        _revokeRole(ASSET_RECEIVER_ROLE, oldMultisig);
+        _revokeRole(USER_ROLE, oldMultisig);
+        _revokeRole(SPICE_ROLE, oldMultisig);
 
         multisig = _multisig;
 
