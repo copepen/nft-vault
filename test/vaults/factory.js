@@ -15,7 +15,7 @@ describe("SpiceFiFactory", function () {
 
   let snapshotId;
 
-  let defaultAdminRole, vaultRole, aggregatorRole;
+  let defaultAdminRole, assetRole, vaultRole, aggregatorRole;
 
   const vaultName = "Spice Vault Test Token";
   const vaultSymbol = "svTT";
@@ -93,11 +93,14 @@ describe("SpiceFiFactory", function () {
     impl = await upgrades.deployProxy(
       SpiceFi4626,
       [
+        "Spice0",
+        "s0",
         constants.tokens.WETH,
-        strategist.address,
-        assetReceiver.address,
-        700,
+        [],
+        admin.address,
+        constants.accounts.Dev,
         constants.accounts.Multisig,
+        700,
         treasury.address,
       ],
       {
@@ -141,6 +144,7 @@ describe("SpiceFiFactory", function () {
       treasury.address
     );
 
+    assetRole = await factory.ASSET_ROLE();
     vaultRole = await factory.VAULT_ROLE();
     aggregatorRole = await factory.AGGREGATOR_ROLE();
 
@@ -156,13 +160,27 @@ describe("SpiceFiFactory", function () {
     await revertToSnapshot(snapshotId);
   });
 
-  it("When missing VAULT_ROLE", async function () {
+  it("When missing ASSET_ROLE", async function () {
     await expect(
       factory
         .connect(alice)
         .createVault(
           constants.tokens.WETH,
-          assetReceiver.address,
+          [vault.address, bend.address, drops.address],
+          700
+        )
+    ).to.be.revertedWith(
+      `AccessControl: account ${constants.tokens.WETH.toLowerCase()} is missing role ${assetRole}`
+    );
+  });
+
+  it("When missing VAULT_ROLE", async function () {
+    await factory.grantRole(assetRole, constants.tokens.WETH);
+    await expect(
+      factory
+        .connect(alice)
+        .createVault(
+          constants.tokens.WETH,
           [vault.address, bend.address, drops.address],
           700
         )
@@ -178,21 +196,6 @@ describe("SpiceFiFactory", function () {
         .connect(alice)
         .createVault(
           ethers.constants.AddressZero,
-          assetReceiver.address,
-          [],
-          700
-        )
-    ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
-  });
-
-  it("When asset receiver is 0x0", async function () {
-    const SpiceFiFactory = await ethers.getContractFactory("SpiceFiFactory");
-    await expect(
-      factory
-        .connect(alice)
-        .createVault(
-          constants.tokens.WETH,
-          ethers.constants.AddressZero,
           [],
           700
         )
@@ -200,15 +203,19 @@ describe("SpiceFiFactory", function () {
   });
 
   it("Create Vault", async function () {
+    await factory.grantRole(assetRole, constants.tokens.WETH);
     await factory.grantRole(vaultRole, vault.address);
     await factory.grantRole(vaultRole, bend.address);
     await factory.grantRole(vaultRole, drops.address);
+
+    await factory.setDev(constants.accounts.Dev);
+    await factory.setMultisig(constants.accounts.Multisig);
+    await factory.setFeeRecipient(treasury.address);
 
     const created = await factory
       .connect(alice)
       .callStatic.createVault(
         constants.tokens.WETH,
-        assetReceiver.address,
         [vault.address, bend.address, drops.address],
         700
       );
@@ -217,7 +224,6 @@ describe("SpiceFiFactory", function () {
       .connect(alice)
       .createVault(
         constants.tokens.WETH,
-        assetReceiver.address,
         [vault.address, bend.address, drops.address],
         700
       );
