@@ -2,18 +2,29 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
+
+import "./Vault.sol";
+
+interface ISpiceFiFactory {
+    function ASSET_ROLE() external view returns (bytes32);
+
+    function hasRole(bytes32 role, address account) external view returns (bool);
+}
 
 /**
- * @title SpiceFiFactory
+ * @title VaultFactory
  * @author Spice Finance Inc
  */
-contract SpiceFiFactory is AccessControlEnumerable {
+contract VaultFactory is AccessControlEnumerable {
+    using Clones for address;
     using StringsUpgradeable for uint256;
 
-    /// @notice Beacon address
-    address public immutable beacon;
+    /// @notice Vault implementation
+    Vault public immutable implementation;
+
+    /// @notice SpiceFiFactory
+    ISpiceFiFactory public immutable factory;
 
     /// @notice Spice dev wallet
     address public dev;
@@ -28,14 +39,11 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /* Constants */
     /*************/
 
-    /// @notice Asset role
-    bytes32 public constant ASSET_ROLE = keccak256("ASSET_ROLE");
+    /// @notice Marketplace role
+    bytes32 public constant MARKETPLACE_ROLE = keccak256("MARKETPLACE_ROLE");
 
     /// @notice Vault role
     bytes32 public constant VAULT_ROLE = keccak256("VAULT_ROLE");
-
-    /// @notice Aggregator role
-    bytes32 public constant AGGREGATOR_ROLE = keccak256("AGGREGATOR_ROLE");
 
     /**********/
     /* Errors */
@@ -43,6 +51,11 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
+
+    /// @notice Missing Role
+    /// @param role Role
+    /// @param user User address
+    error MissingRole(bytes32 role, address user);
 
     /**********/
     /* Events */
@@ -70,16 +83,21 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /***************/
 
     /// @notice Constructor
-    /// @param _beacon Beacon address
+    /// @param _implementation Vault implementation address
+    /// @param _factory SpiceFiFactory contract
     /// @param _multisig Initial multisig address
     /// @param _feeRecipient Initial fee recipient address
     constructor(
-        address _beacon,
+        Vault _implementation,
+        address _factory,
         address _dev,
         address _multisig,
         address _feeRecipient
     ) {
-        if (_beacon == address(0)) {
+        if (address(_implementation) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (_factory == address(0)) {
             revert InvalidAddress();
         }
         if (_dev == address(0)) {
@@ -94,7 +112,8 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-        beacon = _beacon;
+        implementation = _implementation;
+        factory = ISpiceFiFactory(_factory);
         dev = _dev;
         multisig = _multisig;
         feeRecipient = _feeRecipient;
@@ -151,46 +170,45 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /* Functions */
     /*************/
 
-    /// @notice Creates new BeaconProxy for SpiceFi4626 vault
-    /// @param asset Asset address for the vault
-    /// @param vaults Default vault addresses
+    /// @notice Creates new Vault vault
+    /// @param asset Asset address for Vault
+    /// @param marketplaces Marketplaces
     /// @return vault Created vault address
     function createVault(
         address asset,
-        address[] calldata vaults
-    ) external returns (address vault) {
+        address[] calldata marketplaces
+    ) external returns (Vault vault) {
         if (asset == address(0)) {
             revert InvalidAddress();
         }
 
-        _checkRole(ASSET_ROLE, asset);
-
-        uint256 length = vaults.length;
-        for (uint256 i; i != length; ++i) {
-            _checkRole(VAULT_ROLE, vaults[i]);
+        bytes32 ASSET_ROLE = factory.ASSET_ROLE();
+        if (!factory.hasRole(ASSET_ROLE, asset)) {
+            revert MissingRole(ASSET_ROLE, asset);
         }
 
-        uint256 vaultId = getRoleMemberCount(AGGREGATOR_ROLE) + 1;
-        vault = address(
-            new BeaconProxy(
-                beacon,
-                abi.encodeWithSignature(
-                    "initialize(string,string,address,address[],address,address,address,address)",
-                    string(abi.encodePacked("Spice", vaultId.toString())),
-                    string(abi.encodePacked("s", vaultId.toString())),
-                    asset,
-                    vaults,
-                    msg.sender,
-                    dev,
-                    multisig,
-                    feeRecipient
-                )
-            )
+        uint256 length = marketplaces.length;
+        for (uint256 i; i != length; ++i) {
+            _checkRole(MARKETPLACE_ROLE, marketplaces[i]);
+        }
+
+        vault = Vault(address(implementation).clone());
+
+        // grant VAULT_ROLE for tracking
+        _grantRole(VAULT_ROLE, address(vault));
+
+        uint256 vaultId = getRoleMemberCount(VAULT_ROLE);
+        vault.initialize(
+            string(abi.encodePacked("Spice", vaultId.toString(), "Vault")),
+            string(abi.encodePacked("s", vaultId.toString(), "v")),
+            asset,
+            marketplaces,
+            msg.sender,
+            dev,
+            multisig,
+            feeRecipient
         );
 
-        // grant AGGREGATOR_ROLE for tracking
-        _grantRole(AGGREGATOR_ROLE, address(vault));
-
-        emit VaultCreated(msg.sender, vault);
+        emit VaultCreated(msg.sender, address(vault));
     }
 }
