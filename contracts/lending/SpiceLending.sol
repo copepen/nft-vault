@@ -60,6 +60,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Liquidation ratio
     uint256 public liquidationRatio;
+
+    /// @notice Signature used
+    mapping(bytes32 => bool) public signatureUsed;
 }
 
 /**
@@ -127,6 +130,9 @@ contract SpiceLending is
 
     /// @notice Loan Ended
     error NotLiquidatible();
+
+    /// @notice Signature Used
+    error SignatureUsed(bytes signature);
 
     /*************/
     /* Modifiers */
@@ -445,6 +451,7 @@ contract SpiceLending is
         }
 
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+        _checkSignatureUsage(_signature);
         _verifyExtendLoanTermsSignature(_terms, _signature);
 
         data.terms.principal += _terms.additionalPrincipal;
@@ -477,6 +484,7 @@ contract SpiceLending is
         }
 
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
+        _checkSignatureUsage(_signature);
         _verifyIncreaseLoanTermsSignature(_terms, _signature);
 
         data.terms.principal += _terms.additionalPrincipal;
@@ -555,6 +563,16 @@ contract SpiceLending is
     /**********************/
     /* Internal Functions */
     /**********************/
+
+    /// @dev Check if the signature is used
+    /// @param _signature Signature
+    function _checkSignatureUsage(bytes calldata _signature) internal {
+        bytes32 sigHash = keccak256(_signature);
+        if (signatureUsed[sigHash]) {
+            revert SignatureUsed(_signature);
+        }
+        signatureUsed[sigHash] = true;
+    }
 
     /// @dev Verify loan terms signature
     /// @param _terms Loan terms

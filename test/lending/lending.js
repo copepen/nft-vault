@@ -586,6 +586,22 @@ describe("Spice Lending", function () {
       );
       expect(newLoanData.terms.interestRate).to.be.eq(terms.newInterestRate);
     });
+
+    it("Signature replay attack", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature = await signExtendLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await lending.connect(alice).extendLoan(loanId, terms, signature);
+      await expect(lending.connect(alice).extendLoan(loanId, terms, signature))
+        .to.be.revertedWithCustomError(lending, "SignatureUsed")
+        .withArgs(signature);
+    });
   });
 
   describe("Increase Loan", function () {
@@ -697,6 +713,24 @@ describe("Spice Lending", function () {
       );
       expect(newLoanData.terms.duration).to.be.eq(oldLoanData.terms.duration);
       expect(newLoanData.terms.interestRate).to.be.eq(terms.newInterestRate);
+    });
+
+    it("Signature replay attack", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature = await signIncreaseLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await lending.connect(alice).increaseLoan(loanId, terms, signature);
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      )
+        .to.be.revertedWithCustomError(lending, "SignatureUsed")
+        .withArgs(signature);
     });
   });
 
