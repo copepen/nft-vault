@@ -555,18 +555,78 @@ describe("Spice Lending", function () {
       ).to.be.revertedWith("SafeERC20: low-level call failed");
     });
 
-    it("Extends loan and transfer additional principal", async function () {
+    it("Invalid loan terms #1", async function () {
       await weth.connect(signer).approve(lending.address, 0);
       await weth
         .connect(signer)
         .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.lender = bob.address;
+      const signature = await signExtendLoanTerms(bob, lending.address, terms);
+      await lending.connect(admin).setSigner(bob.address);
+      await expect(
+        lending.connect(alice).extendLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Invalid loan terms #2", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.collateralAddress = nft2.address;
+      const signature = await signExtendLoanTerms(bob, lending.address, terms);
+      await lending.connect(admin).setSigner(bob.address);
+      await expect(
+        lending.connect(alice).extendLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Invalid loan terms #3", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.collateralId = 2;
+      const signature = await signExtendLoanTerms(bob, lending.address, terms);
+      await lending.connect(admin).setSigner(bob.address);
+      await expect(
+        lending.connect(alice).extendLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Invalid loan terms #4", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.borrower = bob.address;
+      const signature = await signExtendLoanTerms(bob, lending.address, terms);
+      await lending.connect(admin).setSigner(bob.address);
+      await expect(
+        lending.connect(alice).extendLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Extends loan and transfer additional principal", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .transfer(bob.address, ethers.utils.parseEther("5"));
+      await weth
+        .connect(bob)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      await lenderNote
+        .connect(signer)
+        ["safeTransferFrom(address,address,uint256)"](
+          signer.address,
+          bob.address,
+          loanId
+        );
       const beforeBalance = await weth.balanceOf(alice.address);
       const oldLoanData = await lending.getLoanData(loanId);
-      const signature = await signExtendLoanTerms(
-        signer,
-        lending.address,
-        terms
-      );
+      terms.baseTerms.lender = bob.address;
+      const signature = await signExtendLoanTerms(bob, lending.address, terms);
+      await lending.connect(admin).setSigner(bob.address);
       const tx = await lending
         .connect(alice)
         .extendLoan(loanId, terms, signature);
@@ -585,6 +645,22 @@ describe("Spice Lending", function () {
         oldLoanData.terms.duration + terms.additionalDuration
       );
       expect(newLoanData.terms.interestRate).to.be.eq(terms.newInterestRate);
+    });
+
+    it("Signature replay attack", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature = await signExtendLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await lending.connect(alice).extendLoan(loanId, terms, signature);
+      await expect(lending.connect(alice).extendLoan(loanId, terms, signature))
+        .to.be.revertedWithCustomError(lending, "SignatureUsed")
+        .withArgs(signature);
     });
   });
 
@@ -669,18 +745,94 @@ describe("Spice Lending", function () {
       ).to.be.revertedWith("SafeERC20: low-level call failed");
     });
 
-    it("Increase loan and transfer additional principal", async function () {
+    it("Invalid loan terms #1", async function () {
       await weth.connect(signer).approve(lending.address, 0);
       await weth
         .connect(signer)
         .approve(lending.address, ethers.constants.MaxUint256);
-      const beforeBalance = await weth.balanceOf(alice.address);
-      const oldLoanData = await lending.getLoanData(loanId);
+      terms.baseTerms.lender = bob.address;
       const signature = await signIncreaseLoanTerms(
         signer,
         lending.address,
         terms
       );
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Invalid loan terms #2", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.collateralAddress = nft2.address;
+      const signature = await signIncreaseLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Invalid loan terms #3", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.collateralId = 2;
+      const signature = await signIncreaseLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Invalid loan terms #4", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      terms.baseTerms.borrower = bob.address;
+      const signature = await signIncreaseLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("Increase loan and transfer additional principal", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .transfer(bob.address, ethers.utils.parseEther("5"));
+      await weth
+        .connect(bob)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      await lenderNote
+        .connect(signer)
+        ["safeTransferFrom(address,address,uint256)"](
+          signer.address,
+          bob.address,
+          loanId
+        );
+      const beforeBalance = await weth.balanceOf(alice.address);
+      const oldLoanData = await lending.getLoanData(loanId);
+      terms.baseTerms.lender = bob.address;
+      const signature = await signIncreaseLoanTerms(
+        bob,
+        lending.address,
+        terms
+      );
+      await lending.connect(admin).setSigner(bob.address);
       const tx = await lending
         .connect(alice)
         .increaseLoan(loanId, terms, signature);
@@ -697,6 +849,24 @@ describe("Spice Lending", function () {
       );
       expect(newLoanData.terms.duration).to.be.eq(oldLoanData.terms.duration);
       expect(newLoanData.terms.interestRate).to.be.eq(terms.newInterestRate);
+    });
+
+    it("Signature replay attack", async function () {
+      await weth.connect(signer).approve(lending.address, 0);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature = await signIncreaseLoanTerms(
+        signer,
+        lending.address,
+        terms
+      );
+      await lending.connect(alice).increaseLoan(loanId, terms, signature);
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      )
+        .to.be.revertedWithCustomError(lending, "SignatureUsed")
+        .withArgs(signature);
     });
   });
 

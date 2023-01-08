@@ -60,6 +60,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Liquidation ratio
     uint256 public liquidationRatio;
+
+    /// @notice Signature used
+    mapping(bytes32 => bool) public signatureUsed;
 }
 
 /**
@@ -127,6 +130,9 @@ contract SpiceLending is
 
     /// @notice Loan Ended
     error NotLiquidatible();
+
+    /// @notice Signature Used
+    error SignatureUsed(bytes signature);
 
     /*************/
     /* Modifiers */
@@ -444,8 +450,14 @@ contract SpiceLending is
             revert InvalidMsgSender();
         }
 
+        address lender = lenderNote.ownerOf(_loanId);
+
+        if (_terms.baseTerms.lender != lender) {
+            revert InvalidLoanTerms();
+        }
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
-        _verifyExtendLoanTermsSignature(_terms, _signature);
+        _checkSignatureUsage(_signature);
+        _verifyExtendLoanTermsSignature(_terms, _signature, lender);
 
         data.terms.principal += _terms.additionalPrincipal;
         data.balance += _terms.additionalPrincipal;
@@ -453,7 +465,7 @@ contract SpiceLending is
         data.terms.duration += _terms.additionalDuration;
 
         IERC20Upgradeable(data.terms.currency).safeTransferFrom(
-            lenderNote.ownerOf(_loanId),
+            lender,
             msg.sender,
             _terms.additionalPrincipal
         );
@@ -476,15 +488,21 @@ contract SpiceLending is
             revert InvalidMsgSender();
         }
 
+        address lender = lenderNote.ownerOf(_loanId);
+
+        if (_terms.baseTerms.lender != lender) {
+            revert InvalidLoanTerms();
+        }
         _validateBaseTerms(data.terms.baseTerms, _terms.baseTerms);
-        _verifyIncreaseLoanTermsSignature(_terms, _signature);
+        _checkSignatureUsage(_signature);
+        _verifyIncreaseLoanTermsSignature(_terms, _signature, lender);
 
         data.terms.principal += _terms.additionalPrincipal;
         data.balance += _terms.additionalPrincipal;
         data.terms.interestRate = _terms.newInterestRate;
 
         IERC20Upgradeable(data.terms.currency).safeTransferFrom(
-            lenderNote.ownerOf(_loanId),
+            lender,
             msg.sender,
             _terms.additionalPrincipal
         );
@@ -556,6 +574,16 @@ contract SpiceLending is
     /* Internal Functions */
     /**********************/
 
+    /// @dev Check if the signature is used
+    /// @param _signature Signature
+    function _checkSignatureUsage(bytes calldata _signature) internal {
+        bytes32 sigHash = keccak256(_signature);
+        if (signatureUsed[sigHash]) {
+            revert SignatureUsed(_signature);
+        }
+        signatureUsed[sigHash] = true;
+    }
+
     /// @dev Verify loan terms signature
     /// @param _terms Loan terms
     /// @param _signature Signature
@@ -571,25 +599,29 @@ contract SpiceLending is
     /// @dev Verify extend loan terms signature
     /// @param _terms Extend loan terms
     /// @param _signature Signature
+    /// @param _lender Lender address
     function _verifyExtendLoanTermsSignature(
         LibLoan.ExtendLoanTerms calldata _terms,
-        bytes calldata _signature
+        bytes calldata _signature,
+        address _lender
     ) internal view {
         // check if the loan terms is signed by signer
         bytes32 termsHash = LibLoan.getExtendLoanTermsHash(_terms);
-        _verifySignature(termsHash, _signature, _terms.baseTerms.lender);
+        _verifySignature(termsHash, _signature, _lender);
     }
 
     /// @dev Verify increase loan terms signature
     /// @param _terms Increase loan terms
     /// @param _signature Signature
+    /// @param _lender Lender address
     function _verifyIncreaseLoanTermsSignature(
         LibLoan.IncreaseLoanTerms calldata _terms,
-        bytes calldata _signature
+        bytes calldata _signature,
+        address _lender
     ) internal view {
         // check if the loan terms is signed by signer
         bytes32 termsHash = LibLoan.getIncreaseLoanTermsHash(_terms);
-        _verifySignature(termsHash, _signature, _terms.baseTerms.lender);
+        _verifySignature(termsHash, _signature, _lender);
     }
 
     /// @dev Verify signature
@@ -636,9 +668,6 @@ contract SpiceLending is
             revert InvalidLoanTerms();
         }
         if (_terms.collateralId != _newTerms.collateralId) {
-            revert InvalidLoanTerms();
-        }
-        if (_terms.lender != _newTerms.lender) {
             revert InvalidLoanTerms();
         }
         if (_terms.borrower != _newTerms.borrower) {
