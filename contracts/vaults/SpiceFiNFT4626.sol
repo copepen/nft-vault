@@ -234,7 +234,13 @@ contract SpiceFiNFT4626 is
         if (_multisig == address(0)) {
             revert InvalidAddress();
         }
+
+        _revokeRole(DEFAULT_ADMIN_ROLE, multisig);
+
         multisig = _multisig;
+
+        _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
+
         emit MultisigUpdated(_multisig);
     }
 

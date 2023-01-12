@@ -220,6 +220,8 @@ contract SpiceLending is
         }
 
         signer = _newSigner;
+
+        emit SignerUpdated(_newSigner);
     }
 
     /// @notice Set the interest fee rate

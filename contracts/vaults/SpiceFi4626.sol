@@ -89,6 +89,9 @@ contract SpiceFi4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
+    /// @notice Exceed maxTotalSupply
+    error ExceedMaxTotalSupply();
+
     /**********/
     /* Events */
     /**********/
@@ -302,10 +305,9 @@ contract SpiceFi4626 is
 
     /// @inheritdoc ERC20Upgradeable
     function _mint(address account, uint256 amount) internal override {
-        require(
-            totalSupply() + amount <= maxTotalSupply,
-            "max total supply exceeds allowed"
-        );
+        if (totalSupply() + amount > maxTotalSupply) {
+            revert ExceedMaxTotalSupply();
+        }
         super._mint(account, amount);
     }
 

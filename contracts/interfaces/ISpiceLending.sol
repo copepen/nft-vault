@@ -12,6 +12,10 @@ interface ISpiceLending {
     /* Events */
     /**********/
 
+    /// @notice Emitted when signer is updated
+    /// @param signer New signer address
+    event SignerUpdated(address signer);
+
     /// @notice Emitted when interest fee rate is updated
     /// @param interestFee New interest fee rate
     event InterestFeeUpdated(uint256 interestFee);
