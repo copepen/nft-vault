@@ -1194,7 +1194,7 @@ describe("Spice Lending", function () {
     });
   });
 
-  describe.only("Liquidate", function () {
+  describe("Liquidate", function () {
     let loanId1, loanId2;
 
     beforeEach(async function () {

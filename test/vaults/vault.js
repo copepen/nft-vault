@@ -1,7 +1,8 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
-const { impersonateAccount } = require("../helpers/account");
+const { impersonateAccount, setBalance } = require("../helpers/account");
+const { signTestHashAndSignature } = require("../helpers/sign");
 const constants = require("../constants");
 
 describe("Vault", function () {
@@ -20,6 +21,10 @@ describe("Vault", function () {
     bidderRole,
     whitelistRole,
     marketplaceRole;
+
+  const INVALID_SIGNATURE1 = "0x0000";
+  const INVALID_SIGNATURE2 =
+    "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
   async function deployTokenAndAirdrop(users, amount) {
     const Token = await ethers.getContractFactory("TestERC20");
@@ -48,6 +53,10 @@ describe("Vault", function () {
       await ethers.getSigners();
 
     await impersonateAccount(constants.accounts.Dev);
+    await setBalance(
+      constants.accounts.Dev,
+      ethers.utils.parseEther("1000").toHexString()
+    );
     dev = await ethers.getSigner(constants.accounts.Dev);
 
     const amount = ethers.utils.parseEther("1000000");
@@ -828,9 +837,7 @@ describe("Vault", function () {
       it("When asset balance is not enough", async function () {
         const assets = ethers.utils.parseEther("200");
 
-        await vault
-          .connect(dev)
-          .setTotalAssets(ethers.utils.parseEther("200"));
+        await vault.connect(dev).setTotalAssets(ethers.utils.parseEther("200"));
 
         await expect(
           vault.connect(alice).withdraw(assets, bob.address, alice.address)
@@ -925,9 +932,7 @@ describe("Vault", function () {
       it("When shares balance is not enough", async function () {
         const shares = ethers.utils.parseEther("100");
 
-        await vault
-          .connect(dev)
-          .setTotalAssets(ethers.utils.parseEther("200"));
+        await vault.connect(dev).setTotalAssets(ethers.utils.parseEther("200"));
 
         await expect(
           vault.connect(alice).redeem(shares, bob.address, alice.address)
@@ -1007,6 +1012,52 @@ describe("Vault", function () {
         .withArgs(dave.address);
     });
 
+    it("Set Dev", async function () {
+      await expect(
+        vault.connect(alice).setDev(dave.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        vault.connect(admin).setDev(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+
+      const tx = await vault.connect(admin).setDev(dave.address);
+
+      await expect(tx).to.emit(vault, "DevUpdated").withArgs(dave.address);
+
+      await checkRole(constants.accounts.Dev, defaultAdminRole, false);
+      await checkRole(constants.accounts.Dev, keeperRole, false);
+      await checkRole(constants.accounts.Dev, liquidatorRole, false);
+      await checkRole(constants.accounts.Dev, bidderRole, false);
+      await checkRole(dave.address, defaultAdminRole, true);
+      await checkRole(dave.address, keeperRole, true);
+      await checkRole(dave.address, liquidatorRole, true);
+      await checkRole(dave.address, bidderRole, true);
+    });
+
+    it("Set Multisig", async function () {
+      await expect(
+        vault.connect(alice).setMultisig(dave.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        vault.connect(admin).setMultisig(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(vault, "InvalidAddress");
+
+      const tx = await vault.connect(admin).setMultisig(dave.address);
+
+      await expect(tx).to.emit(vault, "MultisigUpdated").withArgs(dave.address);
+
+      await checkRole(constants.accounts.Multisig, defaultAdminRole, false);
+      await checkRole(constants.accounts.Multisig, assetReceiverRole, false);
+      await checkRole(dave.address, defaultAdminRole, true);
+      await checkRole(dave.address, assetReceiverRole, true);
+    });
+
     it("Set total assets", async function () {
       const totalAssets = ethers.utils.parseEther("1000");
       await expect(
@@ -1052,6 +1103,43 @@ describe("Vault", function () {
       expect(await vault.paused()).to.be.eq(false);
     });
 
+    describe("Approve Asset", function () {
+      it("When msg.sender does not have enough role", async function () {
+        await expect(vault.connect(alice).approveAsset(marketplace1.address, 0))
+          .to.be.reverted;
+      });
+
+      it("When spender do not have marketplace role", async function () {
+        await expect(
+          vault.connect(admin).approveAsset(alice.address, 0)
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${marketplaceRole}`
+        );
+      });
+
+      it("Admin approves asset", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await vault.connect(admin).approveAsset(marketplace1.address, amount);
+
+        const allowance = await token.allowance(
+          vault.address,
+          marketplace1.address
+        );
+        expect(allowance).to.be.eq(amount);
+      });
+
+      it("Bidder approves asset", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await vault.connect(dev).approveAsset(marketplace1.address, amount);
+
+        const allowance = await token.allowance(
+          vault.address,
+          marketplace1.address
+        );
+        expect(allowance).to.be.eq(amount);
+      });
+    });
+
     it("Transfer NFT out of Vault", async function () {
       await nft.mint(alice.address, 1);
       await nft.mint(vault.address, 2);
@@ -1073,6 +1161,36 @@ describe("Vault", function () {
       await vault.connect(dev).transferNFT(nft.address, 2);
 
       expect(await nft.ownerOf(2)).to.be.eq(dev.address);
+    });
+  });
+
+  describe("ERC-1271", function () {
+    it("When signature is invalid #1", async function () {
+      const hash = ethers.utils.keccak256(
+        ethers.utils.toUtf8Bytes("random string")
+      );
+      const magicValue = await vault.isValidSignature(hash, INVALID_SIGNATURE1);
+      expect(magicValue).to.be.eq("0xffffffff");
+    });
+
+    it("When signature is invalid #2", async function () {
+      const hash = ethers.utils.keccak256(
+        ethers.utils.toUtf8Bytes("random string")
+      );
+      const magicValue = await vault.isValidSignature(hash, INVALID_SIGNATURE2);
+      expect(magicValue).to.be.eq("0xffffffff");
+    });
+
+    it("When signature is invalid #3", async function () {
+      const [hash, signature] = await signTestHashAndSignature(alice);
+      const magicValue = await vault.isValidSignature(hash, signature);
+      expect(magicValue).to.be.eq("0xffffffff");
+    });
+
+    it("When signature is valid", async function () {
+      const [hash, signature] = await signTestHashAndSignature(admin);
+      const magicValue = await vault.isValidSignature(hash, signature);
+      expect(magicValue).to.be.eq("0x1626ba7e");
     });
   });
 });

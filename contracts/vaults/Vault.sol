@@ -16,6 +16,7 @@ import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../interfaces/IVault.sol";
+import "hardhat/console.sol";
 
 /**
  * @title Storage for Vault
@@ -638,7 +639,7 @@ contract Vault is
         );
         if (
             err == ECDSA.RecoverError.NoError &&
-            signer == getRoleMember(DEFAULT_ADMIN_ROLE, 0)
+            hasRole(DEFAULT_ADMIN_ROLE, signer)
         ) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
