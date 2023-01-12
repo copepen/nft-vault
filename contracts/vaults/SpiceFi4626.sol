@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
@@ -25,7 +26,10 @@ abstract contract SpiceFi4626Storage {
     /// @notice Indicates whether the vault is verified or not
     bool public verified;
 
-    /// @notice Spice Multisig address
+    /// @notice Spice dev wallet
+    address public dev;
+
+    /// @notice Spice multisig address
     address public multisig;
 
     /// @notice Fee recipient address
@@ -69,6 +73,9 @@ contract SpiceFi4626 is
     /// @notice Spice role
     bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
 
+    /// @notice Creator role
+    bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
+
     /**********/
     /* Errors */
     /**********/
@@ -82,6 +89,9 @@ contract SpiceFi4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
+    /// @notice Exceed maxTotalSupply
+    error ExceedMaxTotalSupply();
+
     /**********/
     /* Events */
     /**********/
@@ -89,6 +99,10 @@ contract SpiceFi4626 is
     /// @notice Emitted when withdrawal fee rate is updated
     /// @param withdrawalFees New withdrawal fees per 10_000 units
     event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
+
+    /// @notice Emitted when dev is updated
+    /// @param dev New dev address
+    event DevUpdated(address dev);
 
     /// @notice Emitted when multisig is updated
     /// @param multisig New multisig address
@@ -103,51 +117,64 @@ contract SpiceFi4626 is
     /***************/
 
     /// @notice SpiceFi4626 constructor (for proxy)
-    /// @param asset_ Asset token address
-    /// @param strategist_ Initial strategist address
-    /// @param assetReceiver_ Initial asset receiver address
-    /// @param withdrawalFees_ Initial withdrawal fees
-    /// @param multisig_ Initial multisig address
-    /// @param feeRecipient_ Initial fee recipient address
+    /// @param _name Token name
+    /// @param _symbol Token symbol
+    /// @param _asset Asset token address
+    /// @param _vaults Vault addresses
+    /// @param _creator Creator address
+    /// @param _dev Spice dev wallet
+    /// @param _multisig Spice multisig wallet
+    /// @param _feeRecipient Initial fee recipient address
     function initialize(
-        address asset_,
-        address strategist_,
-        address assetReceiver_,
-        uint256 withdrawalFees_,
-        address multisig_,
-        address feeRecipient_
+        string memory _name,
+        string memory _symbol,
+        address _asset,
+        address[] memory _vaults,
+        address _creator,
+        address _dev,
+        address _multisig,
+        address _feeRecipient
     ) public initializer {
-        if (asset_ == address(0)) {
+        if (_asset == address(0)) {
             revert InvalidAddress();
         }
-        if (strategist_ == address(0)) {
+        if (_creator == address(0)) {
             revert InvalidAddress();
         }
-        if (assetReceiver_ == address(0)) {
+        if (_dev == address(0)) {
             revert InvalidAddress();
         }
-        if (withdrawalFees_ >= 10_000) {
-            revert ParameterOutOfBounds();
-        }
-        if (multisig_ == address(0)) {
+        if (_multisig == address(0)) {
             revert InvalidAddress();
         }
-        if (feeRecipient_ == address(0)) {
+        if (_feeRecipient == address(0)) {
             revert InvalidAddress();
         }
 
-        __ERC4626_init(IERC20MetadataUpgradeable(asset_));
-        __ERC20_init("SpiceToken", "SPICE");
+        __ERC4626_init(IERC20MetadataUpgradeable(_asset));
+        __ERC20_init(_name, _symbol);
 
-        withdrawalFees = withdrawalFees_;
-        multisig = multisig_;
-        feeRecipient = feeRecipient_;
+        dev = _dev;
+        multisig = _multisig;
+        feeRecipient = _feeRecipient;
 
-        _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
-        _setupRole(DEFAULT_ADMIN_ROLE, multisig);
+        uint256 length = _vaults.length;
+        for (uint256 i; i != length; ++i) {
+            if (_vaults[i] == address(0)) {
+                revert InvalidAddress();
+            }
+            _setupRole(VAULT_ROLE, _vaults[i]);
+        }
 
-        _setupRole(STRATEGIST_ROLE, strategist_);
-        _setupRole(ASSET_RECEIVER_ROLE, assetReceiver_);
+        _setupRole(CREATOR_ROLE, _creator);
+        _setupRole(DEFAULT_ADMIN_ROLE, _dev);
+        _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
+        _setupRole(STRATEGIST_ROLE, _dev);
+        _setupRole(ASSET_RECEIVER_ROLE, _multisig);
+        _setupRole(USER_ROLE, _dev);
+        _setupRole(USER_ROLE, _multisig);
+        _setupRole(USER_ROLE, _creator);
+        _setupRole(SPICE_ROLE, _multisig);
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -168,11 +195,35 @@ contract SpiceFi4626 is
     function setWithdrawalFees(
         uint256 withdrawalFees_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (withdrawalFees_ >= 10_000) {
+        if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
         }
         withdrawalFees = withdrawalFees_;
         emit WithdrawalFeeRateUpdated(withdrawalFees_);
+    }
+
+    /// @notice Set the dev wallet address
+    ///
+    /// Emits a {DevUpdated} event.
+    ///
+    /// @param _dev New dev wallet
+    function setDev(address _dev) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_dev == address(0)) {
+            revert InvalidAddress();
+        }
+
+        address oldDev = dev;
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldDev);
+        _revokeRole(STRATEGIST_ROLE, oldDev);
+        _revokeRole(USER_ROLE, oldDev);
+
+        dev = _dev;
+
+        _setupRole(DEFAULT_ADMIN_ROLE, _dev);
+        _setupRole(STRATEGIST_ROLE, _dev);
+        _setupRole(USER_ROLE, _dev);
+
+        emit DevUpdated(_dev);
     }
 
     /// @notice Set the multisig address
@@ -186,7 +237,20 @@ contract SpiceFi4626 is
         if (_multisig == address(0)) {
             revert InvalidAddress();
         }
+
+        address oldMultisig = multisig;
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldMultisig);
+        _revokeRole(ASSET_RECEIVER_ROLE, oldMultisig);
+        _revokeRole(USER_ROLE, oldMultisig);
+        _revokeRole(SPICE_ROLE, oldMultisig);
+
         multisig = _multisig;
+
+        _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
+        _setupRole(ASSET_RECEIVER_ROLE, _multisig);
+        _setupRole(USER_ROLE, _multisig);
+        _setupRole(SPICE_ROLE, _multisig);
+
         emit MultisigUpdated(_multisig);
     }
 
@@ -241,10 +305,9 @@ contract SpiceFi4626 is
 
     /// @inheritdoc ERC20Upgradeable
     function _mint(address account, uint256 amount) internal override {
-        require(
-            totalSupply() + amount <= maxTotalSupply,
-            "max total supply exceeds allowed"
-        );
+        if (totalSupply() + amount > maxTotalSupply) {
+            revert ExceedMaxTotalSupply();
+        }
         super._mint(account, amount);
     }
 

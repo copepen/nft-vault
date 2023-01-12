@@ -82,10 +82,12 @@ describe("SpiceFiNFT4626", function () {
     vault = await upgrades.deployProxy(
       Vault,
       [
-        vaultName,
-        vaultSymbol,
+        "Spice Vault Test Token",
+        "svTT",
         weth.address,
-        0,
+        [],
+        admin.address,
+        constants.accounts.Dev,
         constants.accounts.Multisig,
         treasury.address,
       ],
