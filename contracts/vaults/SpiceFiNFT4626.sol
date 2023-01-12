@@ -175,7 +175,7 @@ contract SpiceFiNFT4626 is
         if (assetReceiver_ == address(0)) {
             revert InvalidAddress();
         }
-        if (withdrawalFees_ >= 10_000) {
+        if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
         }
         if (multisig_ == address(0)) {
@@ -216,7 +216,7 @@ contract SpiceFiNFT4626 is
     function setWithdrawalFees(
         uint256 withdrawalFees_
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (withdrawalFees_ >= 10_000) {
+        if (withdrawalFees_ > 10_000) {
             revert ParameterOutOfBounds();
         }
         withdrawalFees = withdrawalFees_;

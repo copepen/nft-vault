@@ -31,6 +31,9 @@ abstract contract VaultStorageV1 {
     /// @dev withdrawal fees per 10_000 units
     uint256 public withdrawalFees;
 
+    /// @notice Spice dev wallet
+    address public dev;
+
     /// @notice Spice Multisig address
     address public multisig;
 
@@ -79,6 +82,9 @@ contract Vault is
     /* Access Control Roles */
     /************************/
 
+    /// @notice Creator role
+    bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
+
     /// @notice Keeper role
     bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
 
@@ -93,6 +99,10 @@ contract Vault is
 
     /// @notice Marketplace role
     bytes32 public constant MARKETPLACE_ROLE = keccak256("MARKETPLACE_ROLE");
+
+    /// @notice Asset receiver role
+    bytes32 public constant ASSET_RECEIVER_ROLE =
+        keccak256("ASSET_RECEIVER_ROLE");
 
     /**********/
     /* Errors */
@@ -118,6 +128,10 @@ contract Vault is
     /// @param withdrawalFees New withdrawal fees per 10_000 units
     event WithdrawalFeeRateUpdated(uint256 withdrawalFees);
 
+    /// @notice Emitted when dev is updated
+    /// @param dev New dev address
+    event DevUpdated(address dev);
+
     /// @notice Emitted when multisig is updated
     /// @param multisig New multisig address
     event MultisigUpdated(address multisig);
@@ -135,57 +149,76 @@ contract Vault is
     /***************/
 
     /// @notice Vault constructor (for proxy)
-    /// @param name_ Receipt token name
-    /// @param symbol_ Receipt token symbol
-    /// @param asset_ Asset token contract
-    /// @param withdrawalFees_ Initial withdrawal fees
-    /// @param multisig_ Initial multisig address
-    /// @param feeRecipient_ Initial fee recipient address
+    /// @param _name Receipt token name
+    /// @param _symbol Receipt token symbol
+    /// @param __asset Asset token contract
+    /// @param _marketplaces Marketplaces
+    /// @param _creator Creator address
+    /// @param _dev Initial dev address
+    /// @param _multisig Initial multisig address
+    /// @param _feeRecipient Initial fee recipient address
     function initialize(
-        string calldata name_,
-        string calldata symbol_,
-        IERC20Upgradeable asset_,
-        uint256 withdrawalFees_,
-        address multisig_,
-        address feeRecipient_
+        string calldata _name,
+        string calldata _symbol,
+        IERC20Upgradeable __asset,
+        address[] memory _marketplaces,
+        address _creator,
+        address _dev,
+        address _multisig,
+        address _feeRecipient
     ) external initializer {
-        if (address(asset_) == address(0)) {
+        if (address(__asset) == address(0)) {
             revert InvalidAddress();
         }
-        if (withdrawalFees_ > 10_000) {
-            revert ParameterOutOfBounds();
-        }
-        if (multisig_ == address(0)) {
+        if (_creator == address(0)) {
             revert InvalidAddress();
         }
-        if (feeRecipient_ == address(0)) {
+        if (_dev == address(0)) {
+            revert InvalidAddress();
+        }
+        if (_multisig == address(0)) {
+            revert InvalidAddress();
+        }
+        if (_feeRecipient == address(0)) {
             revert InvalidAddress();
         }
 
-        __ERC20_init(name_, symbol_);
+        __ERC20_init(_name, _symbol);
         __AccessControl_init();
         __Pausable_init();
         __ReentrancyGuard_init();
 
-        withdrawalFees = withdrawalFees_;
-        multisig = multisig_;
-        feeRecipient = feeRecipient_;
+        dev = _dev;
+        multisig = _multisig;
+        feeRecipient = _feeRecipient;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(KEEPER_ROLE, msg.sender);
-        _grantRole(LIQUIDATOR_ROLE, msg.sender);
+        _setupRole(CREATOR_ROLE, _creator);
+        _setupRole(DEFAULT_ADMIN_ROLE, _dev);
+        _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
+        _setupRole(ASSET_RECEIVER_ROLE, _multisig);
+        _setupRole(KEEPER_ROLE, _dev);
+        _setupRole(LIQUIDATOR_ROLE, _dev);
+        _setupRole(BIDDER_ROLE, _dev);
 
-        uint8 decimals_;
-        try IERC20MetadataUpgradeable(address(asset_)).decimals() returns (
-            uint8 value
-        ) {
-            decimals_ = value;
-        } catch {
-            decimals_ = super.decimals();
+        uint256 length = _marketplaces.length;
+        for (uint256 i; i != length; ++i) {
+            if (_marketplaces[i] == address(0)) {
+                revert InvalidAddress();
+            }
+            _setupRole(MARKETPLACE_ROLE, _marketplaces[i]);
         }
 
-        _asset = asset_;
-        _decimals = decimals_;
+        uint8 __decimals;
+        try IERC20MetadataUpgradeable(address(__asset)).decimals() returns (
+            uint8 value
+        ) {
+            __decimals = value;
+        } catch {
+            __decimals = super.decimals();
+        }
+
+        _asset = __asset;
+        _decimals = __decimals;
     }
 
     /// @inheritdoc UUPSUpgradeable
@@ -487,6 +520,32 @@ contract Vault is
         emit FeeRecipientUpdated(_feeRecipient);
     }
 
+    /// @notice Set the dev wallet address
+    ///
+    /// Emits a {DevUpdated} event.
+    ///
+    /// @param _dev New dev wallet
+    function setDev(address _dev) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_dev == address(0)) {
+            revert InvalidAddress();
+        }
+
+        address oldDev = dev;
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldDev);
+        _revokeRole(KEEPER_ROLE, oldDev);
+        _revokeRole(LIQUIDATOR_ROLE, oldDev);
+        _revokeRole(BIDDER_ROLE, oldDev);
+
+        dev = _dev;
+
+        _setupRole(DEFAULT_ADMIN_ROLE, _dev);
+        _setupRole(KEEPER_ROLE, _dev);
+        _setupRole(LIQUIDATOR_ROLE, _dev);
+        _setupRole(BIDDER_ROLE, _dev);
+
+        emit DevUpdated(_dev);
+    }
+
     /// @notice Set the multisig address
     ///
     /// Emits a {MultisigUpdated} event.
@@ -498,7 +557,16 @@ contract Vault is
         if (_multisig == address(0)) {
             revert InvalidAddress();
         }
+
+        address oldMultisig = multisig;
+        _revokeRole(DEFAULT_ADMIN_ROLE, oldMultisig);
+        _revokeRole(ASSET_RECEIVER_ROLE, oldMultisig);
+
         multisig = _multisig;
+
+        _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
+        _setupRole(ASSET_RECEIVER_ROLE, _multisig);
+
         emit MultisigUpdated(_multisig);
     }
 
