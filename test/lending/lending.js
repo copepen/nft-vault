@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
-const { impersonateAccount } = require("../helpers/account");
+const { impersonateAccount, setBalance } = require("../helpers/account");
 const {
   signLoanTerms,
   signExtendLoanTerms,
@@ -15,6 +15,7 @@ const INVALID_SIGNATURE2 =
   "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
 describe("Spice Lending", function () {
+  let vault;
   let lending;
   let lenderNote, borrowerNote;
   let nft1, nft2;
@@ -28,7 +29,7 @@ describe("Spice Lending", function () {
     assetReceiver,
     signer,
     spiceAdmin;
-  let whale;
+  let whale, dev;
   let snapshotId;
 
   let defaultAdminRole, spiceRole, spiceNftRole;
@@ -108,6 +109,12 @@ describe("Spice Lending", function () {
     ] = await ethers.getSigners();
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
+    await impersonateAccount(constants.accounts.Dev);
+    await setBalance(
+      constants.accounts.Dev,
+      ethers.utils.parseEther("1000").toHexString()
+    );
+    dev = await ethers.getSigner(constants.accounts.Dev);
 
     nft1 = await deployNFT();
     nft2 = await deployNFT();
@@ -124,6 +131,25 @@ describe("Spice Lending", function () {
     await weth
       .connect(whale)
       .transfer(signer.address, ethers.utils.parseEther("100"));
+
+    const Vault = await ethers.getContractFactory("Vault");
+
+    vault = await upgrades.deployProxy(
+      Vault,
+      [
+        "Spice Vault Test Token",
+        "svTT",
+        weth.address,
+        [],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ],
+      {
+        kind: "uups",
+      }
+    );
 
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
 
@@ -246,6 +272,8 @@ describe("Spice Lending", function () {
     await checkRole(borrowerNote, lending.address, adminRole, true);
 
     await spiceNft.grantRole(spiceRole, spiceAdmin.address);
+
+    await vault.connect(dev).grantRole(defaultAdminRole, alice.address);
 
     const amount = ethers.utils.parseEther("100");
     await weth
@@ -876,6 +904,84 @@ describe("Spice Lending", function () {
       await expect(
         lending.connect(alice).increaseLoan(loanId, terms, signature)
       ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("When magicValue is not returned", async function () {
+      // deposit to vault
+      await weth.connect(whale).approve(vault.address, ethers.constants.MaxUint256);
+      const assets = ethers.utils.parseEther("100");
+      await vault.connect(whale).deposit(assets, whale.address);
+
+      // approve asset to lending contract
+      const marketplacerole = await vault.MARKETPLACE_ROLE();
+      await vault.connect(alice).grantRole(marketplacerole, lending.address);
+      await vault.connect(alice).approveAsset(lending.address, assets);
+
+      // revoke default_admin_role from alice
+      await vault.connect(dev).revokeRole(defaultAdminRole, alice.address);
+
+      await lenderNote
+        .connect(signer)
+        ["safeTransferFrom(address,address,uint256)"](
+          signer.address,
+          vault.address,
+          loanId
+        );
+      terms.baseTerms.lender = vault.address;
+      const signature = await signIncreaseLoanTerms(
+        alice,
+        lending.address,
+        terms
+      );
+      await lending.connect(admin).setSigner(alice.address);
+      await expect(lending
+        .connect(alice)
+        .increaseLoan(loanId, terms, signature)).to.be.revertedWithCustomError(lending, "InvalidSigner");
+    });
+
+    it("Increase loan and transfer additional principal from Vault", async function () {
+      // deposit to vault
+      await weth.connect(whale).approve(vault.address, ethers.constants.MaxUint256);
+      const assets = ethers.utils.parseEther("100");
+      await vault.connect(whale).deposit(assets, whale.address);
+
+      // approve asset to lending contract
+      const marketplacerole = await vault.MARKETPLACE_ROLE();
+      await vault.connect(alice).grantRole(marketplacerole, lending.address);
+      await vault.connect(alice).approveAsset(lending.address, assets);
+
+      await lenderNote
+        .connect(signer)
+        ["safeTransferFrom(address,address,uint256)"](
+          signer.address,
+          vault.address,
+          loanId
+        );
+      const beforeBalance = await weth.balanceOf(alice.address);
+      const oldLoanData = await lending.getLoanData(loanId);
+      terms.baseTerms.lender = vault.address;
+      const signature = await signIncreaseLoanTerms(
+        alice,
+        lending.address,
+        terms
+      );
+      await lending.connect(admin).setSigner(alice.address);
+      const tx = await lending
+        .connect(alice)
+        .increaseLoan(loanId, terms, signature);
+      await expect(tx).to.emit(lending, "LoanIncreased").withArgs(loanId);
+      expect(await weth.balanceOf(alice.address)).to.be.eq(
+        beforeBalance.add(terms.additionalPrincipal)
+      );
+      const newLoanData = await lending.getLoanData(loanId);
+      expect(newLoanData.balance).to.be.eq(
+        oldLoanData.balance.add(terms.additionalPrincipal)
+      );
+      expect(newLoanData.terms.principal).to.be.eq(
+        oldLoanData.terms.principal.add(terms.additionalPrincipal)
+      );
+      expect(newLoanData.terms.duration).to.be.eq(oldLoanData.terms.duration);
+      expect(newLoanData.terms.interestRate).to.be.eq(terms.newInterestRate);
     });
 
     it("Increase loan and transfer additional principal", async function () {
