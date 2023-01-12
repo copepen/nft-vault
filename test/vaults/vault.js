@@ -22,6 +22,8 @@ describe("Vault", function () {
     whitelistRole,
     marketplaceRole;
 
+    const vaultName = "Spice Vault Test Token";
+  const vaultSymbol = "svTT";
   const INVALID_SIGNATURE1 = "0x0000";
   const INVALID_SIGNATURE2 =
     "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
@@ -73,8 +75,8 @@ describe("Vault", function () {
       upgrades.deployProxy(
         Vault,
         [
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           ethers.constants.AddressZero,
           [marketplace1.address, marketplace2.address],
           admin.address,
@@ -91,8 +93,8 @@ describe("Vault", function () {
       upgrades.deployProxy(
         Vault,
         [
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           token.address,
           [marketplace1.address, ethers.constants.AddressZero],
           admin.address,
@@ -109,8 +111,8 @@ describe("Vault", function () {
       upgrades.deployProxy(
         Vault,
         [
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           token.address,
           [marketplace1.address, marketplace2.address],
           ethers.constants.AddressZero,
@@ -128,8 +130,8 @@ describe("Vault", function () {
       upgrades.deployProxy(
         Vault,
         [
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           token.address,
           [marketplace1.address, marketplace2.address],
           admin.address,
@@ -147,8 +149,8 @@ describe("Vault", function () {
       upgrades.deployProxy(
         Vault,
         [
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           token.address,
           [marketplace1.address, marketplace2.address],
           admin.address,
@@ -166,8 +168,8 @@ describe("Vault", function () {
       upgrades.deployProxy(
         Vault,
         [
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           token.address,
           [marketplace1.address, marketplace2.address],
           admin.address,
@@ -184,8 +186,8 @@ describe("Vault", function () {
     vault = await upgrades.deployProxy(
       Vault,
       [
-        "Spice Vault Test Token",
-        "svTT",
+        vaultName,
+        vaultSymbol,
         token.address,
         [marketplace1.address, marketplace2.address],
         admin.address,
@@ -255,8 +257,8 @@ describe("Vault", function () {
     it("Should initialize once", async function () {
       await expect(
         vault.initialize(
-          "Spice Vault Test Token",
-          "svTT",
+          vaultName,
+          vaultSymbol,
           token.address,
           [marketplace1.address, marketplace2.address],
           admin.address,
@@ -1010,6 +1012,7 @@ describe("Vault", function () {
       await expect(tx)
         .to.emit(vault, "FeeRecipientUpdated")
         .withArgs(dave.address);
+      expect(await vault.feeRecipient()).to.be.eq(dave.address);
     });
 
     it("Set Dev", async function () {
@@ -1026,6 +1029,7 @@ describe("Vault", function () {
       const tx = await vault.connect(admin).setDev(dave.address);
 
       await expect(tx).to.emit(vault, "DevUpdated").withArgs(dave.address);
+      expect(await vault.dev()).to.be.eq(dave.address);
 
       await checkRole(constants.accounts.Dev, defaultAdminRole, false);
       await checkRole(constants.accounts.Dev, keeperRole, false);
@@ -1051,6 +1055,7 @@ describe("Vault", function () {
       const tx = await vault.connect(admin).setMultisig(dave.address);
 
       await expect(tx).to.emit(vault, "MultisigUpdated").withArgs(dave.address);
+      expect(await vault.multisig()).to.be.eq(dave.address);
 
       await checkRole(constants.accounts.Multisig, defaultAdminRole, false);
       await checkRole(constants.accounts.Multisig, assetReceiverRole, false);
