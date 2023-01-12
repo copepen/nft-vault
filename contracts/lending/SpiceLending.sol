@@ -332,17 +332,15 @@ contract SpiceLending is
         }
 
         uint256 interestPayment;
-        uint256 principalPayment;
         if (_payment > interestToPay) {
             interestPayment = interestToPay;
-            principalPayment = _payment - interestToPay;
+            data.balance -= _payment - interestToPay;
         } else {
             interestPayment = _payment;
+            data.interestAccrued = interestToPay - _payment;
         }
 
         // update loan data
-        data.balance -= principalPayment;
-        data.interestAccrued = interestToPay - interestPayment;
         data.updatedAt = block.timestamp;
 
         IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
@@ -405,8 +403,8 @@ contract SpiceLending is
         uint256 payment = data.balance + interestToPay;
 
         // update loan data
-        delete data.balance;
-        delete data.interestAccrued;
+        data.balance = 0;
+        data.interestAccrued = 0;
         data.updatedAt = block.timestamp;
 
         IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
