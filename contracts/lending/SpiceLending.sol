@@ -47,7 +47,7 @@ abstract contract SpiceLendingStorage {
     CountersUpgradeable.Counter internal loanIdTracker;
 
     /// @notice keep track of loans
-    mapping(uint256 => LibLoan.LoanData) internal loans;
+    mapping(uint256 => LibLoan.LoanData) public loans;
 
     /// @notice Lender Note
     INote public lenderNote;
