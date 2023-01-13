@@ -86,8 +86,8 @@ describe("SpiceFi4626", function () {
     vault = await upgrades.deployProxy(
       Vault,
       [
-        "Spice Vault Test Token",
-        "svTT",
+        vaultName,
+        vaultSymbol,
         weth.address,
         [],
         admin.address,
@@ -215,6 +215,25 @@ describe("SpiceFi4626", function () {
           constants.accounts.Dev,
           constants.accounts.Multisig,
           ethers.constants.AddressZero,
+        ],
+        {
+          unsafeAllow: ["delegatecall"],
+          kind: "uups",
+        }
+      )
+    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
+    await expect(
+      upgrades.deployProxy(
+        SpiceFi4626,
+        [
+          spiceVaultName,
+          spiceVaultSymbol,
+          weth.address,
+          [vault.address, bend.address, ethers.constants.AddressZero],
+          admin.address,
+          constants.accounts.Dev,
+          constants.accounts.Multisig,
+          treasury.address,
         ],
         {
           unsafeAllow: ["delegatecall"],
@@ -1600,6 +1619,105 @@ describe("SpiceFi4626", function () {
       await spiceVault.connect(admin).setWithdrawalFees(1000);
 
       expect(await spiceVault.withdrawalFees()).to.be.eq(1000);
+    });
+
+    it("Set Dev", async function () {
+      await expect(
+        spiceVault.connect(alice).setDev(carol.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        spiceVault.connect(admin).setDev(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(spiceVault, "InvalidAddress");
+
+      const tx = await spiceVault.connect(admin).setDev(carol.address);
+
+      await expect(tx).to.emit(spiceVault, "DevUpdated").withArgs(carol.address);
+      expect(await spiceVault.dev()).to.be.eq(carol.address);
+
+      await checkRole(
+        spiceVault,
+        constants.accounts.Dev,
+        defaultAdminRole,
+        false
+      );
+      await checkRole(spiceVault, constants.accounts.Dev, strategistRole, false);
+      await checkRole(spiceVault, constants.accounts.Dev, userRole, false);
+      await checkRole(
+        spiceVault,
+        carol.address,
+        defaultAdminRole,
+        true
+      );
+      await checkRole(spiceVault, carol.address, strategistRole, true);
+      await checkRole(spiceVault, carol.address, userRole, true);
+    });
+
+    it("Set Multisig", async function () {
+      await expect(
+        spiceVault.connect(alice).setMultisig(carol.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        spiceVault.connect(admin).setMultisig(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(spiceVault, "InvalidAddress");
+
+      const tx = await spiceVault.connect(admin).setMultisig(carol.address);
+
+      await expect(tx).to.emit(spiceVault, "MultisigUpdated").withArgs(carol.address);
+      expect(await spiceVault.multisig()).to.be.eq(carol.address);
+
+      await checkRole(
+        spiceVault,
+        constants.accounts.Multisig,
+        defaultAdminRole,
+        false
+      );
+      await checkRole(
+        spiceVault,
+        constants.accounts.Multisig,
+        assetReceiverRole,
+        false
+      );
+      await checkRole(spiceVault, constants.accounts.Multisig, userRole, false);
+      await checkRole(spiceVault, constants.accounts.Multisig, spiceRole, false);
+      await checkRole(
+        spiceVault,
+        carol.address,
+        defaultAdminRole,
+        true
+      );
+      await checkRole(
+        spiceVault,
+        carol.address,
+        assetReceiverRole,
+        true
+      );
+      await checkRole(spiceVault, carol.address, userRole, true);
+      await checkRole(spiceVault, carol.address, spiceRole, true);
+    });
+
+    it("Set Fee Recipient", async function () {
+      await expect(
+        spiceVault.connect(alice).setFeeRecipient(carol.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        spiceVault.connect(admin).setFeeRecipient(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(spiceVault, "InvalidAddress");
+
+      const tx = await spiceVault.connect(admin).setFeeRecipient(carol.address);
+
+      await expect(tx)
+        .to.emit(spiceVault, "FeeRecipientUpdated")
+        .withArgs(carol.address);
+      expect(await spiceVault.feeRecipient()).to.be.eq(carol.address);
     });
 
     it("Set max total supply", async function () {

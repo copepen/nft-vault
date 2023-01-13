@@ -51,8 +51,8 @@ describe("SpiceFiFactory", function () {
     vault = await upgrades.deployProxy(
       Vault,
       [
-        "Spice Vault Test Token",
-        "svTT",
+        vaultName,
+        vaultSymbol,
         weth.address,
         [],
         admin.address,
@@ -240,5 +240,64 @@ describe("SpiceFiFactory", function () {
     await checkRole(createdVault, bend.address, vaultRole, true);
     await checkRole(createdVault, drops.address, vaultRole, true);
     await checkRole(factory, createdVault.address, aggregatorRole, true);
+  });
+
+  describe("Setters", function () {
+    it("Set Dev", async function () {
+      await expect(
+        factory.connect(alice).setDev(carol.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        factory.connect(admin).setDev(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(factory, "InvalidAddress");
+
+      const tx = await factory.connect(admin).setDev(carol.address);
+
+      await expect(tx)
+        .to.emit(factory, "DevUpdated")
+        .withArgs(carol.address);
+      expect(await factory.dev()).to.be.eq(carol.address);
+    });
+
+    it("Set Multisig", async function () {
+      await expect(
+        factory.connect(alice).setMultisig(carol.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        factory.connect(admin).setMultisig(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(factory, "InvalidAddress");
+
+      const tx = await factory.connect(admin).setMultisig(carol.address);
+
+      await expect(tx)
+        .to.emit(factory, "MultisigUpdated")
+        .withArgs(carol.address);
+      expect(await factory.multisig()).to.be.eq(carol.address);
+    });
+
+    it("Set Fee Recipient", async function () {
+      await expect(
+        factory.connect(alice).setFeeRecipient(carol.address)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      await expect(
+        factory.connect(admin).setFeeRecipient(ethers.constants.AddressZero)
+      ).to.be.revertedWithCustomError(factory, "InvalidAddress");
+
+      const tx = await factory.connect(admin).setFeeRecipient(carol.address);
+
+      await expect(tx)
+        .to.emit(factory, "FeeRecipientUpdated")
+        .withArgs(carol.address);
+      expect(await factory.feeRecipient()).to.be.eq(carol.address);
+    });
   });
 });

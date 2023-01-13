@@ -1,4 +1,4 @@
-const { BigNumber } = require("ethers");
+const { BigNumber, constants, utils } = require("ethers");
 
 const BaseTerms = [
   {
@@ -116,8 +116,33 @@ const sign = async (signer, verifier, types, terms) => {
   return signature;
 };
 
+const signTestHashAndSignature = async (signer) => {
+  const chainId = BigNumber.from(await signer.getChainId());
+  const domain = {
+    name: "SpiceLending",
+    version: "1",
+    chainId,
+    verifyingContract: constants.AddressZero,
+  };
+  const types = {
+    Test: [
+      {
+        name: "value",
+        type: "uint256",
+      },
+    ],
+  };
+  const data = {
+    value: 10
+  };
+  const hash = utils._TypedDataEncoder.hash(domain, types, data);
+  const signature = await signer._signTypedData(domain, types, data);
+  return [hash, signature];
+};
+
 module.exports = {
   signLoanTerms,
   signExtendLoanTerms,
   signIncreaseLoanTerms,
+  signTestHashAndSignature,
 };
