@@ -16,7 +16,7 @@ describe("SpiceFi4626", function () {
   let spiceVault;
 
   // accounts
-  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury;
+  let admin, alice, bob, carol, strategist, spiceAdmin, treasury;
   let whale, dev;
 
   // snapshot ID
@@ -57,16 +57,8 @@ describe("SpiceFi4626", function () {
   }
 
   before("Deploy", async function () {
-    [
-      admin,
-      alice,
-      bob,
-      carol,
-      strategist,
-      spiceAdmin,
-      assetReceiver,
-      treasury,
-    ] = await ethers.getSigners();
+    [admin, alice, bob, carol, strategist, spiceAdmin, treasury] =
+      await ethers.getSigners();
 
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
@@ -533,7 +525,9 @@ describe("SpiceFi4626", function () {
   describe("User Actions", function () {
     describe("Deposit", function () {
       it("When there are no accounts with USER_ROLE", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
+        await spiceVault.connect(dev).revokeRole(userRole, constants.accounts.Dev);
+        await spiceVault.connect(dev).revokeRole(userRole, constants.accounts.Multisig);
+        await spiceVault.connect(dev).revokeRole(userRole, admin.address);
         const amount = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(spiceVault.address, amount);
         await spiceVault
