@@ -15,7 +15,6 @@ import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../interfaces/IVault.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Storage for Vault

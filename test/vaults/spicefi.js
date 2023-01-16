@@ -82,169 +82,93 @@ describe("SpiceFi4626", function () {
     );
 
     const Vault = await ethers.getContractFactory("Vault");
+    let beacon = await upgrades.deployBeacon(Vault);
 
-    vault = await upgrades.deployProxy(
-      Vault,
-      [
-        vaultName,
-        vaultSymbol,
-        weth.address,
-        [],
+    vault = await upgrades.deployBeaconProxy(beacon, Vault, [
+      vaultName,
+      vaultSymbol,
+      weth.address,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
+
+    const Bend4626 = await ethers.getContractFactory("Bend4626");
+    beacon = await upgrades.deployBeacon(Bend4626);
+
+    bend = await upgrades.deployBeaconProxy(beacon, Bend4626, [
+      bendVaultName,
+      bendVaultSymbol,
+      constants.contracts.BendPool,
+      constants.tokens.BendWETH,
+    ]);
+
+    const Drops4626 = await ethers.getContractFactory("Drops4626");
+    beacon = await upgrades.deployBeacon(Drops4626);
+
+    drops = await upgrades.deployBeaconProxy(beacon, Drops4626, [
+      dropsVaultName,
+      dropsVaultSymbol,
+      constants.tokens.DropsETH,
+    ]);
+
+    const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
+    beacon = await upgrades.deployBeacon(SpiceFi4626, {
+      unsafeAllow: ["delegatecall"],
+    });
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        ethers.constants.AddressZero,
+        [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
         treasury.address,
-      ],
-      {
-        kind: "uups",
-      }
-    );
-
-    const Bend4626 = await ethers.getContractFactory("Bend4626");
-
-    bend = await upgrades.deployProxy(
-      Bend4626,
-      [
-        bendVaultName,
-        bendVaultSymbol,
-        constants.contracts.BendPool,
-        constants.tokens.BendWETH,
-      ],
-      {
-        kind: "uups",
-      }
-    );
-
-    const Drops4626 = await ethers.getContractFactory("Drops4626");
-
-    drops = await upgrades.deployProxy(
-      Drops4626,
-      [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
-      {
-        kind: "uups",
-      }
-    );
-
-    const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
-
-    await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          ethers.constants.AddressZero,
-          [vault.address, bend.address, drops.address],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
+      ])
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          weth.address,
-          [vault.address, bend.address, drops.address],
-          ethers.constants.AddressZero,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        [vault.address, bend.address, drops.address],
+        ethers.constants.AddressZero,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          weth.address,
-          [vault.address, bend.address, drops.address],
-          admin.address,
-          ethers.constants.AddressZero,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        [vault.address, bend.address, drops.address],
+        admin.address,
+        ethers.constants.AddressZero,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          weth.address,
-          [vault.address, bend.address, drops.address],
-          admin.address,
-          constants.accounts.Dev,
-          ethers.constants.AddressZero,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        [vault.address, bend.address, drops.address],
+        admin.address,
+        constants.accounts.Dev,
+        ethers.constants.AddressZero,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          weth.address,
-          [vault.address, bend.address, drops.address],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          ethers.constants.AddressZero,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
-    await expect(
-      upgrades.deployProxy(
-        SpiceFi4626,
-        [
-          spiceVaultName,
-          spiceVaultSymbol,
-          weth.address,
-          [vault.address, bend.address, ethers.constants.AddressZero],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
-
-    spiceVault = await upgrades.deployProxy(
-      SpiceFi4626,
-      [
+      upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
         spiceVaultName,
         spiceVaultSymbol,
         weth.address,
@@ -252,13 +176,32 @@ describe("SpiceFi4626", function () {
         admin.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
+        ethers.constants.AddressZero,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        [vault.address, bend.address, ethers.constants.AddressZero],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
         treasury.address,
-      ],
-      {
-        unsafeAllow: ["delegatecall"],
-        kind: "uups",
-      }
-    );
+      ])
+    ).to.be.revertedWithCustomError(SpiceFi4626, "InvalidAddress");
+
+    spiceVault = await upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+      spiceVaultName,
+      spiceVaultSymbol,
+      weth.address,
+      [vault.address, bend.address, drops.address],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     await spiceVault
       .connect(dev)
@@ -355,24 +298,6 @@ describe("SpiceFi4626", function () {
           treasury.address
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
-    });
-
-    it("Should be upgraded only by default admin", async function () {
-      let SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626", alice);
-
-      await expect(
-        upgrades.upgradeProxy(spiceVault.address, SpiceFi4626, {
-          unsafeAllow: ["delegatecall"],
-        })
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
-      );
-
-      SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626", admin);
-
-      await upgrades.upgradeProxy(spiceVault.address, SpiceFi4626, {
-        unsafeAllow: ["delegatecall"],
-      });
     });
   });
 
@@ -1634,7 +1559,9 @@ describe("SpiceFi4626", function () {
 
       const tx = await spiceVault.connect(admin).setDev(carol.address);
 
-      await expect(tx).to.emit(spiceVault, "DevUpdated").withArgs(carol.address);
+      await expect(tx)
+        .to.emit(spiceVault, "DevUpdated")
+        .withArgs(carol.address);
       expect(await spiceVault.dev()).to.be.eq(carol.address);
 
       await checkRole(
@@ -1643,14 +1570,14 @@ describe("SpiceFi4626", function () {
         defaultAdminRole,
         false
       );
-      await checkRole(spiceVault, constants.accounts.Dev, strategistRole, false);
-      await checkRole(spiceVault, constants.accounts.Dev, userRole, false);
       await checkRole(
         spiceVault,
-        carol.address,
-        defaultAdminRole,
-        true
+        constants.accounts.Dev,
+        strategistRole,
+        false
       );
+      await checkRole(spiceVault, constants.accounts.Dev, userRole, false);
+      await checkRole(spiceVault, carol.address, defaultAdminRole, true);
       await checkRole(spiceVault, carol.address, strategistRole, true);
       await checkRole(spiceVault, carol.address, userRole, true);
     });
@@ -1668,7 +1595,9 @@ describe("SpiceFi4626", function () {
 
       const tx = await spiceVault.connect(admin).setMultisig(carol.address);
 
-      await expect(tx).to.emit(spiceVault, "MultisigUpdated").withArgs(carol.address);
+      await expect(tx)
+        .to.emit(spiceVault, "MultisigUpdated")
+        .withArgs(carol.address);
       expect(await spiceVault.multisig()).to.be.eq(carol.address);
 
       await checkRole(
@@ -1684,19 +1613,14 @@ describe("SpiceFi4626", function () {
         false
       );
       await checkRole(spiceVault, constants.accounts.Multisig, userRole, false);
-      await checkRole(spiceVault, constants.accounts.Multisig, spiceRole, false);
       await checkRole(
         spiceVault,
-        carol.address,
-        defaultAdminRole,
-        true
+        constants.accounts.Multisig,
+        spiceRole,
+        false
       );
-      await checkRole(
-        spiceVault,
-        carol.address,
-        assetReceiverRole,
-        true
-      );
+      await checkRole(spiceVault, carol.address, defaultAdminRole, true);
+      await checkRole(spiceVault, carol.address, assetReceiverRole, true);
       await checkRole(spiceVault, carol.address, userRole, true);
       await checkRole(spiceVault, carol.address, spiceRole, true);
     });

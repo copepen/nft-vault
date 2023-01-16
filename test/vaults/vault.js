@@ -22,7 +22,7 @@ describe("Vault", function () {
     whitelistRole,
     marketplaceRole;
 
-    const vaultName = "Spice Vault Test Token";
+  const vaultName = "Spice Vault Test Token";
   const vaultSymbol = "svTT";
   const INVALID_SIGNATURE1 = "0x0000";
   const INVALID_SIGNATURE2 =
@@ -70,122 +70,73 @@ describe("Vault", function () {
     nft = await deployNFT();
 
     const Vault = await ethers.getContractFactory("Vault");
+    const beacon = await upgrades.deployBeacon(Vault);
 
     await expect(
-      upgrades.deployProxy(
-        Vault,
-        [
-          vaultName,
-          vaultSymbol,
-          ethers.constants.AddressZero,
-          [marketplace1.address, marketplace2.address],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, Vault, [
+        vaultName,
+        vaultSymbol,
+        ethers.constants.AddressZero,
+        [marketplace1.address, marketplace2.address],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(
-        Vault,
-        [
-          vaultName,
-          vaultSymbol,
-          token.address,
-          [marketplace1.address, ethers.constants.AddressZero],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, Vault, [
+        vaultName,
+        vaultSymbol,
+        token.address,
+        [marketplace1.address, ethers.constants.AddressZero],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
     await expect(
-      upgrades.deployProxy(
-        Vault,
-        [
-          vaultName,
-          vaultSymbol,
-          token.address,
-          [marketplace1.address, marketplace2.address],
-          ethers.constants.AddressZero,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, Vault, [
+        vaultName,
+        vaultSymbol,
+        token.address,
+        [marketplace1.address, marketplace2.address],
+        ethers.constants.AddressZero,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(
-        Vault,
-        [
-          vaultName,
-          vaultSymbol,
-          token.address,
-          [marketplace1.address, marketplace2.address],
-          admin.address,
-          ethers.constants.AddressZero,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, Vault, [
+        vaultName,
+        vaultSymbol,
+        token.address,
+        [marketplace1.address, marketplace2.address],
+        admin.address,
+        ethers.constants.AddressZero,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(
-        Vault,
-        [
-          vaultName,
-          vaultSymbol,
-          token.address,
-          [marketplace1.address, marketplace2.address],
-          admin.address,
-          constants.accounts.Dev,
-          ethers.constants.AddressZero,
-          treasury.address,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, Vault, [
+        vaultName,
+        vaultSymbol,
+        token.address,
+        [marketplace1.address, marketplace2.address],
+        admin.address,
+        constants.accounts.Dev,
+        ethers.constants.AddressZero,
+        treasury.address,
+      ])
     ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(
-        Vault,
-        [
-          vaultName,
-          vaultSymbol,
-          token.address,
-          [marketplace1.address, marketplace2.address],
-          admin.address,
-          constants.accounts.Dev,
-          constants.accounts.Multisig,
-          ethers.constants.AddressZero,
-        ],
-        {
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
-
-    vault = await upgrades.deployProxy(
-      Vault,
-      [
+      upgrades.deployBeaconProxy(beacon, Vault, [
         vaultName,
         vaultSymbol,
         token.address,
@@ -193,12 +144,20 @@ describe("Vault", function () {
         admin.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
-        treasury.address,
-      ],
-      {
-        kind: "uups",
-      }
-    );
+        ethers.constants.AddressZero,
+      ])
+    ).to.be.revertedWithCustomError(Vault, "InvalidAddress");
+
+    vault = await upgrades.deployBeaconProxy(beacon, Vault, [
+      vaultName,
+      vaultSymbol,
+      token.address,
+      [marketplace1.address, marketplace2.address],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
     creatorRole = await vault.CREATOR_ROLE();
@@ -267,20 +226,6 @@ describe("Vault", function () {
           treasury.address
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
-    });
-
-    it("Should be upgraded only by default admin", async function () {
-      let Vault = await ethers.getContractFactory("Vault", alice);
-
-      await expect(
-        upgrades.upgradeProxy(vault.address, Vault)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
-      );
-
-      Vault = await ethers.getContractFactory("Vault", dev);
-
-      await upgrades.upgradeProxy(vault.address, Vault);
     });
   });
 

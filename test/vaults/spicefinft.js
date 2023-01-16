@@ -78,146 +78,96 @@ describe("SpiceFiNFT4626", function () {
     );
 
     const Vault = await ethers.getContractFactory("Vault");
+    let beacon = await upgrades.deployBeacon(Vault);
 
-    vault = await upgrades.deployProxy(
-      Vault,
-      [
-        vaultName,
-        vaultSymbol,
-        weth.address,
-        [],
-        admin.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        treasury.address,
-      ],
-      {
-        kind: "uups",
-      }
-    );
+    vault = await upgrades.deployBeaconProxy(beacon, Vault, [
+      vaultName,
+      vaultSymbol,
+      weth.address,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
+    beacon = await upgrades.deployBeacon(Bend4626);
 
-    bend = await upgrades.deployProxy(
-      Bend4626,
-      [
-        bendVaultName,
-        bendVaultSymbol,
-        constants.contracts.BendPool,
-        constants.tokens.BendWETH,
-      ],
-      {
-        kind: "uups",
-      }
-    );
+    bend = await upgrades.deployBeaconProxy(beacon, Bend4626, [
+      bendVaultName,
+      bendVaultSymbol,
+      constants.contracts.BendPool,
+      constants.tokens.BendWETH,
+    ]);
 
     const Drops4626 = await ethers.getContractFactory("Drops4626");
+    beacon = await upgrades.deployBeacon(Drops4626);
 
-    drops = await upgrades.deployProxy(
-      Drops4626,
-      [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
-      {
-        kind: "uups",
-      }
-    );
+    drops = await upgrades.deployBeaconProxy(beacon, Drops4626, [
+      dropsVaultName,
+      dropsVaultSymbol,
+      constants.tokens.DropsETH,
+    ]);
 
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
+    beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
+      unsafeAllow: ["delegatecall"],
+    });
 
     await expect(
-      upgrades.deployProxy(
-        SpiceFiNFT4626,
-        [
-          ethers.constants.AddressZero,
-          assetReceiver.address,
-          700,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
-    await expect(
-      upgrades.deployProxy(
-        SpiceFiNFT4626,
-        [
-          strategist.address,
-          ethers.constants.AddressZero,
-          700,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
-    await expect(
-      upgrades.deployProxy(
-        SpiceFiNFT4626,
-        [
-          strategist.address,
-          assetReceiver.address,
-          10001,
-          constants.accounts.Multisig,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
-    await expect(
-      upgrades.deployProxy(
-        SpiceFiNFT4626,
-        [
-          strategist.address,
-          assetReceiver.address,
-          700,
-          ethers.constants.AddressZero,
-          treasury.address,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
-    await expect(
-      upgrades.deployProxy(
-        SpiceFiNFT4626,
-        [
-          strategist.address,
-          assetReceiver.address,
-          700,
-          constants.accounts.Multisig,
-          ethers.constants.AddressZero,
-        ],
-        {
-          unsafeAllow: ["delegatecall"],
-          kind: "uups",
-        }
-      )
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
-
-    spiceVault = await upgrades.deployProxy(
-      SpiceFiNFT4626,
-      [
-        strategist.address,
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        ethers.constants.AddressZero,
         assetReceiver.address,
         700,
         constants.accounts.Multisig,
         treasury.address,
-      ],
-      {
-        unsafeAllow: ["delegatecall"],
-        kind: "uups",
-      }
-    );
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        strategist.address,
+        ethers.constants.AddressZero,
+        700,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        strategist.address,
+        assetReceiver.address,
+        10001,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        strategist.address,
+        assetReceiver.address,
+        700,
+        ethers.constants.AddressZero,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        strategist.address,
+        assetReceiver.address,
+        700,
+        constants.accounts.Multisig,
+        ethers.constants.AddressZero,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
+
+    spiceVault = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      strategist.address,
+      assetReceiver.address,
+      700,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     defaultAdminRole = await spiceVault.DEFAULT_ADMIN_ROLE();
     strategistRole = await spiceVault.STRATEGIST_ROLE();
@@ -287,27 +237,6 @@ describe("SpiceFiNFT4626", function () {
           treasury.address
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
-    });
-
-    it("Should be upgraded only by default admin", async function () {
-      let SpiceFiNFT4626 = await ethers.getContractFactory(
-        "SpiceFiNFT4626",
-        alice
-      );
-
-      await expect(
-        upgrades.upgradeProxy(spiceVault.address, SpiceFiNFT4626, {
-          unsafeAllow: ["delegatecall"],
-        })
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
-      );
-
-      SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626", admin);
-
-      await upgrades.upgradeProxy(spiceVault.address, SpiceFiNFT4626, {
-        unsafeAllow: ["delegatecall"],
-      });
     });
   });
 
