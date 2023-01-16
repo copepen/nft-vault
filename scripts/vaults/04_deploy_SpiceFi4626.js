@@ -1,4 +1,5 @@
 const hre = require("hardhat");
+const constants = require("../../test/constants");
 
 async function main() {
   const { ethers, upgrades } = hre;
@@ -9,14 +10,26 @@ async function main() {
     hre.network.name === "mainnet"
       ? "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2" // mainnet weth
       : "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6"; // goerli weth
-  const args = [WETH, deployer.address, deployer.address, 0];
+  const args = [
+    "Spice Flagship Vault",         // name
+    "SF",                           // symbol
+    WETH,                           // asset
+    [],                             // vaults
+    deployer.address,               // creator
+    constants.accounts.Dev,         // dev
+    constants.accounts.Multisig,    // multisig
+    constants.accounts.Multisig     // fee recipient
+  ];
 
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
-  const vault = await upgrades.deployProxy(SpiceFi4626, args, {
+  const beacon = await upgrades.deployBeacon(SpiceFi4626, {
     unsafeAllow: ["delegatecall"],
-    kind: "uups",
   });
+  await beacon.deployed();
 
+  await deployments.save("SpiceFi4626", beacon);
+
+  const vault = await upgrades.deployBeaconProxy(beacon, SpiceFi4626, args);
   await vault.deployed();
 
   console.log(`SpiceFi4626 deployed to ${vault.address}`);

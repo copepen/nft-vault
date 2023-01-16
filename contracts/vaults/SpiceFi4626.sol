@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts/access/IAccessControl.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
@@ -43,7 +42,6 @@ abstract contract SpiceFi4626Storage {
 contract SpiceFi4626 is
     IAggregatorVault,
     SpiceFi4626Storage,
-    UUPSUpgradeable,
     ERC4626Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
@@ -176,11 +174,6 @@ contract SpiceFi4626 is
         _setupRole(USER_ROLE, _creator);
         _setupRole(SPICE_ROLE, _multisig);
     }
-
-    /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
