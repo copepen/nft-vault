@@ -13,8 +13,11 @@ async function main() {
   ];
 
   const Bend4626 = await ethers.getContractFactory("Bend4626");
-  const vault = await upgrades.deployProxy(Bend4626, args, { kind: "uups" });
+  const beacon = await upgrades.deployBeacon(Bend4626);
+  await beacon.deployed();
+  await deployments.save("Bend4626", beacon);
 
+  const vault = await upgrades.deployBeaconProxy(beacon, Bend4626, args);
   await vault.deployed();
 
   console.log(`Bend4626 deployed to ${vault.address}`);

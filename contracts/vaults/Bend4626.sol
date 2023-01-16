@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
@@ -35,7 +34,6 @@ abstract contract Bend4626Storage {
 contract Bend4626 is
     Bend4626Storage,
     Initializable,
-    UUPSUpgradeable,
     ERC20Upgradeable,
     ReentrancyGuardUpgradeable,
     AccessControlEnumerableUpgradeable
@@ -120,13 +118,6 @@ contract Bend4626 is
         lpTokenAddress = lpTokenAddress_;
         _decimals = decimals_;
     }
-
-    /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        override
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
