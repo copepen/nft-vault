@@ -4,7 +4,6 @@ async function main() {
   const { ethers, upgrades, deployments } = hre;
 
   const beacon = await deployments.get("Vault");
-
   const Vault = await ethers.getContractFactory("Vault");
   const vault = await upgrades.upgradeBeacon(beacon.address, Vault);
   await vault.deployed();

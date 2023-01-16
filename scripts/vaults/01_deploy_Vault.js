@@ -26,7 +26,6 @@ async function main() {
   await deployments.save("Vault", beacon);
 
   const vault = await upgrades.deployBeaconProxy(beacon, Vault, args);
-
   await vault.deployed();
 
   console.log(`Vault deployed to ${vault.address}`);
