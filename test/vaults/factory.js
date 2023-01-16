@@ -11,7 +11,7 @@ describe("SpiceFiFactory", function () {
   let factory;
   let beacon;
 
-  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury;
+  let admin, alice, bob, treasury;
 
   let snapshotId;
 
@@ -29,16 +29,7 @@ describe("SpiceFiFactory", function () {
   }
 
   before("Deploy", async function () {
-    [
-      admin,
-      alice,
-      bob,
-      carol,
-      strategist,
-      spiceAdmin,
-      assetReceiver,
-      treasury,
-    ] = await ethers.getSigners();
+    [admin, alice, bob, treasury] = await ethers.getSigners();
 
     weth = await ethers.getContractAt(
       "TestERC20",
@@ -215,7 +206,7 @@ describe("SpiceFiFactory", function () {
   describe("Setters", function () {
     it("Set Dev", async function () {
       await expect(
-        factory.connect(alice).setDev(carol.address)
+        factory.connect(alice).setDev(bob.address)
       ).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
       );
@@ -224,15 +215,15 @@ describe("SpiceFiFactory", function () {
         factory.connect(admin).setDev(ethers.constants.AddressZero)
       ).to.be.revertedWithCustomError(factory, "InvalidAddress");
 
-      const tx = await factory.connect(admin).setDev(carol.address);
+      const tx = await factory.connect(admin).setDev(bob.address);
 
-      await expect(tx).to.emit(factory, "DevUpdated").withArgs(carol.address);
-      expect(await factory.dev()).to.be.eq(carol.address);
+      await expect(tx).to.emit(factory, "DevUpdated").withArgs(bob.address);
+      expect(await factory.dev()).to.be.eq(bob.address);
     });
 
     it("Set Multisig", async function () {
       await expect(
-        factory.connect(alice).setMultisig(carol.address)
+        factory.connect(alice).setMultisig(bob.address)
       ).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
       );
@@ -241,17 +232,17 @@ describe("SpiceFiFactory", function () {
         factory.connect(admin).setMultisig(ethers.constants.AddressZero)
       ).to.be.revertedWithCustomError(factory, "InvalidAddress");
 
-      const tx = await factory.connect(admin).setMultisig(carol.address);
+      const tx = await factory.connect(admin).setMultisig(bob.address);
 
       await expect(tx)
         .to.emit(factory, "MultisigUpdated")
-        .withArgs(carol.address);
-      expect(await factory.multisig()).to.be.eq(carol.address);
+        .withArgs(bob.address);
+      expect(await factory.multisig()).to.be.eq(bob.address);
     });
 
     it("Set Fee Recipient", async function () {
       await expect(
-        factory.connect(alice).setFeeRecipient(carol.address)
+        factory.connect(alice).setFeeRecipient(bob.address)
       ).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
       );
@@ -260,12 +251,12 @@ describe("SpiceFiFactory", function () {
         factory.connect(admin).setFeeRecipient(ethers.constants.AddressZero)
       ).to.be.revertedWithCustomError(factory, "InvalidAddress");
 
-      const tx = await factory.connect(admin).setFeeRecipient(carol.address);
+      const tx = await factory.connect(admin).setFeeRecipient(bob.address);
 
       await expect(tx)
         .to.emit(factory, "FeeRecipientUpdated")
-        .withArgs(carol.address);
-      expect(await factory.feeRecipient()).to.be.eq(carol.address);
+        .withArgs(bob.address);
+      expect(await factory.feeRecipient()).to.be.eq(bob.address);
     });
   });
 });

@@ -71,6 +71,7 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
     /// @notice Constructor
     /// @param _beacon Beacon address
+    /// @param _dev Initial dev address
     /// @param _multisig Initial multisig address
     /// @param _feeRecipient Initial fee recipient address
     constructor(

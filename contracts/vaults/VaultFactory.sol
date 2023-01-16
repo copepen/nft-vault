@@ -3,13 +3,16 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/proxy/Clones.sol";
-
-import "./Vault.sol";
+import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 interface ISpiceFiFactory {
     function ASSET_ROLE() external view returns (bytes32);
 
-    function hasRole(bytes32 role, address account) external view returns (bool);
+    function hasRole(
+        bytes32 role,
+        address account
+    ) external view returns (bool);
 }
 
 /**
@@ -20,8 +23,8 @@ contract VaultFactory is AccessControlEnumerable {
     using Clones for address;
     using StringsUpgradeable for uint256;
 
-    /// @notice Vault implementation
-    Vault public immutable implementation;
+    /// @notice Beacon address
+    address public immutable beacon;
 
     /// @notice SpiceFiFactory
     ISpiceFiFactory public immutable factory;
@@ -83,18 +86,19 @@ contract VaultFactory is AccessControlEnumerable {
     /***************/
 
     /// @notice Constructor
-    /// @param _implementation Vault implementation address
+    /// @param _beacon Beacon address
     /// @param _factory SpiceFiFactory contract
+    /// @param _dev Initial dev address
     /// @param _multisig Initial multisig address
     /// @param _feeRecipient Initial fee recipient address
     constructor(
-        Vault _implementation,
+        address _beacon,
         address _factory,
         address _dev,
         address _multisig,
         address _feeRecipient
     ) {
-        if (address(_implementation) == address(0)) {
+        if (address(_beacon) == address(0)) {
             revert InvalidAddress();
         }
         if (_factory == address(0)) {
@@ -112,7 +116,7 @@ contract VaultFactory is AccessControlEnumerable {
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-        implementation = _implementation;
+        beacon = _beacon;
         factory = ISpiceFiFactory(_factory);
         dev = _dev;
         multisig = _multisig;
@@ -177,7 +181,7 @@ contract VaultFactory is AccessControlEnumerable {
     function createVault(
         address asset,
         address[] calldata marketplaces
-    ) external returns (Vault vault) {
+    ) external returns (address vault) {
         if (asset == address(0)) {
             revert InvalidAddress();
         }
@@ -192,22 +196,28 @@ contract VaultFactory is AccessControlEnumerable {
             _checkRole(MARKETPLACE_ROLE, marketplaces[i]);
         }
 
-        vault = Vault(address(implementation).clone());
+        uint256 vaultId = getRoleMemberCount(VAULT_ROLE) + 1;
+        vault = address(
+            new BeaconProxy(
+                beacon,
+                abi.encodeWithSignature(
+                    "initialize(string,string,address,address[],address,address,address,address)",
+                    string(
+                        abi.encodePacked("Spice", vaultId.toString(), "Vault")
+                    ),
+                    string(abi.encodePacked("s", vaultId.toString(), "v")),
+                    asset,
+                    marketplaces,
+                    msg.sender,
+                    dev,
+                    multisig,
+                    feeRecipient
+                )
+            )
+        );
 
         // grant VAULT_ROLE for tracking
         _grantRole(VAULT_ROLE, address(vault));
-
-        uint256 vaultId = getRoleMemberCount(VAULT_ROLE);
-        vault.initialize(
-            string(abi.encodePacked("Spice", vaultId.toString(), "Vault")),
-            string(abi.encodePacked("s", vaultId.toString(), "v")),
-            asset,
-            marketplaces,
-            msg.sender,
-            dev,
-            multisig,
-            feeRecipient
-        );
 
         emit VaultCreated(msg.sender, address(vault));
     }

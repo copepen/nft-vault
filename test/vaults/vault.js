@@ -61,6 +61,11 @@ describe("Vault", function () {
     );
     dev = await ethers.getSigner(constants.accounts.Dev);
 
+    await admin.sendTransaction({
+      to: constants.accounts.Dev,
+      value: ethers.utils.parseEther("10"),
+    });
+
     const amount = ethers.utils.parseEther("1000000");
     token = await deployTokenAndAirdrop(
       [admin, alice, bob, carol, dave],
@@ -182,11 +187,11 @@ describe("Vault", function () {
 
   describe("Deployment", function () {
     it("Should set the correct name", async function () {
-      expect(await vault.name()).to.equal("Spice Vault Test Token");
+      expect(await vault.name()).to.equal(vaultName);
     });
 
     it("Should set the correct symbol", async function () {
-      expect(await vault.symbol()).to.equal("svTT");
+      expect(await vault.symbol()).to.equal(vaultSymbol);
     });
 
     it("Should set the correct decimal", async function () {
@@ -481,37 +486,6 @@ describe("Vault", function () {
           expect(await vault.totalAssets()).to.be.eq(assets);
         });
 
-        it("When totalAssets is different from shares", async function () {
-          const assets = ethers.utils.parseEther("100");
-          let shares = await vault.previewDeposit(assets);
-
-          await token.connect(alice).approve(vault.address, assets);
-
-          const beforeAssetBalance = await token.balanceOf(alice.address);
-          const beforeShareBalance = await vault.balanceOf(bob.address);
-
-          await vault.connect(alice).deposit(assets, bob.address);
-
-          expect(await vault.balanceOf(bob.address)).to.be.eq(
-            beforeShareBalance.add(shares)
-          );
-          expect(await token.balanceOf(alice.address)).to.be.eq(
-            beforeAssetBalance.sub(assets)
-          );
-
-          expect(await vault.totalAssets()).to.be.eq(assets);
-          expect(await vault.totalSupply()).to.be.eq(shares);
-
-          let totalAssets = ethers.utils.parseEther("200");
-          await vault.connect(dev).setTotalAssets(totalAssets);
-          expect(await vault.totalAssets()).to.be.eq(totalAssets);
-
-          shares = await vault.previewDeposit(assets);
-          expect(shares).to.be.eq(
-            (await vault.totalSupply()).mul(assets).div(totalAssets)
-          );
-        });
-
         it("Multi users deposit", async function () {
           const users = [alice, bob, carol];
           const amounts = [
@@ -650,37 +624,6 @@ describe("Vault", function () {
           expect(await vault.totalAssets()).to.be.eq(assets);
         });
 
-        it("When totalAssets is different from shares", async function () {
-          const shares = ethers.utils.parseEther("100");
-          let assets = await vault.previewMint(shares);
-
-          await token.connect(alice).approve(vault.address, assets);
-
-          const beforeAssetBalance = await token.balanceOf(alice.address);
-          const beforeShareBalance = await vault.balanceOf(bob.address);
-
-          await vault.connect(alice).mint(shares, bob.address);
-
-          expect(await vault.balanceOf(bob.address)).to.be.eq(
-            beforeShareBalance.add(shares)
-          );
-          expect(await token.balanceOf(alice.address)).to.be.eq(
-            beforeAssetBalance.sub(assets)
-          );
-
-          expect(await vault.totalAssets()).to.be.eq(assets);
-          expect(await vault.totalSupply()).to.be.eq(shares);
-
-          let totalAssets = ethers.utils.parseEther("200");
-          await vault.connect(dev).setTotalAssets(totalAssets);
-          expect(await vault.totalAssets()).to.be.eq(totalAssets);
-
-          assets = await vault.previewMint(shares);
-          expect(assets).to.be.eq(
-            totalAssets.mul(shares).div(await vault.totalSupply())
-          );
-        });
-
         it("Multi users mint", async function () {
           const users = [alice, bob, carol];
           const amounts = [
@@ -781,16 +724,6 @@ describe("Vault", function () {
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
       });
 
-      it("When asset balance is not enough", async function () {
-        const assets = ethers.utils.parseEther("200");
-
-        await vault.connect(dev).setTotalAssets(ethers.utils.parseEther("200"));
-
-        await expect(
-          vault.connect(alice).withdraw(assets, bob.address, alice.address)
-        ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
-      });
-
       it("Withdraw assets", async function () {
         const assets = ethers.utils.parseEther("50");
         const shares = await vault.previewWithdraw(assets);
@@ -874,16 +807,6 @@ describe("Vault", function () {
         await expect(
           vault.connect(alice).redeem(shares, bob.address, alice.address)
         ).to.be.revertedWith("ERC20: burn amount exceeds balance");
-      });
-
-      it("When shares balance is not enough", async function () {
-        const shares = ethers.utils.parseEther("100");
-
-        await vault.connect(dev).setTotalAssets(ethers.utils.parseEther("200"));
-
-        await expect(
-          vault.connect(alice).redeem(shares, bob.address, alice.address)
-        ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
       });
 
       it("Redeem shares", async function () {
@@ -1006,21 +929,6 @@ describe("Vault", function () {
       await checkRole(constants.accounts.Multisig, assetReceiverRole, false);
       await checkRole(dave.address, defaultAdminRole, true);
       await checkRole(dave.address, assetReceiverRole, true);
-    });
-
-    it("Set total assets", async function () {
-      const totalAssets = ethers.utils.parseEther("1000");
-      await expect(
-        vault.connect(alice).setTotalAssets(totalAssets)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${keeperRole}`
-      );
-
-      const tx = await vault.connect(dev).setTotalAssets(totalAssets);
-
-      await expect(tx).to.emit(vault, "TotalAssets").withArgs(totalAssets);
-
-      expect(await vault.totalAssets()).to.be.eq(totalAssets);
     });
 
     it("Pause", async function () {
