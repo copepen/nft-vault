@@ -10,7 +10,6 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeab
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
-import "../interfaces/IWETH.sol";
 import "../interfaces/ISpiceFiNFT4626.sol";
 import "../interfaces/IAggregatorVault.sol";
 
@@ -40,6 +39,12 @@ abstract contract SpiceFiNFT4626Storage {
     /// @notice Fee recipient address
     address public feeRecipient;
 
+    /// @notice NFT mint price
+    uint256 public mintPrice;
+
+    /// @notice Max totla supply
+    uint256 public maxSupply;
+
     /// @notice Token ID Pointer
     uint256 internal _tokenIdPointer;
 
@@ -48,6 +53,9 @@ abstract contract SpiceFiNFT4626Storage {
 
     /// @notice Metadata URI
     string internal _baseUri;
+
+    /// @notice Asset token address
+    address internal _asset;
 
     /// @notice Revealed;
     bool internal _revealed;
@@ -78,9 +86,6 @@ contract SpiceFiNFT4626 is
     /* Constants */
     /*************/
 
-    /// @notice WETH address
-    address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-
     /// @notice Rebalance vault assets using ERC4626 client interface
     bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
 
@@ -99,12 +104,6 @@ contract SpiceFiNFT4626 is
 
     /// @notice Creator role
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
-
-    /// @notice Max NFT Supply
-    uint256 constant MAX_SUPPLY = 555;
-
-    /// @notice Mint price
-    uint256 constant MINT_PRICE = 0.08 ether;
 
     /**********/
     /* Errors */
@@ -165,18 +164,31 @@ contract SpiceFiNFT4626 is
     /***************/
 
     /// @notice SpiceFiNFT4626 constructor (for proxy)
+    /// @param _name Token name
+    /// @param _symbol Token symbol
+    /// @param __asset Asset token address
+    /// @param _mintPrice NFT mint price
+    /// @param _maxSupply Max total supply
     /// @param _vaults Vault addresses
     /// @param _creator Creator address
     /// @param _dev Spice dev wallet
     /// @param _multisig Spice multisig wallet
     /// @param _feeRecipient Initial fee recipient address
     function initialize(
+        string memory _name,
+        string memory _symbol,
+        address __asset,
+        uint256 _mintPrice,
+        uint256 _maxSupply,
         address[] memory _vaults,
         address _creator,
         address _dev,
         address _multisig,
         address _feeRecipient
     ) public initializer {
+        if (__asset == address(0)) {
+            revert InvalidAddress();
+        }
         if (_creator == address(0)) {
             revert InvalidAddress();
         }
@@ -190,8 +202,11 @@ contract SpiceFiNFT4626 is
             revert InvalidAddress();
         }
 
-        __ERC721_init("Spice Finance", "SPICE");
+        __ERC721_init(_name, _symbol);
 
+        _asset = __asset;
+        mintPrice = _mintPrice;
+        maxSupply = _maxSupply;
         dev = _dev;
         multisig = _multisig;
         feeRecipient = _feeRecipient;
@@ -352,8 +367,8 @@ contract SpiceFiNFT4626 is
     /***********/
 
     /// @notice See {ISpiceFiNFT4626-asset}
-    function asset() public pure returns (address) {
-        return WETH;
+    function asset() public view returns (address) {
+        return _asset;
     }
 
     /// @notice See {ISpiceFiNFT4626-totalAssets}
@@ -485,8 +500,11 @@ contract SpiceFiNFT4626 is
         shares = previewDeposit(assets);
 
         if (assets > 0) {
-            IERC20Upgradeable weth = IERC20Upgradeable(WETH);
-            weth.transferFrom(msg.sender, address(this), assets);
+            IERC20Upgradeable(_asset).transferFrom(
+                msg.sender,
+                address(this),
+                assets
+            );
         }
 
         _deposit(msg.sender, tokenId, assets, shares);
@@ -503,8 +521,11 @@ contract SpiceFiNFT4626 is
         _deposit(msg.sender, tokenId, assets, shares);
 
         if (assets > 0) {
-            IERC20Upgradeable weth = IERC20Upgradeable(WETH);
-            weth.transferFrom(msg.sender, address(this), assets);
+            IERC20Upgradeable(_asset).transferFrom(
+                msg.sender,
+                address(this),
+                assets
+            );
         }
     }
 
@@ -593,7 +614,7 @@ contract SpiceFiNFT4626 is
             revert MoreThanOne();
         }
 
-        if (_tokenIdPointer == MAX_SUPPLY) {
+        if (_tokenIdPointer == maxSupply) {
             revert OutOfSupply();
         }
 
@@ -601,9 +622,8 @@ contract SpiceFiNFT4626 is
             tokenId = ++_tokenIdPointer;
         }
 
-        IERC20Upgradeable weth = IERC20Upgradeable(WETH);
         address admin = getRoleMember(SPICE_ROLE, 0);
-        weth.transferFrom(msg.sender, admin, MINT_PRICE);
+        IERC20Upgradeable(_asset).transferFrom(msg.sender, admin, mintPrice);
 
         _mint(user, tokenId);
     }
@@ -635,10 +655,10 @@ contract SpiceFiNFT4626 is
 
         uint256 half = fees / 2;
 
-        IERC20Upgradeable weth = IERC20Upgradeable(WETH);
-        weth.transfer(multisig, half);
-        weth.transfer(feeRecipient, fees - half);
-        weth.transfer(receiver, assets);
+        IERC20Upgradeable currency = IERC20Upgradeable(_asset);
+        currency.transfer(multisig, half);
+        currency.transfer(feeRecipient, fees - half);
+        currency.transfer(receiver, assets);
 
         emit Withdraw(caller, tokenId, receiver, assets, shares);
     }
