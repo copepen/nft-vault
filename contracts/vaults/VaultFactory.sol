@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
@@ -20,7 +19,6 @@ interface ISpiceFiFactory {
  * @author Spice Finance Inc
  */
 contract VaultFactory is AccessControlEnumerable {
-    using Clones for address;
     using StringsUpgradeable for uint256;
 
     /// @notice Beacon address
