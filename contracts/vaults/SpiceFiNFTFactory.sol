@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
 import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 /**
- * @title SpiceFiFactory
+ * @title SpiceFiNFTFactory
  * @author Spice Finance Inc
  */
-contract SpiceFiFactory is AccessControlEnumerable {
+contract SpiceFiNFTFactory is AccessControlEnumerable {
     using StringsUpgradeable for uint256;
 
     /// @notice Beacon address
@@ -43,6 +43,9 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
     /// @notice Invalid address (e.g. zero address)
     error InvalidAddress();
+
+    /// @notice Parameter out of bounds
+    error ParameterOutOfBounds();
 
     /**********/
     /* Events */
@@ -154,14 +157,24 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
     /// @notice Creates new BeaconProxy for SpiceFi4626 vault
     /// @param _asset Asset address for the vault
+    /// @param _mintPrice NFT mint price
+    /// @param _maxSupply Max total supply
     /// @param _vaults Default vault addresses
     /// @return vault Created vault address
     function createVault(
         address _asset,
+        uint256 _mintPrice,
+        uint256 _maxSupply,
         address[] calldata _vaults
     ) external returns (address vault) {
         if (_asset == address(0)) {
             revert InvalidAddress();
+        }
+        if (_mintPrice == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (_maxSupply == 0) {
+            revert ParameterOutOfBounds();
         }
 
         _checkRole(ASSET_ROLE, _asset);
@@ -176,10 +189,12 @@ contract SpiceFiFactory is AccessControlEnumerable {
             new BeaconProxy(
                 beacon,
                 abi.encodeWithSignature(
-                    "initialize(string,string,address,address[],address,address,address,address)",
+                    "initialize(string,string,address,uint256,uint256,address[],address,address,address,address)",
                     string(abi.encodePacked("Spice", vaultId.toString())),
                     string(abi.encodePacked("s", vaultId.toString())),
                     _asset,
+                    _mintPrice,
+                    _maxSupply,
                     _vaults,
                     msg.sender,
                     dev,
