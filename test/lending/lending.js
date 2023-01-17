@@ -21,18 +21,11 @@ describe("Spice Lending", function () {
   let nft1, nft2;
   let weth;
   let spiceNft;
-  let admin,
-    alice,
-    bob,
-    treasury,
-    strategist,
-    assetReceiver,
-    signer,
-    spiceAdmin;
+  let admin, alice, bob, treasury, signer, spiceAdmin;
   let whale, dev;
   let snapshotId;
 
-  let defaultAdminRole, spiceRole, spiceNftRole;
+  let defaultAdminRole, spiceRole, spiceNftRole, userRole;
 
   async function deployNFT() {
     const TestERC721 = await ethers.getContractFactory("TestERC721");
@@ -97,16 +90,8 @@ describe("Spice Lending", function () {
   }
 
   before("Deploy", async function () {
-    [
-      admin,
-      alice,
-      bob,
-      treasury,
-      strategist,
-      assetReceiver,
-      signer,
-      spiceAdmin,
-    ] = await ethers.getSigners();
+    [admin, alice, bob, treasury, signer, spiceAdmin] =
+      await ethers.getSigners();
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
     await impersonateAccount(constants.accounts.Dev);
@@ -152,12 +137,19 @@ describe("Spice Lending", function () {
     });
 
     spiceNft = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
-      strategist.address,
-      assetReceiver.address,
-      700,
+      "Spice0",
+      "s0",
+      weth.address,
+      ethers.utils.parseEther("0.08"),
+      555,
+      [],
+      admin.address,
+      constants.accounts.Dev,
       constants.accounts.Multisig,
       treasury.address,
     ]);
+
+    userRole = await spiceNft.USER_ROLE();
 
     const Note = await ethers.getContractFactory("Note");
 
@@ -245,10 +237,11 @@ describe("Spice Lending", function () {
     await checkRole(lenderNote, lending.address, adminRole, true);
     await checkRole(borrowerNote, lending.address, adminRole, true);
 
-    await spiceNft.grantRole(spiceRole, spiceAdmin.address);
+    await spiceNft.connect(dev).grantRole(spiceRole, spiceAdmin.address);
 
     await vault.connect(dev).grantRole(defaultAdminRole, alice.address);
 
+    await spiceNft.connect(dev).grantRole(userRole, alice.address);
     const amount = ethers.utils.parseEther("100");
     await weth
       .connect(whale)
@@ -258,8 +251,8 @@ describe("Spice Lending", function () {
       .approve(spiceNft.address, ethers.constants.MaxUint256);
     await spiceNft.connect(alice)["deposit(uint256,uint256)"](0, amount);
 
-    await spiceNft.setBaseURI("uri://");
-    await spiceNft.setWithdrawable(true);
+    await spiceNft.connect(dev).setBaseURI("uri://");
+    await spiceNft.connect(dev).setWithdrawable(true);
   });
 
   beforeEach(async () => {

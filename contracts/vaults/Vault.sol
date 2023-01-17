@@ -158,14 +158,14 @@ contract Vault is
     function initialize(
         string calldata _name,
         string calldata _symbol,
-        IERC20Upgradeable __asset,
+        address __asset,
         address[] memory _marketplaces,
         address _creator,
         address _dev,
         address _multisig,
         address _feeRecipient
     ) external initializer {
-        if (address(__asset) == address(0)) {
+        if (__asset == address(0)) {
             revert InvalidAddress();
         }
         if (_creator == address(0)) {
@@ -215,7 +215,7 @@ contract Vault is
             __decimals = super.decimals();
         }
 
-        _asset = __asset;
+        _asset = IERC20Upgradeable(__asset);
         _decimals = __decimals;
     }
 
