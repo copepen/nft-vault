@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
@@ -16,7 +15,6 @@ import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "../interfaces/IVault.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Storage for Vault
@@ -61,7 +59,6 @@ contract Vault is
     IVault,
     VaultStorage,
     Initializable,
-    UUPSUpgradeable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
     AccessControlEnumerableUpgradeable,
@@ -221,11 +218,6 @@ contract Vault is
         _asset = __asset;
         _decimals = __decimals;
     }
-
-    /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {

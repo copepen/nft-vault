@@ -13,6 +13,7 @@ async function main() {
   let bend;
   let drops;
   let spiceVault;
+  let spiceNFTVault;
 
   // accounts
   let admin, alice, bob, carol, strategist, assetReceiver, treasury;
@@ -51,61 +52,58 @@ async function main() {
   weth = await ethers.getContractAt("TestERC20", constants.tokens.WETH, admin);
 
   const Vault = await ethers.getContractFactory("Vault");
+  let beacon = await upgrades.deployBeacon(Vault);
 
-  vault = await upgrades.deployProxy(
-    Vault,
-    [vaultName, vaultSymbol, weth.address, 0, treasury.address],
-    {
-      kind: "uups",
-    }
-  );
+  vault = await upgrades.deployBeaconProxy(beacon, Vault, [
+    vaultName,
+    vaultSymbol,
+    weth.address,
+    0,
+    treasury.address,
+  ]);
 
   const Bend4626 = await ethers.getContractFactory("Bend4626");
+  beacon = await upgrades.deployBeacon(Bend4626);
 
-  bend = await upgrades.deployProxy(
-    Bend4626,
-    [
-      bendVaultName,
-      bendVaultSymbol,
-      constants.contracts.BendPool,
-      constants.tokens.BendWETH,
-    ],
-    {
-      kind: "uups",
-    }
-  );
+  bend = await upgrades.deployBeaconProxy(beacon, Bend4626, [
+    bendVaultName,
+    bendVaultSymbol,
+    constants.contracts.BendPool,
+    constants.tokens.BendWETH,
+  ]);
 
   const Drops4626 = await ethers.getContractFactory("Drops4626");
+  beacon = await upgrades.deployBeacon(Drops4626);
 
-  drops = await upgrades.deployProxy(
-    Drops4626,
-    [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
-    {
-      kind: "uups",
-    }
-  );
+  drops = await upgrades.deployBeaconProxy(beacon, Drops4626, [
+    dropsVaultName,
+    dropsVaultSymbol,
+    constants.tokens.DropsETH,
+  ]);
 
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
+  beacon = await upgrades.deployBeacon(SpiceFi4626, {
+    unsafeAllow: ["delegatecall"],
+  });
 
-  spiceVault = await upgrades.deployProxy(
-    SpiceFi4626,
-    [weth.address, strategist.address, assetReceiver.address, 700],
-    {
-      unsafeAllow: ["delegatecall"],
-      kind: "uups",
-    }
-  );
+  spiceVault = await upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+    weth.address,
+    strategist.address,
+    assetReceiver.address,
+    700,
+  ]);
 
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
+  beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
+    unsafeAllow: ["delegatecall"],
+  });
 
-  spiceNFTVault = await upgrades.deployProxy(
-    SpiceFiNFT4626,
-    [weth.address, strategist.address, assetReceiver.address, 700],
-    {
-      unsafeAllow: ["delegatecall"],
-      kind: "uups",
-    }
-  );
+  spiceNFTVault = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+    weth.address,
+    strategist.address,
+    assetReceiver.address,
+    700,
+  ]);
 
   out = {
     "spice-nftfi": vault.address,

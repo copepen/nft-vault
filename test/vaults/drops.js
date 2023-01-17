@@ -35,24 +35,21 @@ describe("Drops4626", function () {
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
     const Drops4626 = await ethers.getContractFactory("Drops4626", alice);
+    const beacon = await upgrades.deployBeacon(Drops4626);
 
     await expect(
-      upgrades.deployProxy(
-        Drops4626,
-        [name, symbol, ethers.constants.AddressZero],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, Drops4626, [
+        name,
+        symbol,
+        ethers.constants.AddressZero,
+      ])
     ).to.be.revertedWithCustomError(Drops4626, "InvalidAddress");
 
-    vault = await upgrades.deployProxy(
-      Drops4626,
-      [name, symbol, constants.tokens.DropsETH],
-      {
-        kind: "uups",
-      }
-    );
+    vault = await upgrades.deployBeaconProxy(beacon, Drops4626, [
+      name,
+      symbol,
+      constants.tokens.DropsETH,
+    ]);
 
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
   });
@@ -86,20 +83,6 @@ describe("Drops4626", function () {
       await expect(
         vault.initialize(name, symbol, constants.tokens.DropsETH)
       ).to.be.revertedWith("Initializable: contract is already initialized");
-    });
-
-    it("Should be upgraded only by default admin", async function () {
-      let Drops4626 = await ethers.getContractFactory("Drops4626", bob);
-
-      await expect(
-        upgrades.upgradeProxy(vault.address, Drops4626)
-      ).to.be.revertedWith(
-        `AccessControl: account ${bob.address.toLowerCase()} is missing role ${defaultAdminRole}`
-      );
-
-      Drops4626 = await ethers.getContractFactory("Drops4626", alice);
-
-      await upgrades.upgradeProxy(vault.address, Drops4626);
     });
   });
 
@@ -422,11 +405,7 @@ describe("Drops4626", function () {
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).withdraw(
-          assets,
-          bob.address,
-          whale.address
-        );
+        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);

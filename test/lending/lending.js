@@ -133,40 +133,31 @@ describe("Spice Lending", function () {
       .transfer(signer.address, ethers.utils.parseEther("100"));
 
     const Vault = await ethers.getContractFactory("Vault");
+    let beacon = await upgrades.deployBeacon(Vault);
 
-    vault = await upgrades.deployProxy(
-      Vault,
-      [
-        "Spice Vault Test Token",
-        "svTT",
-        weth.address,
-        [],
-        admin.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        treasury.address,
-      ],
-      {
-        kind: "uups",
-      }
-    );
+    vault = await upgrades.deployBeaconProxy(beacon, Vault, [
+      "Spice Vault Test Token",
+      "svTT",
+      weth.address,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
+    beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
+      unsafeAllow: ["delegatecall"],
+    });
 
-    spiceNft = await upgrades.deployProxy(
-      SpiceFiNFT4626,
-      [
-        strategist.address,
-        assetReceiver.address,
-        700,
-        constants.accounts.Multisig,
-        treasury.address,
-      ],
-      {
-        unsafeAllow: ["delegatecall"],
-        kind: "uups",
-      }
-    );
+    spiceNft = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      strategist.address,
+      assetReceiver.address,
+      700,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     const Note = await ethers.getContractFactory("Note");
 
@@ -180,82 +171,65 @@ describe("Spice Lending", function () {
     await borrowerNote.deployed();
 
     const SpiceLending = await ethers.getContractFactory("SpiceLending");
+    beacon = await upgrades.deployBeacon(SpiceLending);
 
     await expect(
-      upgrades.deployProxy(
-        SpiceLending,
-        [
-          ethers.constants.AddressZero,
-          lenderNote.address,
-          borrowerNote.address,
-          500,
-          8000,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        ethers.constants.AddressZero,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        8000,
+      ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(
-        SpiceLending,
-        [
-          signer.address,
-          ethers.constants.AddressZero,
-          borrowerNote.address,
-          500,
-          8000,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        ethers.constants.AddressZero,
+        borrowerNote.address,
+        500,
+        8000,
+      ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(
-        SpiceLending,
-        [
-          signer.address,
-          lenderNote.address,
-          ethers.constants.AddressZero,
-          500,
-          8000,
-        ],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        ethers.constants.AddressZero,
+        500,
+        8000,
+      ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
 
     await expect(
-      upgrades.deployProxy(
-        SpiceLending,
-        [signer.address, lenderNote.address, borrowerNote.address, 10001, 8000],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        10001,
+        8000,
+      ])
     ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
 
     await expect(
-      upgrades.deployProxy(
-        SpiceLending,
-        [signer.address, lenderNote.address, borrowerNote.address, 500, 10001],
-        {
-          kind: "uups",
-        }
-      )
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        10001,
+      ])
     ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
 
-    lending = await upgrades.deployProxy(
-      SpiceLending,
-      [signer.address, lenderNote.address, borrowerNote.address, 500, 8000],
-      {
-        kind: "uups",
-      }
-    );
+    lending = await upgrades.deployBeaconProxy(beacon, SpiceLending, [
+      signer.address,
+      lenderNote.address,
+      borrowerNote.address,
+      500,
+      8000,
+    ]);
 
     defaultAdminRole = await lending.DEFAULT_ADMIN_ROLE();
     spiceRole = await lending.SPICE_ROLE();
@@ -324,20 +298,6 @@ describe("Spice Lending", function () {
           8000
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
-    });
-
-    it("Should be upgraded only by default admin", async function () {
-      let SpiceLending = await ethers.getContractFactory("SpiceLending", alice);
-
-      await expect(
-        upgrades.upgradeProxy(lending.address, SpiceLending)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
-      );
-
-      SpiceLending = await ethers.getContractFactory("SpiceLending", admin);
-
-      await upgrades.upgradeProxy(lending.address, SpiceLending);
     });
   });
 
@@ -552,7 +512,9 @@ describe("Spice Lending", function () {
         additionalDuration: 2 * 24 * 3600, // 10 days
       };
 
-      await weth.connect(whale).transfer(alice.address, ethers.utils.parseEther("100"));
+      await weth
+        .connect(whale)
+        .transfer(alice.address, ethers.utils.parseEther("100"));
     });
 
     it("When loan does not exist", async function () {
@@ -758,7 +720,9 @@ describe("Spice Lending", function () {
         newInterestRate: 550,
       };
 
-      await weth.connect(whale).transfer(alice.address, ethers.utils.parseEther("100"));
+      await weth
+        .connect(whale)
+        .transfer(alice.address, ethers.utils.parseEther("100"));
     });
 
     it("When loan does not exist", async function () {
@@ -908,7 +872,9 @@ describe("Spice Lending", function () {
 
     it("When magicValue is not returned", async function () {
       // deposit to vault
-      await weth.connect(whale).approve(vault.address, ethers.constants.MaxUint256);
+      await weth
+        .connect(whale)
+        .approve(vault.address, ethers.constants.MaxUint256);
       const assets = ethers.utils.parseEther("100");
       await vault.connect(whale).deposit(assets, whale.address);
 
@@ -934,14 +900,16 @@ describe("Spice Lending", function () {
         terms
       );
       await lending.connect(admin).setSigner(alice.address);
-      await expect(lending
-        .connect(alice)
-        .increaseLoan(loanId, terms, signature)).to.be.revertedWithCustomError(lending, "InvalidSigner");
+      await expect(
+        lending.connect(alice).increaseLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidSigner");
     });
 
     it("Increase loan and transfer additional principal from Vault", async function () {
       // deposit to vault
-      await weth.connect(whale).approve(vault.address, ethers.constants.MaxUint256);
+      await weth
+        .connect(whale)
+        .approve(vault.address, ethers.constants.MaxUint256);
       const assets = ethers.utils.parseEther("100");
       await vault.connect(whale).deposit(assets, whale.address);
 
@@ -1090,7 +1058,9 @@ describe("Spice Lending", function () {
         .connect(alice)
         .approve(lending.address, ethers.constants.MaxUint256);
       const balance = await weth.balanceOf(alice.address);
-      await weth.connect(alice).transfer(bob.address, balance.sub(ethers.utils.parseEther("3")));
+      await weth
+        .connect(alice)
+        .transfer(bob.address, balance.sub(ethers.utils.parseEther("3")));
 
       await expect(
         lending.connect(alice).partialRepay(loanId1, payment)
@@ -1222,9 +1192,9 @@ describe("Spice Lending", function () {
     });
 
     it("When currency is not approved", async function () {
-      await expect(
-        lending.connect(alice).repay(loanId1)
-      ).to.be.revertedWith("SafeERC20: low-level call failed");
+      await expect(lending.connect(alice).repay(loanId1)).to.be.revertedWith(
+        "SafeERC20: low-level call failed"
+      );
     });
 
     it("When currency balance is not enough", async function () {
@@ -1232,11 +1202,13 @@ describe("Spice Lending", function () {
         .connect(alice)
         .approve(lending.address, ethers.constants.MaxUint256);
       const balance = await weth.balanceOf(alice.address);
-      await weth.connect(alice).transfer(bob.address, balance.sub(ethers.utils.parseEther("1")));
+      await weth
+        .connect(alice)
+        .transfer(bob.address, balance.sub(ethers.utils.parseEther("1")));
 
-      await expect(
-        lending.connect(alice).repay(loanId1)
-      ).to.be.revertedWith("SafeERC20: low-level call failed");
+      await expect(lending.connect(alice).repay(loanId1)).to.be.revertedWith(
+        "SafeERC20: low-level call failed"
+      );
     });
 
     it("When repaying for normal NFT loan", async function () {

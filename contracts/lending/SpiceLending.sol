@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -73,7 +72,6 @@ contract SpiceLending is
     ISpiceLending,
     SpiceLendingStorage,
     Initializable,
-    UUPSUpgradeable,
     AccessControlEnumerableUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
@@ -192,13 +190,6 @@ contract SpiceLending is
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
     }
-
-    /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(address _newImplementation)
-        internal
-        override
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {

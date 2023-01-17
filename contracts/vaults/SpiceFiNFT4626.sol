@@ -3,7 +3,6 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
@@ -62,7 +61,6 @@ contract SpiceFiNFT4626 is
     ISpiceFiNFT4626,
     IAggregatorVault,
     SpiceFiNFT4626Storage,
-    UUPSUpgradeable,
     ERC721Upgradeable,
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
@@ -197,11 +195,6 @@ contract SpiceFiNFT4626 is
         _setupRole(STRATEGIST_ROLE, strategist_);
         _setupRole(ASSET_RECEIVER_ROLE, assetReceiver_);
     }
-
-    /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(
-        address newImplementation
-    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {

@@ -8,8 +8,8 @@ describe("SpiceFiFactory", function () {
   let vault;
   let bend;
   let drops;
-  let impl;
   let factory;
+  let beacon;
 
   let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury;
 
@@ -47,70 +47,42 @@ describe("SpiceFiFactory", function () {
     );
 
     const Vault = await ethers.getContractFactory("Vault");
+    beacon = await upgrades.deployBeacon(Vault);
 
-    vault = await upgrades.deployProxy(
-      Vault,
-      [
-        vaultName,
-        vaultSymbol,
-        weth.address,
-        [],
-        admin.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        treasury.address,
-      ],
-      {
-        kind: "uups",
-      }
-    );
+    vault = await upgrades.deployBeaconProxy(beacon, Vault, [
+      vaultName,
+      vaultSymbol,
+      weth.address,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     const Bend4626 = await ethers.getContractFactory("Bend4626");
+    beacon = await upgrades.deployBeacon(Bend4626);
 
-    bend = await upgrades.deployProxy(
-      Bend4626,
-      [
-        bendVaultName,
-        bendVaultSymbol,
-        constants.contracts.BendPool,
-        constants.tokens.BendWETH,
-      ],
-      {
-        kind: "uups",
-      }
-    );
+    bend = await upgrades.deployBeaconProxy(beacon, Bend4626, [
+      bendVaultName,
+      bendVaultSymbol,
+      constants.contracts.BendPool,
+      constants.tokens.BendWETH,
+    ]);
 
     const Drops4626 = await ethers.getContractFactory("Drops4626");
+    beacon = await upgrades.deployBeacon(Drops4626);
 
-    drops = await upgrades.deployProxy(
-      Drops4626,
-      [dropsVaultName, dropsVaultSymbol, constants.tokens.DropsETH],
-      {
-        kind: "uups",
-      }
-    );
+    drops = await upgrades.deployBeaconProxy(beacon, Drops4626, [
+      dropsVaultName,
+      dropsVaultSymbol,
+      constants.tokens.DropsETH,
+    ]);
 
     const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
-
-    impl = await upgrades.deployProxy(
-      SpiceFi4626,
-      [
-        "Spice0",
-        "s0",
-        constants.tokens.WETH,
-        [],
-        admin.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        treasury.address,
-      ],
-      {
-        unsafeAllow: ["delegatecall"],
-        kind: "uups",
-      }
-    );
-
-    defaultAdminRole = await impl.DEFAULT_ADMIN_ROLE();
+    beacon = await upgrades.deployBeacon(SpiceFi4626, {
+      unsafeAllow: ["delegatecall"],
+    });
 
     const SpiceFiFactory = await ethers.getContractFactory("SpiceFiFactory");
 
@@ -124,7 +96,7 @@ describe("SpiceFiFactory", function () {
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
     await expect(
       SpiceFiFactory.deploy(
-        impl.address,
+        beacon.address,
         ethers.constants.AddressZero,
         constants.accounts.Multisig,
         treasury.address
@@ -132,7 +104,7 @@ describe("SpiceFiFactory", function () {
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
     await expect(
       SpiceFiFactory.deploy(
-        impl.address,
+        beacon.address,
         constants.accounts.Dev,
         ethers.constants.AddressZero,
         treasury.address
@@ -140,28 +112,26 @@ describe("SpiceFiFactory", function () {
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
     await expect(
       SpiceFiFactory.deploy(
-        impl.address,
+        beacon.address,
         constants.accounts.Dev,
         constants.accounts.Multisig,
         ethers.constants.AddressZero
       )
     ).to.be.revertedWithCustomError(SpiceFiFactory, "InvalidAddress");
 
-    const implAddr = await upgrades.erc1967.getImplementationAddress(
-      impl.address
-    );
     factory = await SpiceFiFactory.deploy(
-      implAddr,
+      beacon.address,
       constants.accounts.Dev,
       constants.accounts.Multisig,
       treasury.address
     );
 
+    defaultAdminRole = await factory.DEFAULT_ADMIN_ROLE();
     assetRole = await factory.ASSET_ROLE();
     vaultRole = await factory.VAULT_ROLE();
     aggregatorRole = await factory.AGGREGATOR_ROLE();
 
-    expect(await factory.implementation()).to.be.eq(implAddr);
+    expect(await factory.beacon()).to.be.eq(beacon.address);
     await checkRole(factory, admin.address, defaultAdminRole, true);
   });
 
@@ -256,9 +226,7 @@ describe("SpiceFiFactory", function () {
 
       const tx = await factory.connect(admin).setDev(carol.address);
 
-      await expect(tx)
-        .to.emit(factory, "DevUpdated")
-        .withArgs(carol.address);
+      await expect(tx).to.emit(factory, "DevUpdated").withArgs(carol.address);
       expect(await factory.dev()).to.be.eq(carol.address);
     });
 

@@ -12,8 +12,12 @@ async function main() {
   ];
 
   const Drops4626 = await ethers.getContractFactory("Drops4626");
-  const vault = await upgrades.deployProxy(Drops4626, args, { kind: "uups" });
+  const beacon = await upgrades.deployBeacon(Drops4626);
+  await beacon.deployed();
 
+  await deployments.save("Drops4626", beacon);
+
+  const vault = await upgrades.deployBeaconProxy(beacon, Drops4626, args);
   await vault.deployed();
 
   console.log(`Drops4626 deployed to ${vault.address}`);

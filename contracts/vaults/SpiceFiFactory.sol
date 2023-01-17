@@ -2,20 +2,18 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/access/AccessControlEnumerable.sol";
-import "@openzeppelin/contracts/proxy/Clones.sol";
-
-import "./SpiceFi4626.sol";
+import "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
+import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 /**
  * @title SpiceFiFactory
  * @author Spice Finance Inc
  */
 contract SpiceFiFactory is AccessControlEnumerable {
-    using Clones for address;
     using StringsUpgradeable for uint256;
 
-    /// @notice SpiceFi4626 implementation
-    SpiceFi4626 public immutable implementation;
+    /// @notice Beacon address
+    address public immutable beacon;
 
     /// @notice Spice dev wallet
     address public dev;
@@ -75,16 +73,16 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /***************/
 
     /// @notice Constructor
-    /// @param _implementation SpiceFi4626 implementation address
+    /// @param _beacon Beacon address
     /// @param _multisig Initial multisig address
     /// @param _feeRecipient Initial fee recipient address
     constructor(
-        SpiceFi4626 _implementation,
+        address _beacon,
         address _dev,
         address _multisig,
         address _feeRecipient
     ) {
-        if (address(_implementation) == address(0)) {
+        if (_beacon == address(0)) {
             revert InvalidAddress();
         }
         if (_dev == address(0)) {
@@ -99,7 +97,7 @@ contract SpiceFiFactory is AccessControlEnumerable {
 
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
 
-        implementation = _implementation;
+        beacon = _beacon;
         dev = _dev;
         multisig = _multisig;
         feeRecipient = _feeRecipient;
@@ -156,14 +154,14 @@ contract SpiceFiFactory is AccessControlEnumerable {
     /* Functions */
     /*************/
 
-    /// @notice Creates new SpiceFi4626 vault
-    /// @param asset Asset address for SpiceFi4626
+    /// @notice Creates new BeaconProxy for SpiceFi4626 vault
+    /// @param asset Asset address for the vault
     /// @param vaults Default vault addresses
     /// @return vault Created vault address
     function createVault(
         address asset,
         address[] calldata vaults
-    ) external returns (SpiceFi4626 vault) {
+    ) external returns (address vault) {
         if (asset == address(0)) {
             revert InvalidAddress();
         }
@@ -175,23 +173,27 @@ contract SpiceFiFactory is AccessControlEnumerable {
             _checkRole(VAULT_ROLE, vaults[i]);
         }
 
-        vault = SpiceFi4626(address(implementation).clone());
+        uint256 vaultId = getRoleMemberCount(AGGREGATOR_ROLE) + 1;
+        vault = address(
+            new BeaconProxy(
+                beacon,
+                abi.encodeWithSignature(
+                    "initialize(string,string,address,address[],address,address,address,address)",
+                    string(abi.encodePacked("Spice", vaultId.toString())),
+                    string(abi.encodePacked("s", vaultId.toString())),
+                    asset,
+                    vaults,
+                    msg.sender,
+                    dev,
+                    multisig,
+                    feeRecipient
+                )
+            )
+        );
 
         // grant AGGREGATOR_ROLE for tracking
         _grantRole(AGGREGATOR_ROLE, address(vault));
 
-        uint256 vaultId = getRoleMemberCount(AGGREGATOR_ROLE);
-        vault.initialize(
-            string(abi.encodePacked("Spice", vaultId.toString())),
-            string(abi.encodePacked("s", vaultId.toString())),
-            asset,
-            vaults,
-            msg.sender,
-            dev,
-            multisig,
-            feeRecipient
-        );
-
-        emit VaultCreated(msg.sender, address(vault));
+        emit VaultCreated(msg.sender, vault);
     }
 }

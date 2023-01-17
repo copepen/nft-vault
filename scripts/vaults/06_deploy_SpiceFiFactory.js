@@ -1,10 +1,15 @@
 const hre = require("hardhat");
+const constants = require("../../test/constants");
 
 async function main() {
-  const spiceVault = "0x688C031752680Fc5D8202888cF43A3C8399cF893";
-
+  const beacon = await deployments.get("SpiceFi4626");
   const SpiceFiFactory = await hre.ethers.getContractFactory("SpiceFiFactory");
-  const factory = await SpiceFiFactory.deploy(spiceVault);
+  const factory = await SpiceFiFactory.deploy(
+    beacon.address,
+    constants.accounts.Dev,
+    constants.accounts.Multisig,
+    constants.accounts.Multisig
+  );
 
   await factory.deployed();
 
