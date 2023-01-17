@@ -2,10 +2,12 @@ const hre = require("hardhat");
 const constants = require("../../test/constants");
 
 async function main() {
-  const beacon = await deployments.get("SpiceFi4626");
-  const SpiceFiFactory = await hre.ethers.getContractFactory("SpiceFiFactory");
-  const factory = await SpiceFiFactory.deploy(
+  const beacon = await deployments.get("Vault");
+  const spiceFactory = await deployments.get("SpiceFiFactory");
+  const VaultFactory = await hre.ethers.getContractFactory("VaultFactory");
+  const factory = await VaultFactory.deploy(
     beacon.address,
+    spiceFactory.address,
     constants.accounts.Dev,
     constants.accounts.Multisig,
     constants.accounts.Multisig
@@ -13,15 +15,13 @@ async function main() {
 
   await factory.deployed();
 
-  await deployments.save("SpiceFiFactory", factory);
-
-  console.log(`SpiceFiFactory deployed to ${factory.address}`);
+  console.log(`VaultFactory deployed to ${factory.address}`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
         address: factory.address,
-        contract: "contracts/vaults/SpiceFiFactory.sol:SpiceFiFactory",
+        contract: "contracts/vaults/VaultFactory.sol:VaultFactory",
         constructorArguments: [spiceVault],
       });
     } catch (_) {}
