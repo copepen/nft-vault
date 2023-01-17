@@ -170,9 +170,6 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
         if (_asset == address(0)) {
             revert InvalidAddress();
         }
-        if (_mintPrice == 0) {
-            revert ParameterOutOfBounds();
-        }
         if (_maxSupply == 0) {
             revert ParameterOutOfBounds();
         }
