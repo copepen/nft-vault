@@ -137,6 +137,11 @@ describe("Spice Lending", function () {
     });
 
     spiceNft = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      "Spice0",
+      "s0",
+      weth.address,
+      ethers.utils.parseEther("0.08"),
+      555,
       [],
       admin.address,
       constants.accounts.Dev,

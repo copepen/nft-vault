@@ -38,7 +38,10 @@ describe("SpiceFiNFT4626", function () {
   const bendVaultSymbol = "spiceETH";
   const dropsVaultName = "Spice CEther";
   const dropsVaultSymbol = "SCEther";
+  const spiceVaultName = "Spice0";
+  const spiceVaultSymbol = "s0";
   const mintPrice = ethers.utils.parseEther("0.08");
+  const maxSupply = 555;
 
   async function deployTokenAndAirdrop(users, amount) {
     const Token = await ethers.getContractFactory("TestERC20");
@@ -120,6 +123,53 @@ describe("SpiceFiNFT4626", function () {
 
     await expect(
       upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        ethers.constants.AddressZero,
+        mintPrice,
+        maxSupply,
+        [vault.address, bend.address, drops.address],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        0,
+        maxSupply,
+        [vault.address, bend.address, drops.address],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        mintPrice,
+        0,
+        [vault.address, bend.address, drops.address],
+        admin.address,
+        constants.accounts.Dev,
+        constants.accounts.Multisig,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        mintPrice,
+        maxSupply,
         [vault.address, bend.address, ethers.constants.AddressZero],
         admin.address,
         constants.accounts.Dev,
@@ -129,6 +179,11 @@ describe("SpiceFiNFT4626", function () {
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
     await expect(
       upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        mintPrice,
+        maxSupply,
         [vault.address, bend.address, drops.address],
         ethers.constants.AddressZero,
         constants.accounts.Dev,
@@ -138,6 +193,11 @@ describe("SpiceFiNFT4626", function () {
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
     await expect(
       upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        mintPrice,
+        maxSupply,
         [vault.address, bend.address, drops.address],
         admin.address,
         ethers.constants.AddressZero,
@@ -147,6 +207,11 @@ describe("SpiceFiNFT4626", function () {
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
     await expect(
       upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        mintPrice,
+        maxSupply,
         [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
@@ -156,6 +221,11 @@ describe("SpiceFiNFT4626", function () {
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
     await expect(
       upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+        spiceVaultName,
+        spiceVaultSymbol,
+        weth.address,
+        mintPrice,
+        maxSupply,
         [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
@@ -165,6 +235,11 @@ describe("SpiceFiNFT4626", function () {
     ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
 
     spiceVault = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      spiceVaultName,
+      spiceVaultSymbol,
+      weth.address,
+      mintPrice,
+      maxSupply,
       [vault.address, bend.address, drops.address],
       admin.address,
       constants.accounts.Dev,
@@ -207,11 +282,11 @@ describe("SpiceFiNFT4626", function () {
 
   describe("Deployment", function () {
     it("Should set the correct name", async function () {
-      expect(await spiceVault.name()).to.equal("Spice Finance");
+      expect(await spiceVault.name()).to.equal(spiceVaultName);
     });
 
     it("Should set the correct symbol", async function () {
-      expect(await spiceVault.symbol()).to.equal("SPICE");
+      expect(await spiceVault.symbol()).to.equal(spiceVaultSymbol);
     });
 
     it("Should set the correct asset", async function () {
@@ -249,6 +324,11 @@ describe("SpiceFiNFT4626", function () {
     it("Should initialize once", async function () {
       await expect(
         spiceVault.initialize(
+          spiceVaultName,
+          spiceVaultSymbol,
+          weth.address,
+          mintPrice,
+          maxSupply,
           [vault.address, bend.address, drops.address],
           admin.address,
           constants.accounts.Dev,

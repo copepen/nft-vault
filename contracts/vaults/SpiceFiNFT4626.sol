@@ -189,6 +189,12 @@ contract SpiceFiNFT4626 is
         if (__asset == address(0)) {
             revert InvalidAddress();
         }
+        if (_mintPrice == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (_maxSupply == 0) {
+            revert ParameterOutOfBounds();
+        }
         if (_creator == address(0)) {
             revert InvalidAddress();
         }
