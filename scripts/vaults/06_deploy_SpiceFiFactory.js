@@ -8,7 +8,7 @@ async function main() {
     beacon.address,
     constants.accounts.Dev,
     constants.accounts.Multisig,
-    constants.accounts.Multisig
+    constants.accounts.Dev
   );
 
   await factory.deployed();
