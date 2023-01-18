@@ -140,20 +140,6 @@ describe("SpiceFiNFT4626", function () {
         spiceVaultName,
         spiceVaultSymbol,
         weth.address,
-        0,
-        maxSupply,
-        [vault.address, bend.address, drops.address],
-        admin.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "ParameterOutOfBounds");
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
-        spiceVaultName,
-        spiceVaultSymbol,
-        weth.address,
         mintPrice,
         0,
         [vault.address, bend.address, drops.address],

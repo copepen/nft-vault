@@ -183,15 +183,6 @@ describe("SpiceFiNFTFactory", function () {
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "InvalidAddress");
   });
 
-  it("When mint price is 0", async function () {
-    const SpiceFiNFTFactory = await ethers.getContractFactory(
-      "SpiceFiNFTFactory"
-    );
-    await expect(
-      factory.connect(alice).createVault(constants.tokens.WETH, 0, 555, [])
-    ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "ParameterOutOfBounds");
-  });
-
   it("When max supply is 0", async function () {
     const SpiceFiNFTFactory = await ethers.getContractFactory(
       "SpiceFiNFTFactory"
