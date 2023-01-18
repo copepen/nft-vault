@@ -4,12 +4,13 @@ const constants = require("../../test/constants");
 async function main() {
   const beacon = await deployments.get("SpiceFi4626");
   const SpiceFiFactory = await hre.ethers.getContractFactory("SpiceFiFactory");
-  const factory = await SpiceFiFactory.deploy(
+  const args = [
     beacon.address,
     constants.accounts.Dev,
     constants.accounts.Multisig,
-    constants.accounts.Dev
-  );
+    constants.accounts.Dev,
+  ];
+  const factory = await SpiceFiFactory.deploy(...args);
 
   await factory.deployed();
 
@@ -22,7 +23,7 @@ async function main() {
       await hre.run("verify:verify", {
         address: factory.address,
         contract: "contracts/vaults/SpiceFiFactory.sol:SpiceFiFactory",
-        constructorArguments: [spiceVault],
+        constructorArguments: args,
       });
     } catch (_) {}
   }

@@ -3,13 +3,16 @@ const constants = require("../../test/constants");
 
 async function main() {
   const beacon = await deployments.get("SpiceFiNFT4626");
-  const SpiceFiNFTFactory = await hre.ethers.getContractFactory("SpiceFiNFTFactory");
-  const factory = await SpiceFiNFTFactory.deploy(
+  const SpiceFiNFTFactory = await hre.ethers.getContractFactory(
+    "SpiceFiNFTFactory"
+  );
+  const args = [
     beacon.address,
     constants.accounts.Dev,
     constants.accounts.Multisig,
-    constants.accounts.Multisig
-  );
+    constants.accounts.Multisig,
+  ];
+  const factory = await SpiceFiNFTFactory.deploy(...args);
 
   await factory.deployed();
 
@@ -20,7 +23,7 @@ async function main() {
       await hre.run("verify:verify", {
         address: factory.address,
         contract: "contracts/vaults/SpiceFiNFTFactory.sol:SpiceFiNFTFactory",
-        constructorArguments: [spiceVault],
+        constructorArguments: args,
       });
     } catch (_) {}
   }

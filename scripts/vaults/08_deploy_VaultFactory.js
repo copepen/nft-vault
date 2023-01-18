@@ -5,13 +5,14 @@ async function main() {
   const beacon = await deployments.get("Vault");
   const spiceFactory = await deployments.get("SpiceFiFactory");
   const VaultFactory = await hre.ethers.getContractFactory("VaultFactory");
-  const factory = await VaultFactory.deploy(
+  const args = [
     beacon.address,
     spiceFactory.address,
     constants.accounts.Dev,
     constants.accounts.Multisig,
-    constants.accounts.Multisig
-  );
+    constants.accounts.Multisig,
+  ];
+  const factory = await VaultFactory.deploy(...args);
 
   await factory.deployed();
 
@@ -22,7 +23,7 @@ async function main() {
       await hre.run("verify:verify", {
         address: factory.address,
         contract: "contracts/vaults/VaultFactory.sol:VaultFactory",
-        constructorArguments: [spiceVault],
+        constructorArguments: args,
       });
     } catch (_) {}
   }
