@@ -23,6 +23,8 @@ describe("SpiceFiNFTFactory", function () {
   const bendVaultSymbol = "spiceETH";
   const dropsVaultName = "Spice CEther";
   const dropsVaultSymbol = "SCEther";
+  const spiceVaultName = "Spice0";
+  const spiceVaultSymbol = "s0";
 
   async function checkRole(contract, user, role, check) {
     expect(await contract.hasRole(role, user)).to.equal(check);
@@ -144,6 +146,8 @@ describe("SpiceFiNFTFactory", function () {
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           555,
+          spiceVaultName,
+          spiceVaultSymbol,
           [vault.address, bend.address, drops.address]
         )
     ).to.be.revertedWith(
@@ -160,6 +164,8 @@ describe("SpiceFiNFTFactory", function () {
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           555,
+          spiceVaultName,
+          spiceVaultSymbol,
           [vault.address, bend.address, drops.address]
         )
     ).to.be.revertedWith(
@@ -178,6 +184,8 @@ describe("SpiceFiNFTFactory", function () {
           ethers.constants.AddressZero,
           ethers.utils.parseEther("0.08"),
           555,
+          spiceVaultName,
+          spiceVaultSymbol,
           []
         )
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "InvalidAddress");
@@ -194,6 +202,8 @@ describe("SpiceFiNFTFactory", function () {
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           0,
+          spiceVaultName,
+          spiceVaultSymbol,
           []
         )
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "ParameterOutOfBounds");
@@ -211,6 +221,8 @@ describe("SpiceFiNFTFactory", function () {
         constants.tokens.WETH,
         ethers.utils.parseEther("0.08"),
         555,
+        spiceVaultName,
+        spiceVaultSymbol,
         [vault.address, bend.address, drops.address]
       );
 
@@ -220,6 +232,8 @@ describe("SpiceFiNFTFactory", function () {
         constants.tokens.WETH,
         ethers.utils.parseEther("0.08"),
         555,
+        spiceVaultName,
+        spiceVaultSymbol,
         [vault.address, bend.address, drops.address]
       );
 

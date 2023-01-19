@@ -165,6 +165,8 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
         address _asset,
         uint256 _mintPrice,
         uint256 _maxSupply,
+        string memory name,
+        string memory symbol,
         address[] calldata _vaults
     ) external returns (address vault) {
         if (_asset == address(0)) {
@@ -181,14 +183,13 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
             _checkRole(VAULT_ROLE, _vaults[i]);
         }
 
-        uint256 vaultId = getRoleMemberCount(AGGREGATOR_ROLE) + 1;
         vault = address(
             new BeaconProxy(
                 beacon,
                 abi.encodeWithSignature(
                     "initialize(string,string,address,uint256,uint256,address[],address,address,address,address)",
-                    string(abi.encodePacked("Spice", vaultId.toString())),
-                    string(abi.encodePacked("s", vaultId.toString())),
+                    name,
+                    symbol,
                     _asset,
                     _mintPrice,
                     _maxSupply,
