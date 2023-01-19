@@ -16,6 +16,8 @@ async function main() {
 
   await factory.deployed();
 
+  await deployments.save("VaultFactory", factory);
+
   console.log(`VaultFactory deployed to ${factory.address}`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {

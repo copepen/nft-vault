@@ -3,9 +3,7 @@ const constants = require("../../test/constants");
 
 async function main() {
   const beacon = await deployments.get("SpiceFiNFT4626");
-  const SpiceFiNFTFactory = await hre.ethers.getContractFactory(
-    "SpiceFiNFTFactory"
-  );
+  const SpiceFiNFTFactory = await hre.ethers.getContractFactory("SpiceFiNFTFactory");
   const args = [
     beacon.address,
     constants.accounts.Dev,
@@ -15,6 +13,8 @@ async function main() {
   const factory = await SpiceFiNFTFactory.deploy(...args);
 
   await factory.deployed();
+
+  await deployments.save("SpiceFiNFTFactory", factory);
 
   console.log(`SpiceFiNFTFactory deployed to ${factory.address}`);
 
