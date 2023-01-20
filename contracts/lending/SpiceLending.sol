@@ -326,6 +326,7 @@ contract SpiceLending is
         if (_payment > interestToPay) {
             interestPayment = interestToPay;
             data.balance -= _payment - interestToPay;
+            data.interestAccrued = 0;
         } else {
             interestPayment = _payment;
             data.interestAccrued = interestToPay - _payment;
