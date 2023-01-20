@@ -1060,23 +1060,72 @@ describe("Spice Lending", function () {
       ).to.be.revertedWith("SafeERC20: low-level call failed");
     });
 
-    it("When partially repaying for normal NFT loan", async function () {
-      await increaseTime(24 * 3600);
+    describe("When partially repaying for normal NFT loan", function () {
+      it("When partial pay covers the interest fully", async function () {
+        await increaseTime(24 * 3600);
 
-      await weth
-        .connect(alice)
-        .approve(lending.address, ethers.constants.MaxUint256);
+        await weth
+          .connect(alice)
+          .approve(lending.address, ethers.constants.MaxUint256);
 
-      const beforeBalance = await weth.balanceOf(alice.address);
+        const beforeBalance = await weth.balanceOf(alice.address);
 
-      const payment = ethers.utils.parseEther("5");
-      const tx = await lending.connect(alice).partialRepay(loanId1, payment);
+        const interest = ethers.utils
+          .parseEther("10")
+          .mul(500)
+          .mul(24 * 3600)
+          .div(10000)
+          .div(365 * 24 * 3600);
 
-      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
-      expect(await weth.balanceOf(alice.address)).to.be.eq(
-        beforeBalance.sub(payment)
-      );
-      expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+        const payment = ethers.utils.parseEther("4").add(interest);
+        const tx = await lending.connect(alice).partialRepay(loanId1, payment);
+
+        await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+        expect(await weth.balanceOf(alice.address)).to.be.eq(
+          beforeBalance.sub(payment)
+        );
+        expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+
+        const loanData = await lending.loans(loanId1);
+        expect(loanData.interestAccrued).to.be.eq(0);
+        expect(loanData.balance).to.be.closeTo(
+          ethers.utils.parseEther("6"),
+          ethers.utils.parseEther("0.000001")
+        );
+      });
+
+      it("When partial pay covers the interest partially", async function () {
+        await increaseTime(24 * 3600);
+
+        await weth
+          .connect(alice)
+          .approve(lending.address, ethers.constants.MaxUint256);
+
+        const beforeBalance = await weth.balanceOf(alice.address);
+
+        const interest = ethers.utils
+          .parseEther("10")
+          .mul(500)
+          .mul(24 * 3600)
+          .div(10000)
+          .div(365 * 24 * 3600);
+
+        const payment = interest.div(2);
+        const tx = await lending.connect(alice).partialRepay(loanId1, payment);
+
+        await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+        expect(await weth.balanceOf(alice.address)).to.be.eq(
+          beforeBalance.sub(payment)
+        );
+        expect(await weth.balanceOf(spiceAdmin.address)).to.be.gt(0);
+
+        const loanData = await lending.loans(loanId1);
+        expect(loanData.interestAccrued).to.be.closeTo(
+          interest.div(2),
+          ethers.utils.parseEther("0.000001")
+        );
+        expect(loanData.balance).to.be.eq(ethers.utils.parseEther("10"));
+      });
     });
 
     it("When partially repaying for Spice NFT loan", async function () {
