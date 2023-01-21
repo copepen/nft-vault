@@ -535,7 +535,7 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When not revealed", async function () {
-        await spiceVault.setPreviewURI("previewuri");
+        await spiceVault.setPreviewURI("previewuri/");
 
         await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
@@ -544,7 +544,7 @@ describe("SpiceFiNFT4626", function () {
           .approve(spiceVault.address, ethers.constants.MaxUint256);
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
 
-        expect(await spiceVault.tokenURI(1)).to.be.eq("previewuri");
+        expect(await spiceVault.tokenURI(1)).to.be.eq("previewuri/1");
       });
 
       it("When base uri is empty", async function () {

@@ -12,6 +12,7 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "../interfaces/ISpiceFiNFT4626.sol";
 import "../interfaces/IAggregatorVault.sol";
+import "../interfaces/IERC4906.sol";
 
 /**
  * @title Storage for SpiceFiNFT4626
@@ -76,7 +77,8 @@ contract SpiceFiNFT4626 is
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
     ReentrancyGuardUpgradeable,
-    Multicall
+    Multicall,
+    IERC4906
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
@@ -328,8 +330,10 @@ contract SpiceFiNFT4626 is
         if (_revealed) {
             revert MetadataRevealed();
         }
-
         _previewUri = previewUri;
+	if (_tokenIdPointer > 0) {
+	  emit BatchMetadataUpdate(1, _tokenIdPointer);
+       }
     }
 
     /// @notice Sets base uri and reveal
@@ -339,6 +343,9 @@ contract SpiceFiNFT4626 is
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revealed = true;
         _baseUri = baseUri;
+	if (_tokenIdPointer > 0) {
+	  emit BatchMetadataUpdate(1, _tokenIdPointer);
+       }
     }
 
     /// @notice Set verified
@@ -462,6 +469,9 @@ contract SpiceFiNFT4626 is
             );
     }
 
+    /**
+     * @dev See {IERC165-supportsInterface}.
+     */
     function supportsInterface(
         bytes4 interfaceId
     )
@@ -470,7 +480,11 @@ contract SpiceFiNFT4626 is
         override(ERC721Upgradeable, AccessControlEnumerableUpgradeable)
         returns (bool)
     {
-        return super.supportsInterface(interfaceId);
+        return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
+    }
+
+    function contractURI() public pure returns (string memory) {
+      return "https://b3ec853c.spicefi.xyz/metadata/os";
     }
 
     /// @notice See {IERC721Metadata-tokenURI}.
@@ -480,7 +494,11 @@ contract SpiceFiNFT4626 is
         _requireMinted(tokenId);
 
         if (!_revealed) {
-            return _previewUri;
+	  string memory previewURI = _previewUri;
+	  return
+            bytes(previewURI).length > 0
+	    ? string(abi.encodePacked(previewURI, tokenId.toString()))
+	    : "";
         }
 
         string memory baseURI = _baseUri;
@@ -763,5 +781,12 @@ contract SpiceFiNFT4626 is
         if (minAssets > assets) {
             revert SlippageTooHigh();
         }
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view returns (address) {
+      return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
     }
 }
