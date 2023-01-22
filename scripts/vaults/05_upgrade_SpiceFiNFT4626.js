@@ -7,10 +7,11 @@ async function main() {
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
   const vault = await upgrades.upgradeBeacon(beacon.address, SpiceFiNFT4626, {
     unsafeAllow: ["delegatecall"],
+    timeout: 0
   });
   await vault.deployed();
 
-  console.log("SpiceFiNFT4626 successfully upgraded!");
+  console.log(`SpiceFiNFT4626 successfully upgraded to ${vault.address}!`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
