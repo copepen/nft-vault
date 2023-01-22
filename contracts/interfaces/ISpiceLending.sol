@@ -12,10 +12,6 @@ interface ISpiceLending {
     /* Events */
     /**********/
 
-    /// @notice Emitted when signer is updated
-    /// @param signer New signer address
-    event SignerUpdated(address signer);
-
     /// @notice Emitted when interest fee rate is updated
     /// @param interestFee New interest fee rate
     event InterestFeeUpdated(uint256 interestFee);
@@ -24,10 +20,19 @@ interface ISpiceLending {
     /// @param liquidationRatio New liquidation ratio
     event LiquidationRatioUpdated(uint256 liquidationRatio);
 
+    /// @notice Emitted when loan ratio is updated
+    /// @param loanRatio New loan ratio
+    event LoanRatioUpdated(uint256 loanRatio);
+
     /// @notice Emitted when a new loan is started
     /// @param loanId Loan Id
     /// @param borrower Borrower address
     event LoanStarted(uint256 loanId, address borrower);
+
+    /// @notice Emitted when note contracts are set
+    /// @param lenderNote Lender Note address
+    /// @param borrowerNote Borrower Note address
+    event NotesUpdated(address lenderNote, address borrowerNote);
 
     /// @notice Emitted when the loan is extended
     /// @param loanId Loan Id

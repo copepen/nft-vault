@@ -39,9 +39,6 @@ interface ISpiceFiNFT4626 {
  * @author Spice Finance Inc
  */
 abstract contract SpiceLendingStorage {
-    /// @notice signer address used to sign loan terms
-    address public signer;
-
     /// @notice loan id tracker
     CountersUpgradeable.Counter internal loanIdTracker;
 
@@ -59,6 +56,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Liquidation ratio
     uint256 public liquidationRatio;
+
+    /// @notice Loan ratio
+    uint256 public loanRatio;
 
     /// @notice Signature used
     mapping(bytes32 => bool) public signatureUsed;
@@ -90,6 +90,9 @@ contract SpiceLending is
 
     /// @notice Spice NFT role
     bytes32 public constant SPICE_NFT_ROLE = keccak256("SPICE_NFT_ROLE");
+
+    /// @notice Signer role
+    bytes32 public constant SIGNER_ROLE = keccak256("SIGNER_ROLE");
 
     /// @notice Interest denominator
     uint256 public constant DENOMINATOR = 10000;
@@ -153,24 +156,16 @@ contract SpiceLending is
 
     /// @notice SpiceLending constructor (for proxy)
     /// @param _signer Signer address
-    /// @param _lenderNote Lender note contract address
-    /// @param _borrowerNote Borrower note contract address
     /// @param _interestFee Interest fee rate
     /// @param _liquidationRatio Liquidation ratio
+    /// @param _loanRatio Loan ratio
     function initialize(
         address _signer,
-        INote _lenderNote,
-        INote _borrowerNote,
         uint256 _interestFee,
-        uint256 _liquidationRatio
+        uint256 _liquidationRatio,
+        uint256 _loanRatio
     ) external initializer {
         if (_signer == address(0)) {
-            revert InvalidAddress();
-        }
-        if (address(_lenderNote) == address(0)) {
-            revert InvalidAddress();
-        }
-        if (address(_borrowerNote) == address(0)) {
             revert InvalidAddress();
         }
         if (_interestFee > DENOMINATOR) {
@@ -179,16 +174,18 @@ contract SpiceLending is
         if (_liquidationRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
+        if (_loanRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
 
         __EIP712_init("SpiceLending", "1");
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(SIGNER_ROLE, _signer);
 
-        signer = _signer;
-        lenderNote = _lenderNote;
-        borrowerNote = _borrowerNote;
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
+        loanRatio = _loanRatio;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -200,19 +197,27 @@ contract SpiceLending is
     /* Setters */
     /***********/
 
-    /// @notice set new signer
-    /// @param _newSigner new signer address
-    function setSigner(address _newSigner)
+    /// @notice Set note contracts
+    ///
+    /// Emits a {NotesUpdated} event.
+    ///
+    /// @param _lenderNote lender Note
+    /// @param _borrowerNote borrower Note
+    function setNotes(INote _lenderNote, INote _borrowerNote)
         external
         onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        if (_newSigner == address(0)) {
+        if (address(_lenderNote) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(_borrowerNote) == address(0)) {
             revert InvalidAddress();
         }
 
-        signer = _newSigner;
+        lenderNote = _lenderNote;
+        borrowerNote = _borrowerNote;
 
-        emit SignerUpdated(_newSigner);
+        emit NotesUpdated(address(lenderNote), address(borrowerNote));
     }
 
     /// @notice Set the interest fee rate
@@ -247,6 +252,23 @@ contract SpiceLending is
         liquidationRatio = _liquidationRatio;
 
         emit LiquidationRatioUpdated(_liquidationRatio);
+    }
+
+    /// @notice Set the loan ratio
+    ///
+    /// Emits a {LoanRatioUpdated} event.
+    ///
+    /// @param _loanRatio Loan ratio
+    function setLoanRatio(uint256 _loanRatio)
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
+        if (_loanRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
+        loanRatio = _loanRatio;
+
+        emit LoanRatioUpdated(_loanRatio);
     }
 
     /******************/
@@ -632,11 +654,12 @@ contract SpiceLending is
     ) internal view {
         bytes32 hash = _hashTypedDataV4(_termsHash);
         address recoveredSigner = ECDSA.recover(hash, _signature);
-        if (recoveredSigner != signer) {
-            revert InvalidSignature();
-        }
+	require(
+            getRoleMemberCount(SIGNER_ROLE) == 0 || hasRole(SIGNER_ROLE, recoveredSigner),
+            "signer is not enabled"
+        );
 
-        if (signer != _lender) {
+        if (recoveredSigner != _lender) {
             bytes4 magicValue = IERC1271(_lender).isValidSignature(
                 hash,
                 _signature
