@@ -334,16 +334,19 @@ contract SpiceLending is
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external nonReentrant {
+        // get loan data
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        // check loan state
         if (data.state != LibLoan.LoanState.Active) {
             revert InvalidState(data.state);
         }
-        // get loan data
-        LibLoan.LoanData storage data = loans[_loanId];
 
         // update interestAccrued and updatedAt
         data.interestAccrued = _calcInterest(data);
         data.updatedAt = block.timestamp;
 
+        // check lender
         address lender = lenderNote.ownerOf(_loanId);
         if (msg.sender != data.terms.borrower && msg.sender != lender) {
             revert InvalidMsgSender();
@@ -351,6 +354,7 @@ contract SpiceLending is
         if (_terms.lender != lender) {
             revert InvalidMsgSender();
         }
+
         // check loan amount
         uint256 collateral = _getCollateralAmount(
             _terms.collateralAddress,
@@ -359,7 +363,9 @@ contract SpiceLending is
         if (collateral < (_terms.loanAmount * loanRatio) / DENOMINATOR) {
             revert LoanAmountExceeded();
         }
-        _validateLoanTerms(data.terms, _terms);
+
+        // validate loan terms
+        _validateLoanTerms(data, _terms);
     
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
@@ -466,15 +472,15 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
-        // update loan state to Repaid
-        data.state = LibLoan.LoanState.Repaid;
-
         address lender = lenderNote.ownerOf(_loanId);
         address borrower = data.terms.borrower;
 
         if (msg.sender != borrower) {
             revert InvalidMsgSender();
         }
+
+        // update loan state to Repaid
+        data.state = LibLoan.LoanState.Repaid;
 
         // calc total interest to pay
         uint256 interestToPay = _calcInterest(data);
@@ -578,6 +584,16 @@ contract SpiceLending is
         return loanIdTracker.current();
     }
 
+    /// @notice See {ISpiceLending-repayAmount}
+    function repayAmount(uint256 _loanId) external view returns (uint256) 
+    {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+        return data.balance + _calcInterest(data);
+    }
+
     /**********************/
     /* Internal Functions */
     /**********************/
@@ -634,35 +650,32 @@ contract SpiceLending is
     }
 
     /// @dev Validate loan terms
-    /// @param _terms Current loan terms
+    /// @param oldData Current loan terms
     /// @param _newTerms New loan terms
     function _validateLoanTerms(
-        LibLoan.LoanTerms storage _terms,
+        LibLoan.LoanData storage oldData,
         LibLoan.LoanTerms calldata _newTerms
     ) internal view {
         // check loan terms expiration
         if (block.timestamp > _newTerms.expiration) {
             revert LoanTermsExpired();
         }
-        if (_terms.collateralAddress != _newTerms.collateralAddress){
+        if (oldData.terms.collateralAddress != _newTerms.collateralAddress){
             revert InvalidLoanTerms();
         }
-        if (_terms.collateralId != _newTerms.collateralId){
+        if (oldData.terms.collateralId != _newTerms.collateralId){
             revert InvalidLoanTerms();
         }
-        if (_terms.loanAmount >= _newTerms.loanAmount){
+        if (oldData.balance + _calcInterest(oldData) >= _newTerms.loanAmount){
             revert InvalidLoanTerms();
         }
-        if (_terms.repayment >= _newTerms.repayment){
+        if (oldData.terms.borrower != _newTerms.borrower){
             revert InvalidLoanTerms();
         }
-        if (_terms.borrower != _newTerms.borrower){
+        if (oldData.terms.currency != _newTerms.currency){
             revert InvalidLoanTerms();
         }
-        if (_terms.currency != _newTerms.currency){
-            revert InvalidLoanTerms();
-        }
-        if (_terms.priceLiquidation != _newTerms.priceLiquidation){
+        if (oldData.terms.priceLiquidation != _newTerms.priceLiquidation){
             revert InvalidLoanTerms();
         }
     }
