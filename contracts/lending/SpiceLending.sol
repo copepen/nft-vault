@@ -143,21 +143,6 @@ contract SpiceLending is
     /// @notice loanAmount Exceeds Max LTV
     error LoanAmountExceeded();
 
-    /*************/
-    /* Modifiers */
-    /*************/
-
-    modifier updateInterest(uint256 _loanId) {
-        // get loan data
-        LibLoan.LoanData storage data = loans[_loanId];
-
-        // update interestAccrued and updatedAt
-        data.interestAccrued = _calcInterest(data);
-        data.updatedAt = block.timestamp;
-
-        _;
-    }
-
     /***************/
     /* Constructor */
     /***************/
@@ -349,10 +334,16 @@ contract SpiceLending is
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external nonReentrant updateInterest(_loanId) {
-        LibLoan.LoanData storage data = loans[_loanId];
         if (data.state != LibLoan.LoanState.Active) {
             revert InvalidState(data.state);
         }
+        // get loan data
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        // update interestAccrued and updatedAt
+        data.interestAccrued = _calcInterest(data);
+        data.updatedAt = block.timestamp;
+
         address lender = lenderNote.ownerOf(_loanId);
         if (msg.sender != data.terms.borrower && msg.sender != lender) {
             revert InvalidMsgSender();
