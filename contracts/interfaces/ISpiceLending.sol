@@ -38,14 +38,6 @@ interface ISpiceLending {
     /// @param loanId Loan Id
     event LoanUpdated(uint256 loanId);
 
-    /// @notice Emitted when the loan is extended
-    /// @param loanId Loan Id
-    event LoanExtended(uint256 loanId);
-
-    /// @notice Emitted when the loan is increased
-    /// @param loanId Loan Id
-    event LoanIncreased(uint256 loanId);
-
     /// @notice Emitted when the loan is repaid
     /// @param loanId Loan Id
     event LoanRepaid(uint256 loanId);
@@ -65,7 +57,7 @@ interface ISpiceLending {
     ///
     /// @return loanId Loan Id
     function initiateLoan(
-        LibLoan.LoanTerms calldata _terms,
+        LibLoan.FullLoanTerms calldata _terms,
         bytes calldata _signature
     ) external returns (uint256 loanId);
 
@@ -87,29 +79,7 @@ interface ISpiceLending {
     /// @param _signature Signature
     function updateLoan(
         uint256 _loanId,
-        LibLoan.LoanTerms calldata _terms,
-        bytes calldata _signature
-    ) external;
-
-    /// @notice Extend loan principal and duration
-    /// @dev Emits {LoanExtended} event
-    /// @param _loanId The loan ID
-    /// @param _terms Extend Loan Terms
-    /// @param _signature Signature
-    function extendLoan(
-        uint256 _loanId,
-        LibLoan.ExtendLoanTerms calldata _terms,
-        bytes calldata _signature
-    ) external;
-
-    /// @notice Increase loan principal
-    /// @dev Emits {LoanIncreased} event
-    /// @param _loanId The loan ID
-    /// @param _terms Increase Loan Terms
-    /// @param _signature Signature
-    function increaseLoan(
-        uint256 _loanId,
-        LibLoan.IncreaseLoanTerms calldata _terms,
+        LibLoan.FullLoanTerms calldata _terms,
         bytes calldata _signature
     ) external;
 
