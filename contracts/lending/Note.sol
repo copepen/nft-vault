@@ -137,8 +137,8 @@ contract Note is ERC721, AccessControlEnumerable, INote {
         LibLoan.LoanData memory data = ISpiceLending(owner).loans(tokenId);
 
         return
-            IERC721Metadata(data.terms.baseTerms.collateralAddress).tokenURI(
-                data.terms.baseTerms.collateralId
+            IERC721Metadata(data.terms.collateralAddress).tokenURI(
+                data.terms.collateralId
             );
     }
 

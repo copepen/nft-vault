@@ -13,6 +13,21 @@ library LibLoan {
         Repaid,
         Defaulted
     }
+    
+    /// @notice Full Loan Terms struct
+    struct FullLoanTerms {
+        address lender;
+        uint256 loanAmount;
+        uint256 repayment;
+        uint160 interestRate;
+        uint32 duration;
+        address collateralAddress;
+        uint256 collateralId;
+        address borrower;
+        uint256 expiration;
+        address currency;
+        bool priceLiquidation;
+    }
 
     struct BaseTerms {
         address collateralAddress;
@@ -49,11 +64,40 @@ library LibLoan {
     /// @notice Loan Data struct
     struct LoanData {
         LoanState state;
-        LoanTerms terms;
+        FullLoanTerms terms;
         uint256 startedAt;
         uint256 balance;
         uint256 interestAccrued;
         uint256 updatedAt;
+    }
+
+    /// @notice Get FullLoanTerms struct hash
+    /// @param _terms FullLoan Terms
+    /// @return hash struct hash
+    function getFullLoanTermsHash(FullLoanTerms calldata _terms)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        "FullLoanTerms(address lender,uint256 loanAmount,uint256 repayment,uint160 interestRate,uint32 duration,address collateralAddress,uint256 collateralId,address borrower,uint256 expiration,address currency,bool priceLiquidation)"
+                    ),
+                    _terms.lender,
+                    _terms.loanAmount,
+                    _terms.repayment,
+                    _terms.interestRate,
+                    _terms.duration,
+                    _terms.collateralAddress,
+                    _terms.collateralId,
+                    _terms.borrower,
+                    _terms.expiration,
+                    _terms.currency,
+                    _terms.priceLiquidation
+                )
+            );
     }
 
     /// @notice Get LoanTerms struct hash
