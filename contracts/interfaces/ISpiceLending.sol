@@ -61,17 +61,6 @@ interface ISpiceLending {
         bytes calldata _signature
     ) external returns (uint256 loanId);
 
-    /// @notice Partialy repay the loan
-    /// @dev Emits {LoanRepaid} event
-    /// @param _loanId The loan ID
-    /// @param _payment Repayment amount
-    function partialRepay(uint256 _loanId, uint256 _payment) external;
-
-    /// @notice Repay the loan
-    /// @dev Emits {LoanRepaid} event
-    /// @param _loanId The loan ID
-    function repay(uint256 _loanId) external;
-
     /// @notice Update loan terms
     /// @dev Emits {LoanUpdated} event
     /// @param _loanId The loan ID
@@ -82,6 +71,17 @@ interface ISpiceLending {
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external;
+
+    /// @notice Partialy repay the loan
+    /// @dev Emits {LoanRepaid} event
+    /// @param _loanId The loan ID
+    /// @param _payment Repayment amount
+    function partialRepay(uint256 _loanId, uint256 _payment) external;
+
+    /// @notice Repay the loan
+    /// @dev Emits {LoanRepaid} event
+    /// @param _loanId The loan ID
+    function repay(uint256 _loanId) external;
 
     /// @notice Liquidate loan that is past its duration
     /// @dev Emits {LoanLiquidated} event
@@ -99,4 +99,9 @@ interface ISpiceLending {
     /// @notice Return next loan ID
     /// @return id The next loan ID
     function getNextLoanId() external view returns (uint256);
+
+    /// @notice Return amount needed to completely repay loan
+    /// @param _loanId The loan ID
+    /// @return amount The max repay amount
+    function repayAmount(uint256 _loanId) external view returns (uint256);
 }
