@@ -333,7 +333,7 @@ contract SpiceLending is
         uint256 _loanId,
         LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
-    ) external nonReentrant updateInterest(_loanId) {
+    ) external nonReentrant {
         if (data.state != LibLoan.LoanState.Active) {
             revert InvalidState(data.state);
         }
