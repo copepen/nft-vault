@@ -34,6 +34,10 @@ interface ISpiceLending {
     /// @param borrowerNote Borrower Note address
     event NotesUpdated(address lenderNote, address borrowerNote);
 
+    /// @notice Emitted when the loan is updated
+    /// @param loanId Loan Id
+    event LoanUpdated(uint256 loanId);
+
     /// @notice Emitted when the loan is extended
     /// @param loanId Loan Id
     event LoanExtended(uint256 loanId);
@@ -75,6 +79,17 @@ interface ISpiceLending {
     /// @dev Emits {LoanRepaid} event
     /// @param _loanId The loan ID
     function repay(uint256 _loanId) external;
+
+    /// @notice Update loan terms
+    /// @dev Emits {LoanUpdated} event
+    /// @param _loanId The loan ID
+    /// @param _terms New Loan Terms
+    /// @param _signature Signature
+    function updateLoan(
+        uint256 _loanId,
+        LibLoan.LoanTerms calldata _terms,
+        bytes calldata _signature
+    ) external;
 
     /// @notice Extend loan principal and duration
     /// @dev Emits {LoanExtended} event
