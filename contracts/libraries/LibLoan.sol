@@ -50,11 +50,10 @@ library LibLoan {
             keccak256(
                 abi.encode(
                     keccak256(
-                        "LoanTerms(address lender,uint256 loanAmount,uint256 repayment,uint160 interestRate,uint32 duration,address collateralAddress,uint256 collateralId,address borrower,uint256 expiration,address currency,bool priceLiquidation)"
+                        "LoanTerms(address lender,uint256 loanAmount,uint160 interestRate,uint32 duration,address collateralAddress,uint256 collateralId,address borrower,uint256 expiration,address currency,bool priceLiquidation)"
                     ),
                     _terms.lender,
                     _terms.loanAmount,
-                    _terms.repayment,
                     _terms.interestRate,
                     _terms.duration,
                     _terms.collateralAddress,
