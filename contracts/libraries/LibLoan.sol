@@ -18,7 +18,6 @@ library LibLoan {
     struct LoanTerms {
         address lender;
         uint256 loanAmount;
-        uint256 repayment;
         uint160 interestRate;
         uint32 duration;
         address collateralAddress;
