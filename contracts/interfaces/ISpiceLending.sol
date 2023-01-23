@@ -57,7 +57,7 @@ interface ISpiceLending {
     ///
     /// @return loanId Loan Id
     function initiateLoan(
-        LibLoan.FullLoanTerms calldata _terms,
+        LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external returns (uint256 loanId);
 
@@ -79,7 +79,7 @@ interface ISpiceLending {
     /// @param _signature Signature
     function updateLoan(
         uint256 _loanId,
-        LibLoan.FullLoanTerms calldata _terms,
+        LibLoan.LoanTerms calldata _terms,
         bytes calldata _signature
     ) external;
 
