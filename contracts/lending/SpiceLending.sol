@@ -370,7 +370,7 @@ contract SpiceLending is
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        uint256 additionalTransfer = _terms.loanAmount - data.balance - data.interestAccrued > 0 ? _terms.loanAmount - data.balance - data.interestAccrued : 0;
+        uint256 additionalTransfer = _terms.loanAmount - data.balance - data.interestAccrued;
 
         // update loan
         data.terms = _terms;
