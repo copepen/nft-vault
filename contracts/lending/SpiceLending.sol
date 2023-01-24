@@ -389,6 +389,20 @@ contract SpiceLending is
         emit LoanUpdated(_loanId);
     }
 
+    /// @notice See {ISpiceLending-makeDeposit}
+    function makeDeposit(uint256 _loanId, uint256 _amount) external nonReentrant returns (uint256 shares) {
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        // deposit funds on behalf of borrower
+        IERC20Upgradeable(data.terms.currency).safeTransferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+
+        shares = ISpiceFiNFT4626(data.terms.collateralAddress).deposit(data.terms.collateralId, _amount);
+    }
+
     /// @notice See {ISpiceLending-partialRepay}
     function partialRepay(uint256 _loanId, uint256 _payment)
         external

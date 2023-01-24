@@ -72,6 +72,16 @@ interface ISpiceLending {
         bytes calldata _signature
     ) external;
 
+    /// @notice Deposit into vault NFT represents
+    /// @param _loanId Loan ID
+    /// @param _amount Amount to deopsit
+    ///
+    /// @return shares additional shares of vault
+    function makeDeposit(
+        uint256 _loanId, 
+        uint256 _amount
+    ) external returns (uint256 shares);
+
     /// @notice Partialy repay the loan
     /// @dev Emits {LoanRepaid} event
     /// @param _loanId The loan ID
