@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import "../../interfaces/INoteAdapter.sol";
 
 /*******************************/
-/* NFTfiV2 Interfaces (subset) */
+/* NFTfi Interfaces (subset) */
 /*******************************/
 
 interface IDirectLoan {
@@ -68,15 +68,15 @@ interface ISmartNft {
 /*******************************/
 
 /**
- * @title NFTfiV2 Note Adapter
+ * @title NFTfi Note Adapter
  */
-contract NFTfiV2NoteAdapter is INoteAdapter {
+contract NFTfiNoteAdapter is INoteAdapter {
     /*************/
     /* Constants */
     /*************/
 
     /// @notice Implementation version
-    string public constant IMPLEMENTATION_VERSION = "1.3";
+    string public constant IMPLEMENTATION_VERSION = "1.0";
 
     /// @notice Supported loan type
     bytes32 public constant SUPPORTED_LOAN_TYPE1 =
@@ -95,7 +95,7 @@ contract NFTfiV2NoteAdapter is INoteAdapter {
     /* Constructor */
     /***************/
 
-    /// @notice NFTfiV2NoteAdapter constructor
+    /// @notice NFTfiNoteAdapter constructor
     /// @param directLoanCoordinator Direct loan coordinator contract
     constructor(IDirectLoanCoordinator directLoanCoordinator) {
         _directLoanCoordinator = directLoanCoordinator;
@@ -108,7 +108,7 @@ contract NFTfiV2NoteAdapter is INoteAdapter {
 
     /// @inheritdoc INoteAdapter
     function name() external pure returns (string memory) {
-        return "NFTfi v2 Note Adapter";
+        return "NFTfi Note Adapter";
     }
 
     /// @inheritdoc INoteAdapter

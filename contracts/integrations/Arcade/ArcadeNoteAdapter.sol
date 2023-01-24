@@ -10,7 +10,7 @@ import "./IVaultFactory.sol";
 import "./IVaultInventoryReporter.sol";
 
 /********************************/
-/* ArcadeV2 Interfaces (subset) */
+/* Arcade Interfaces (subset) */
 /********************************/
 
 interface ILoanCore {
@@ -38,9 +38,9 @@ interface IRepaymentController {
 /*******************************/
 
 /**
- * @title ArcadeV2 Note Adapter
+ * @title Arcade Note Adapter
  */
-contract ArcadeV2NoteAdapter is INoteAdapter {
+contract ArcadeNoteAdapter is INoteAdapter {
     /*************/
     /* Constants */
     /*************/
@@ -79,7 +79,7 @@ contract ArcadeV2NoteAdapter is INoteAdapter {
     /* Constructor */
     /***************/
 
-    /// @notice ArcadeV2NoteAdapter constructor
+    /// @notice ArcadeNoteAdapter constructor
     /// @param loanCore Loan core contract
     constructor(
         ILoanCore loanCore,
@@ -100,7 +100,7 @@ contract ArcadeV2NoteAdapter is INoteAdapter {
 
     /// @inheritdoc INoteAdapter
     function name() external pure returns (string memory) {
-        return "Arcade v2 Note Adapter";
+        return "Arcade Note Adapter";
     }
 
     /// @inheritdoc INoteAdapter
