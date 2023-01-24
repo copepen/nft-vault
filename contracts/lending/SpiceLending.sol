@@ -22,10 +22,9 @@ interface ISpiceFiNFT4626 {
 
     function tokenShares(uint256 tokenId) external view returns (uint256);
 
-    function previewRedeem(uint256 shares)
-        external
-        view
-        returns (uint256 assets);
+    function previewRedeem(
+        uint256 shares
+    ) external view returns (uint256 assets);
 
     function deposit(
         uint256 tokenId,
@@ -198,10 +197,10 @@ contract SpiceLending is
     ///
     /// @param _lenderNote lender Note
     /// @param _borrowerNote borrower Note
-    function setNotes(INote _lenderNote, INote _borrowerNote)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setNotes(
+        INote _lenderNote,
+        INote _borrowerNote
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (address(_lenderNote) == address(0)) {
             revert InvalidAddress();
         }
@@ -220,10 +219,9 @@ contract SpiceLending is
     /// Emits a {InterestFeeUpdated} event.
     ///
     /// @param _interestFee Interest fee rate
-    function setInterestFee(uint256 _interestFee)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setInterestFee(
+        uint256 _interestFee
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_interestFee > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
@@ -237,10 +235,9 @@ contract SpiceLending is
     /// Emits a {LiquidationRatioUpdated} event.
     ///
     /// @param _liquidationRatio Liquidation ratio
-    function setLiquidationRatio(uint256 _liquidationRatio)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setLiquidationRatio(
+        uint256 _liquidationRatio
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_liquidationRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
@@ -254,10 +251,9 @@ contract SpiceLending is
     /// Emits a {LoanRatioUpdated} event.
     ///
     /// @param _loanRatio Loan ratio
-    function setLoanRatio(uint256 _loanRatio)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-    {
+    function setLoanRatio(
+        uint256 _loanRatio
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_loanRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
@@ -308,13 +304,13 @@ contract SpiceLending is
 
         // mint notes
         _mintNote(loanId, _terms.lender, _terms.borrower);
-        
+
         // transfer NFT collateral
         IERC721Upgradeable(_terms.collateralAddress).safeTransferFrom(
-                msg.sender,
-                address(this),
-                _terms.collateralId
-            );
+            msg.sender,
+            address(this),
+            _terms.collateralId
+        );
 
         // deposit borrowed funds on behalf of borrower
         IERC20Upgradeable(_terms.currency).safeTransferFrom(
@@ -323,7 +319,10 @@ contract SpiceLending is
             _terms.loanAmount
         );
 
-        ISpiceFiNFT4626(_terms.collateralAddress).deposit(_terms.collateralId, _terms.loanAmount);
+        ISpiceFiNFT4626(_terms.collateralAddress).deposit(
+            _terms.collateralId,
+            _terms.loanAmount
+        );
 
         emit LoanStarted(loanId, msg.sender);
     }
@@ -366,11 +365,16 @@ contract SpiceLending is
 
         // validate loan terms
         _validateLoanTerms(data, _terms);
-    
+
+        // check if signature is used
+        _checkSignatureUsage(_signature);
+
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        uint256 additionalTransfer = _terms.loanAmount - data.balance - data.interestAccrued;
+        uint256 additionalTransfer = _terms.loanAmount -
+            data.balance -
+            data.interestAccrued;
 
         // update loan
         data.terms = _terms;
@@ -383,14 +387,20 @@ contract SpiceLending is
                 address(this),
                 additionalTransfer
             );
-            ISpiceFiNFT4626(_terms.collateralAddress).deposit(_terms.collateralId, additionalTransfer);
+            ISpiceFiNFT4626(_terms.collateralAddress).deposit(
+                _terms.collateralId,
+                additionalTransfer
+            );
         }
-        
+
         emit LoanUpdated(_loanId);
     }
 
     /// @notice See {ISpiceLending-makeDeposit}
-    function makeDeposit(uint256 _loanId, uint256 _amount) external nonReentrant returns (uint256 shares) {
+    function makeDeposit(
+        uint256 _loanId,
+        uint256 _amount
+    ) external nonReentrant returns (uint256 shares) {
         LibLoan.LoanData storage data = loans[_loanId];
 
         // deposit funds on behalf of borrower
@@ -400,14 +410,17 @@ contract SpiceLending is
             _amount
         );
 
-        shares = ISpiceFiNFT4626(data.terms.collateralAddress).deposit(data.terms.collateralId, _amount);
+        shares = ISpiceFiNFT4626(data.terms.collateralAddress).deposit(
+            data.terms.collateralId,
+            _amount
+        );
     }
 
     /// @notice See {ISpiceLending-partialRepay}
-    function partialRepay(uint256 _loanId, uint256 _payment)
-        external
-        nonReentrant
-    {
+    function partialRepay(
+        uint256 _loanId,
+        uint256 _payment
+    ) external nonReentrant {
         LibLoan.LoanData storage data = loans[_loanId];
         if (data.state != LibLoan.LoanState.Active) {
             revert InvalidState(data.state);
@@ -468,12 +481,11 @@ contract SpiceLending is
             borrowerNote.burn(_loanId);
 
             // return collateral NFT to borrower
-            IERC721Upgradeable(data.terms.collateralAddress)
-                .safeTransferFrom(
-                    address(this),
-                    borrower,
-                    data.terms.collateralId
-                );
+            IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
+                address(this),
+                borrower,
+                data.terms.collateralId
+            );
         }
 
         emit LoanRepaid(_loanId);
@@ -528,12 +540,11 @@ contract SpiceLending is
         borrowerNote.burn(_loanId);
 
         // return collateral NFT to borrower
-        IERC721Upgradeable(data.terms.collateralAddress)
-            .safeTransferFrom(
-                address(this),
-                borrower,
-                data.terms.collateralId
-            );
+        IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
+            address(this),
+            borrower,
+            data.terms.collateralId
+        );
 
         emit LoanRepaid(_loanId);
     }
@@ -550,7 +561,10 @@ contract SpiceLending is
                 data.terms.collateralAddress,
                 data.terms.collateralId
             );
-            if (data.balance + _calcInterest(data) <= (collateral * liquidationRatio) / DENOMINATOR) {
+            if (
+                data.balance + _calcInterest(data) <=
+                (collateral * liquidationRatio) / DENOMINATOR
+            ) {
                 revert NotLiquidatible();
             }
         } else {
@@ -570,12 +584,11 @@ contract SpiceLending is
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
-        IERC721Upgradeable(data.terms.collateralAddress)
-            .safeTransferFrom(
-                address(this),
-                lender,
-                data.terms.collateralId
-            );
+        IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
+            address(this),
+            lender,
+            data.terms.collateralId
+        );
 
         emit LoanLiquidated(_loanId);
     }
@@ -585,11 +598,9 @@ contract SpiceLending is
     /******************/
 
     /// @notice See {ISpiceLending-getLoanData}
-    function getLoanData(uint256 _loanId)
-        external
-        view
-        returns (LibLoan.LoanData memory)
-    {
+    function getLoanData(
+        uint256 _loanId
+    ) external view returns (LibLoan.LoanData memory) {
         return loans[_loanId];
     }
 
@@ -599,8 +610,7 @@ contract SpiceLending is
     }
 
     /// @notice See {ISpiceLending-repayAmount}
-    function repayAmount(uint256 _loanId) external view returns (uint256) 
-    {
+    function repayAmount(uint256 _loanId) external view returns (uint256) {
         LibLoan.LoanData storage data = loans[_loanId];
         if (data.state != LibLoan.LoanState.Active) {
             revert InvalidState(data.state);
@@ -634,7 +644,6 @@ contract SpiceLending is
         _verifySignature(termsHash, _signature, _terms.lender);
     }
 
-
     /// @dev Verify signature
     /// @param _termsHash Hash for terms
     /// @param _signature Signature
@@ -646,8 +655,9 @@ contract SpiceLending is
     ) internal view {
         bytes32 hash = _hashTypedDataV4(_termsHash);
         address recoveredSigner = ECDSA.recover(hash, _signature);
-	require(
-            getRoleMemberCount(SIGNER_ROLE) == 0 || hasRole(SIGNER_ROLE, recoveredSigner),
+        require(
+            getRoleMemberCount(SIGNER_ROLE) == 0 ||
+                hasRole(SIGNER_ROLE, recoveredSigner),
             "signer is not enabled"
         );
 
@@ -674,22 +684,22 @@ contract SpiceLending is
         if (block.timestamp > _newTerms.expiration) {
             revert LoanTermsExpired();
         }
-        if (oldData.terms.collateralAddress != _newTerms.collateralAddress){
+        if (oldData.terms.collateralAddress != _newTerms.collateralAddress) {
             revert InvalidLoanTerms();
         }
-        if (oldData.terms.collateralId != _newTerms.collateralId){
+        if (oldData.terms.collateralId != _newTerms.collateralId) {
             revert InvalidLoanTerms();
         }
-        if (oldData.balance + _calcInterest(oldData) >= _newTerms.loanAmount){
+        if (oldData.balance + _calcInterest(oldData) >= _newTerms.loanAmount) {
             revert InvalidLoanTerms();
         }
-        if (oldData.terms.borrower != _newTerms.borrower){
+        if (oldData.terms.borrower != _newTerms.borrower) {
             revert InvalidLoanTerms();
         }
-        if (oldData.terms.currency != _newTerms.currency){
+        if (oldData.terms.currency != _newTerms.currency) {
             revert InvalidLoanTerms();
         }
-        if (oldData.terms.priceLiquidation != _newTerms.priceLiquidation){
+        if (oldData.terms.priceLiquidation != _newTerms.priceLiquidation) {
             revert InvalidLoanTerms();
         }
     }
@@ -698,7 +708,11 @@ contract SpiceLending is
     /// @param _loanId Loan ID
     /// @param _lender Lender address to receive lender note
     /// @param _borrower Lender address to receive lender note
-    function _mintNote(uint256 _loanId, address _lender, address _borrower) internal {
+    function _mintNote(
+        uint256 _loanId,
+        address _lender,
+        address _borrower
+    ) internal {
         lenderNote.mint(_lender, _loanId);
         borrowerNote.mint(_borrower, _loanId);
     }
@@ -754,11 +768,9 @@ contract SpiceLending is
     ///      Total Interest = Interest Accrued + New Interest since last repayment
     /// @param _data Loan data
     /// @return interest Total interest
-    function _calcInterest(LibLoan.LoanData storage _data)
-        internal
-        view
-        returns (uint256 interest)
-    {
+    function _calcInterest(
+        LibLoan.LoanData storage _data
+    ) internal view returns (uint256 interest) {
         uint256 loanEndTime = _data.startedAt + _data.terms.duration;
         uint256 timeElapsed = (
             block.timestamp < loanEndTime ? block.timestamp : loanEndTime
