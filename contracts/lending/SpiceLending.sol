@@ -380,7 +380,7 @@ contract SpiceLending is
         if (additionalTransfer > 0) {
             IERC20Upgradeable(data.terms.currency).safeTransferFrom(
                 lender,
-                msg.sender,
+                address(this),
                 additionalTransfer
             );
             ISpiceFiNFT4626(_terms.collateralAddress).deposit(_terms.collateralId, additionalTransfer);
