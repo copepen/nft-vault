@@ -144,9 +144,6 @@ contract Vault is
     /// @notice Creator role
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
 
-    /// @notice Keeper role
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
-
     /// @notice Liquidator role
     bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
 
@@ -260,7 +257,6 @@ contract Vault is
         _setupRole(DEFAULT_ADMIN_ROLE, _dev);
         _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
         _setupRole(ASSET_RECEIVER_ROLE, _multisig);
-        _setupRole(KEEPER_ROLE, _dev);
         _setupRole(LIQUIDATOR_ROLE, _dev);
         _setupRole(BIDDER_ROLE, _dev);
 
@@ -638,14 +634,12 @@ contract Vault is
 
         address oldDev = dev;
         _revokeRole(DEFAULT_ADMIN_ROLE, oldDev);
-        _revokeRole(KEEPER_ROLE, oldDev);
         _revokeRole(LIQUIDATOR_ROLE, oldDev);
         _revokeRole(BIDDER_ROLE, oldDev);
 
         dev = _dev;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _dev);
-        _setupRole(KEEPER_ROLE, _dev);
         _setupRole(LIQUIDATOR_ROLE, _dev);
         _setupRole(BIDDER_ROLE, _dev);
 
