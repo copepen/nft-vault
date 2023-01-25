@@ -931,6 +931,21 @@ describe("Vault", function () {
       await checkRole(dave.address, assetReceiverRole, true);
     });
 
+    it("Set total assets", async function () {
+      const totalAssets = ethers.utils.parseEther("1000");
+      await expect(
+        vault.connect(alice).setTotalAssets(totalAssets)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      const tx = await vault.connect(dev).setTotalAssets(totalAssets);
+
+      await expect(tx).to.emit(vault, "TotalAssets").withArgs(totalAssets);
+
+      expect(await vault.totalAssets()).to.be.eq(totalAssets);
+    });
+
     it("Pause", async function () {
       await expect(vault.connect(alice).pause()).to.be.revertedWith(
         `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`

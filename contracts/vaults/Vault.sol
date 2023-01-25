@@ -199,6 +199,10 @@ contract Vault is
     /// @param feeRecipient New fee recipient address
     event FeeRecipientUpdated(address feeRecipient);
 
+    /// @notice Emitted when totalAssets is updated
+    /// @param totalAssets Total assets
+    event TotalAssets(uint256 totalAssets);
+
     /// @notice Emitted when note adapter is updated
     /// @param noteToken Note token contract
     /// @param noteAdapter Note adapter contract
@@ -564,7 +568,9 @@ contract Vault is
         loan.repayment = loanInfo.repayment;
 
         // Store note
-        Note storage note = _notes[loanInfo.collateralToken][loanInfo.collateralTokenId];
+        Note storage note = _notes[loanInfo.collateralToken][
+            loanInfo.collateralTokenId
+        ];
         note.noteToken = noteToken;
         note.loanId = loanInfo.loanId;
 
@@ -657,6 +663,19 @@ contract Vault is
         _setupRole(ASSET_RECEIVER_ROLE, _multisig);
 
         emit MultisigUpdated(_multisig);
+    }
+
+    /// @notice Set total assets
+    ///
+    /// Emits a {TotalAssets} event.
+    ///
+    /// @param totalAssets_ New total assets value
+    function setTotalAssets(
+        uint256 totalAssets_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _totalAssets = totalAssets_;
+
+        emit TotalAssets(totalAssets_);
     }
 
     // @notice Set note adapter contract
@@ -770,10 +789,15 @@ contract Vault is
 
                 if (loan.status == LoanStatus.Liquidated) {
                     newTotalAssets += loan.repayment;
-                } else if (loan.status == LoanStatus.Complete || noteAdapter.isRepaid(loanId)) {
+                } else if (
+                    loan.status == LoanStatus.Complete ||
+                    noteAdapter.isRepaid(loanId)
+                ) {
                     // remove loan and loan ID
                     delete loan;
-                    delete _notes[address(loan.collateralToken)][loan.collateralTokenId];
+                    delete _notes[address(loan.collateralToken)][
+                        loan.collateralTokenId
+                    ];
                     --numLoans;
                     _pendingLoans[noteToken][j] = _pendingLoans[noteToken][
                         numLoans
@@ -784,8 +808,13 @@ contract Vault is
                     uint256 repayment = loan.repayment;
                     uint256 interest = repayment - loan.principal;
                     uint256 maturity = loan.maturity;
-                    uint256 timeRemaining = maturity > block.timestamp ? maturity - block.timestamp : 0;
-                    newTotalAssets += repayment - interest * timeRemaining / loan.duration;
+                    uint256 timeRemaining = maturity > block.timestamp
+                        ? maturity - block.timestamp
+                        : 0;
+                    newTotalAssets +=
+                        repayment -
+                        (interest * timeRemaining) /
+                        loan.duration;
                 }
             }
         }
