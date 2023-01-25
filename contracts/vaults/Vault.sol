@@ -402,12 +402,12 @@ contract Vault is
                 // Lookup loan state
                 Loan memory loan = _loans[noteToken][loanId];
 
-                if (loan.status == LoanStatus.Liquidated) {
-                    newTotalAssets += loan.repayment;
-                } else if (
-                    noteAdapter.isRepaid(loanId)
-                ) {
+                if (noteAdapter.isRepaid(loanId)) {
                     continue;
+                } else if (
+                    loan.status == LoanStatus.Liquidated
+                ) {
+                    newTotalAssets += loan.repayment;
                 } else {
                     // price loan when active
                     uint256 repayment = loan.repayment;
