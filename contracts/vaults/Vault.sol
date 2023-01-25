@@ -570,6 +570,9 @@ contract Vault is
 
         // Add loan to pending loan ids
         _pendingLoans[noteToken].push(loanInfo.loanId);
+
+        // update total assets
+        calcTotalAssets();
     }
 
     /***********/
@@ -736,7 +739,7 @@ contract Vault is
     }
 
     /// @notice Calculate total assets using current loans info
-    function calcTotalAssets() external {
+    function calcTotalAssets() public {
         uint256 newTotalAssets = _asset.balanceOf(address(this));
 
         // For each note token
