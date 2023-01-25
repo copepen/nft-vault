@@ -508,6 +508,12 @@ contract SpiceFiNFT4626 is
                 : "";
     }
 
+    /// @notice Return total supply
+    /// @return totalSupply Current total supply
+    function totalSupply() external view returns (uint256) {
+        return _tokenIdPointer;
+    }
+
     /******************/
     /* User Functions */
     /******************/
