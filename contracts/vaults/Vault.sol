@@ -32,8 +32,7 @@ abstract contract VaultStorageV1 {
     enum LoanStatus {
         Uninitialized,
         Active,
-        Liquidated,
-        Complete
+        Liquidated
     }
 
     /// @notice Loan state
@@ -97,7 +96,7 @@ abstract contract VaultStorageV1 {
     mapping(address => mapping(uint256 => Loan)) internal _loans;
 
     /// @dev Mapping of note token contract to list of loan IDs
-    mapping(address => uint256[]) internal _pendingLoans;
+    mapping(address => EnumerableSetUpgradeable.UintSet) internal _pendingLoans;
 }
 
 /**
@@ -126,16 +125,14 @@ contract Vault is
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using MathUpgradeable for uint256;
     using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
 
     /*************/
     /* Constants */
     /*************/
 
     /// @notice Implementation version
-    string public constant IMPLEMENTATION_VERSION = "1.0";
-
-    /// @notice Time bucket duration in seconds
-    uint256 public constant TIME_BUCKET_DURATION = 7 days;
+    string public constant IMPLEMENTATION_VERSION = "1.1";
 
     /************************/
     /* Access Control Roles */
@@ -383,6 +380,52 @@ contract Vault is
         loan = _loans[noteToken][loanId];
     }
 
+    /// @notice Calculate total assets using current loans info
+    function calcTotalAssets() public view returns (uint256){
+        uint256 newTotalAssets = _asset.balanceOf(address(this));
+
+        // For each note token
+        uint256 numNoteTokens = _noteTokens.length();
+        for (uint256 i; i != numNoteTokens; ++i) {
+            // Get note token
+            address noteToken = _noteTokens.at(i);
+
+            // Lookup note adapter
+            INoteAdapter noteAdapter = _noteAdapters[noteToken];
+
+            // For each loan ID
+            uint256 numLoans = _pendingLoans[noteToken].length();
+            for (uint256 j; j != numLoans; ) {
+                // Get loan ID
+                uint256 loanId = _pendingLoans[noteToken].at(j);
+
+                // Lookup loan state
+                Loan memory loan = _loans[noteToken][loanId];
+
+                if (loan.status == LoanStatus.Liquidated) {
+                    newTotalAssets += loan.repayment;
+                } else if (
+                    noteAdapter.isRepaid(loanId)
+                ) {
+                    continue;
+                } else {
+                    // price loan when active
+                    uint256 repayment = loan.repayment;
+                    uint256 interest = repayment - loan.principal;
+                    uint256 maturity = loan.maturity;
+                    uint256 timeRemaining = maturity > block.timestamp
+                        ? maturity - block.timestamp
+                        : 0;
+                    newTotalAssets +=
+                        repayment -
+                        (interest * timeRemaining) /
+                        loan.duration;
+                }
+            }
+        }
+        return newTotalAssets;
+    }
+
     /******************/
     /* User Functions */
     /******************/
@@ -582,10 +625,8 @@ contract Vault is
         note.loanId = loanInfo.loanId;
 
         // Add loan to pending loan ids
-        _pendingLoans[noteToken].push(loanInfo.loanId);
+        _pendingLoans[noteToken].add(loanInfo.loanId);
 
-        // update total assets
-        calcTotalAssets();
     }
 
     /***********/
@@ -756,75 +797,28 @@ contract Vault is
         uint256 payment
     ) external onlyRole(LIQUIDATOR_ROLE) {
         Note storage note = _notes[nft][nftId];
-        Loan storage loan = _loans[note.noteToken][note.loanId];
-        loan.status = LoanStatus.Complete;
+        
+        // remove loan and loan ID
+        _pendingLoans[note.noteToken].remove(note.loanId);
+        delete _loans[note.noteToken][note.loanId];
+        delete _notes[nft][nftId];
 
         _asset.safeTransferFrom(msg.sender, address(this), payment);
     }
 
-    /// @notice Calculate total assets using current loans info
-    function calcTotalAssets() public {
-        uint256 newTotalAssets = _asset.balanceOf(address(this));
-
-        // For each note token
-        uint256 numNoteTokens = _noteTokens.length();
-        for (uint256 i; i != numNoteTokens; ++i) {
-            // Get note token
-            address noteToken = _noteTokens.at(i);
-
-            // Lookup note adapter
-            INoteAdapter noteAdapter = _noteAdapters[noteToken];
-
-            // For each loan ID
-            uint256 numLoans = _pendingLoans[noteToken].length;
-            for (uint256 j; j != numLoans; ) {
-                // Get loan ID
-                uint256 loanId = _pendingLoans[noteToken][j];
-
-                // Lookup loan state
-                Loan memory loan = _loans[noteToken][loanId];
-
-                if (
-                    loan.status == LoanStatus.Active &&
-                    loan.collateralToken.ownerOf(loan.collateralTokenId) ==
-                    address(this)
-                ) {
-                    loan.status = LoanStatus.Liquidated;
-                }
-
-                if (loan.status == LoanStatus.Liquidated) {
-                    newTotalAssets += loan.repayment;
-                } else if (
-                    loan.status == LoanStatus.Complete ||
-                    noteAdapter.isRepaid(loanId)
-                ) {
-                    // remove loan and loan ID
-                    delete loan;
-                    delete _notes[address(loan.collateralToken)][
-                        loan.collateralTokenId
-                    ];
-                    --numLoans;
-                    _pendingLoans[noteToken][j] = _pendingLoans[noteToken][
-                        numLoans
-                    ];
-                    _pendingLoans[noteToken].pop();
-                } else {
-                    // price loan when active
-                    uint256 repayment = loan.repayment;
-                    uint256 interest = repayment - loan.principal;
-                    uint256 maturity = loan.maturity;
-                    uint256 timeRemaining = maturity > block.timestamp
-                        ? maturity - block.timestamp
-                        : 0;
-                    newTotalAssets +=
-                        repayment -
-                        (interest * timeRemaining) /
-                        loan.duration;
-                }
-            }
-        }
-
-        _totalAssets = newTotalAssets;
+    /// @notice Mark loan as repaid
+    /// @param nft NFT contract address
+    /// @param nftId NFT token ID
+    function markRepaid(
+        address nft,
+        uint256 nftId
+    ) external onlyRole(LIQUIDATOR_ROLE) {
+        Note storage note = _notes[nft][nftId];
+        
+        // remove loan and loan ID
+        _pendingLoans[note.noteToken].remove(note.loanId);
+        delete _loans[note.noteToken][note.loanId];
+        delete _notes[nft][nftId];
     }
 
     /************/

@@ -7,6 +7,7 @@ async function main() {
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
   const vault = await upgrades.upgradeBeacon(beacon.address, SpiceFiNFT4626, {
     unsafeAllow: ["delegatecall"],
+    timeout: 0
   });
   await vault.deployed();
 
