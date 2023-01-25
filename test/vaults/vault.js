@@ -16,7 +16,6 @@ describe("Vault", function () {
   let defaultAdminRole,
     creatorRole,
     assetReceiverRole,
-    keeperRole,
     liquidatorRole,
     bidderRole,
     whitelistRole,
@@ -167,7 +166,6 @@ describe("Vault", function () {
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
     creatorRole = await vault.CREATOR_ROLE();
     assetReceiverRole = await vault.ASSET_RECEIVER_ROLE();
-    keeperRole = await vault.KEEPER_ROLE();
     liquidatorRole = await vault.LIQUIDATOR_ROLE();
     bidderRole = await vault.BIDDER_ROLE();
     whitelistRole = await vault.WHITELIST_ROLE();
@@ -207,7 +205,6 @@ describe("Vault", function () {
       await checkRole(constants.accounts.Dev, defaultAdminRole, true);
       await checkRole(constants.accounts.Multisig, defaultAdminRole, true);
       await checkRole(constants.accounts.Multisig, assetReceiverRole, true);
-      await checkRole(constants.accounts.Dev, keeperRole, true);
       await checkRole(constants.accounts.Dev, liquidatorRole, true);
       await checkRole(constants.accounts.Dev, bidderRole, true);
       await checkRole(marketplace1.address, marketplaceRole, true);
@@ -900,11 +897,9 @@ describe("Vault", function () {
       expect(await vault.dev()).to.be.eq(dave.address);
 
       await checkRole(constants.accounts.Dev, defaultAdminRole, false);
-      await checkRole(constants.accounts.Dev, keeperRole, false);
       await checkRole(constants.accounts.Dev, liquidatorRole, false);
       await checkRole(constants.accounts.Dev, bidderRole, false);
       await checkRole(dave.address, defaultAdminRole, true);
-      await checkRole(dave.address, keeperRole, true);
       await checkRole(dave.address, liquidatorRole, true);
       await checkRole(dave.address, bidderRole, true);
     });
@@ -929,6 +924,21 @@ describe("Vault", function () {
       await checkRole(constants.accounts.Multisig, assetReceiverRole, false);
       await checkRole(dave.address, defaultAdminRole, true);
       await checkRole(dave.address, assetReceiverRole, true);
+    });
+
+    it("Set total assets", async function () {
+      const totalAssets = ethers.utils.parseEther("1000");
+      await expect(
+        vault.connect(alice).setTotalAssets(totalAssets)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      const tx = await vault.connect(dev).setTotalAssets(totalAssets);
+
+      await expect(tx).to.emit(vault, "TotalAssets").withArgs(totalAssets);
+
+      expect(await vault.totalAssets()).to.be.eq(totalAssets);
     });
 
     it("Pause", async function () {
