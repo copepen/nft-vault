@@ -142,23 +142,39 @@ contract SpiceLending is
     /// @notice loanAmount Exceeds Max LTV
     error LoanAmountExceeded();
 
+    /// @notice Signer not enabled
+    error SignerNotEnabled();
+
+    /// @notice Collateral not supported
+    error CollateralNotSupported();
+
     /***************/
     /* Constructor */
     /***************/
 
     /// @notice SpiceLending constructor (for proxy)
     /// @param _signer Signer address
+    /// @param _lenderNote Lender note contract address
+    /// @param _borrowerNote Borrower note contract address
     /// @param _interestFee Interest fee rate
     /// @param _liquidationRatio Liquidation ratio
     /// @param _loanRatio Loan ratio
     function initialize(
         address _signer,
+        INote _lenderNote,
+        INote _borrowerNote,
         uint256 _interestFee,
         uint256 _liquidationRatio,
         uint256 _loanRatio,
         address _feeRecipient
     ) external initializer {
         if (_signer == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(_lenderNote) == address(0)) {
+            revert InvalidAddress();
+        }
+        if (address(_borrowerNote) == address(0)) {
             revert InvalidAddress();
         }
         if (_interestFee > DENOMINATOR) {
@@ -170,6 +186,9 @@ contract SpiceLending is
         if (_loanRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
+        if (_feeRecipient == address(0)) {
+            revert InvalidAddress();
+        }
 
         __EIP712_init("SpiceLending", "1");
 
@@ -177,6 +196,8 @@ contract SpiceLending is
         _grantRole(SIGNER_ROLE, _signer);
         _grantRole(SPICE_ROLE, _feeRecipient);
 
+        lenderNote = _lenderNote;
+        borrowerNote = _borrowerNote;
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
         loanRatio = _loanRatio;
@@ -190,29 +211,6 @@ contract SpiceLending is
     /***********/
     /* Setters */
     /***********/
-
-    /// @notice Set note contracts
-    ///
-    /// Emits a {NotesUpdated} event.
-    ///
-    /// @param _lenderNote lender Note
-    /// @param _borrowerNote borrower Note
-    function setNotes(
-        INote _lenderNote,
-        INote _borrowerNote
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (address(_lenderNote) == address(0)) {
-            revert InvalidAddress();
-        }
-        if (address(_borrowerNote) == address(0)) {
-            revert InvalidAddress();
-        }
-
-        lenderNote = _lenderNote;
-        borrowerNote = _borrowerNote;
-
-        emit NotesUpdated(address(lenderNote), address(borrowerNote));
-    }
 
     /// @notice Set the interest fee rate
     ///
@@ -281,7 +279,7 @@ contract SpiceLending is
             _terms.collateralAddress,
             _terms.collateralId
         );
-        if (collateral < (_terms.loanAmount * loanRatio) / DENOMINATOR) {
+        if (_terms.loanAmount > (collateral * loanRatio) / DENOMINATOR) {
             revert LoanAmountExceeded();
         }
 
@@ -319,6 +317,10 @@ contract SpiceLending is
             _terms.loanAmount
         );
 
+        IERC20Upgradeable(_terms.currency).safeApprove(
+            _terms.collateralAddress,
+            _terms.loanAmount
+        );
         ISpiceFiNFT4626(_terms.collateralAddress).deposit(
             _terms.collateralId,
             _terms.loanAmount
@@ -359,32 +361,34 @@ contract SpiceLending is
             _terms.collateralAddress,
             _terms.collateralId
         );
-        if (collateral < (_terms.loanAmount * loanRatio) / DENOMINATOR) {
+        if (_terms.loanAmount > (collateral * loanRatio) / DENOMINATOR) {
             revert LoanAmountExceeded();
         }
-
-        // validate loan terms
-        _validateLoanTerms(data, _terms);
 
         // check if signature is used
         _checkSignatureUsage(_signature);
 
+        // validate loan terms
+        _validateLoanTerms(data, _terms);
+
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        uint256 additionalTransfer = _terms.loanAmount -
-            data.balance -
-            data.interestAccrued;
+        uint256 additionalTransfer = _terms.loanAmount - data.balance;
 
         // update loan
         data.terms = _terms;
-        data.balance += additionalTransfer;
+        data.balance = _terms.loanAmount;
         data.startedAt = block.timestamp;
 
         if (additionalTransfer > 0) {
-            IERC20Upgradeable(data.terms.currency).safeTransferFrom(
+            IERC20Upgradeable(_terms.currency).safeTransferFrom(
                 lender,
                 address(this),
+                additionalTransfer
+            );
+            IERC20Upgradeable(_terms.currency).safeApprove(
+                _terms.collateralAddress,
                 additionalTransfer
             );
             ISpiceFiNFT4626(_terms.collateralAddress).deposit(
@@ -409,7 +413,10 @@ contract SpiceLending is
             address(this),
             _amount
         );
-
+        IERC20Upgradeable(data.terms.currency).safeApprove(
+            data.terms.collateralAddress,
+            _amount
+        );
         shares = ISpiceFiNFT4626(data.terms.collateralAddress).deposit(
             data.terms.collateralId,
             _amount
@@ -655,11 +662,12 @@ contract SpiceLending is
     ) internal view {
         bytes32 hash = _hashTypedDataV4(_termsHash);
         address recoveredSigner = ECDSA.recover(hash, _signature);
-        require(
-            getRoleMemberCount(SIGNER_ROLE) == 0 ||
-                hasRole(SIGNER_ROLE, recoveredSigner),
-            "signer is not enabled"
-        );
+        if (
+            getRoleMemberCount(SIGNER_ROLE) > 0 &&
+            !hasRole(SIGNER_ROLE, recoveredSigner)
+        ) {
+            revert SignerNotEnabled();
+        }
 
         if (recoveredSigner != _lender) {
             bytes4 magicValue = IERC1271(_lender).isValidSignature(
@@ -758,10 +766,13 @@ contract SpiceLending is
         address _collateralAddress,
         uint256 _collateralId
     ) internal view returns (uint256 assets) {
-        uint256 shares = ISpiceFiNFT4626(_collateralAddress).tokenShares(
-            _collateralId
-        );
-        assets = ISpiceFiNFT4626(_collateralAddress).previewRedeem(shares);
+        try
+            ISpiceFiNFT4626(_collateralAddress).tokenShares(_collateralId)
+        returns (uint256 shares) {
+            assets = ISpiceFiNFT4626(_collateralAddress).previewRedeem(shares);
+        } catch {
+            revert CollateralNotSupported();
+        }
     }
 
     /// @dev Calc total interest to pay

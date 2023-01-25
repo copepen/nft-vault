@@ -13,7 +13,7 @@ library LibLoan {
         Repaid,
         Defaulted
     }
-    
+
     /// @notice Loan Terms struct
     struct LoanTerms {
         address lender;
@@ -41,11 +41,9 @@ library LibLoan {
     /// @notice Get LoanTerms struct hash
     /// @param _terms Loan Terms
     /// @return hash struct hash
-    function getLoanTermsHash(LoanTerms calldata _terms)
-        internal
-        pure
-        returns (bytes32)
-    {
+    function getLoanTermsHash(
+        LoanTerms calldata _terms
+    ) internal pure returns (bytes32) {
         return
             keccak256(
                 abi.encode(

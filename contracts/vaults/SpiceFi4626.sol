@@ -90,6 +90,9 @@ contract SpiceFi4626 is
     /// @notice Exceed maxTotalSupply
     error ExceedMaxTotalSupply();
 
+    /// @notice Caller not enabled
+    error CallerNotEnabled();
+
     /**********/
     /* Events */
     /**********/
@@ -423,11 +426,12 @@ contract SpiceFi4626 is
         uint256 assets,
         uint256 shares
     ) internal override nonReentrant {
-        require(
-            getRoleMemberCount(USER_ROLE) == 0 || hasRole(USER_ROLE, caller),
-            "caller is not enabled"
-        );
-        require(shares > 0, "shares is 0");
+        if (getRoleMemberCount(USER_ROLE) > 0 && !hasRole(USER_ROLE, caller)) {
+            revert CallerNotEnabled();
+        }
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
         super._deposit(caller, receiver, assets, shares);
     }
 

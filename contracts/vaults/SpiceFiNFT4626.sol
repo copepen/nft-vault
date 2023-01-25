@@ -141,6 +141,9 @@ contract SpiceFiNFT4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
+    /// @notice Caller not enabled
+    error CallerNotEnabled();
+
     /**********/
     /* Events */
     /**********/
@@ -698,10 +701,9 @@ contract SpiceFiNFT4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        require(
-            getRoleMemberCount(USER_ROLE) == 0 || hasRole(USER_ROLE, caller),
-            "caller is not enabled"
-        );
+        if (getRoleMemberCount(USER_ROLE) > 0 && !hasRole(USER_ROLE, caller)) {
+            revert CallerNotEnabled();
+        }
 
         if (tokenId == 0) {
             // mints new NFT

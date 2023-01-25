@@ -615,7 +615,7 @@ describe("SpiceFiNFT4626", function () {
 
         await expect(
           spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount)
-        ).to.be.revertedWith("caller is not enabled");
+        ).to.be.revertedWithCustomError(spiceVault, "CallerNotEnabled");
       });
 
       it("Only mint new NFT and deposit nothing", async function () {
@@ -799,7 +799,7 @@ describe("SpiceFiNFT4626", function () {
 
         await expect(
           spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount)
-        ).to.be.revertedWith("caller is not enabled");
+        ).to.be.revertedWithCustomError(spiceVault, "CallerNotEnabled");
       });
 
       it("Only mint new NFT and deposit nothing", async function () {
