@@ -376,6 +376,17 @@ contract Vault is
             );
     }
 
+    /// @notice Get loan info
+    /// @param noteToken Note token contract address
+    /// @param loanId Loan ID
+    /// @return loan Loan info
+    function getLoan(
+        address noteToken,
+        uint256 loanId
+    ) external view returns (Loan memory loan) {
+        loan = _loans[noteToken][loanId];
+    }
+
     /******************/
     /* User Functions */
     /******************/
