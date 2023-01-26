@@ -382,7 +382,7 @@ contract Vault is
     }
 
     /// @notice Calculate total assets using current loans info
-    function calcTotalAssets() public view returns (uint256){
+    function calcTotalAssets() public view returns (uint256) {
         uint256 newTotalAssets = _asset.balanceOf(address(this));
 
         // For each note token
@@ -403,11 +403,12 @@ contract Vault is
                 // Lookup loan state
                 Loan memory loan = _loans[noteToken][loanId];
 
-                if (noteAdapter.isRepaid && loan.status != LoanStatus.Liquidated) {
-                    continue;
-                } else if (
-                    loan.status == LoanStatus.Liquidated
+                if (
+                    noteAdapter.isRepaid(loanId) &&
+                    loan.status != LoanStatus.Liquidated
                 ) {
+                    continue;
+                } else if (loan.status == LoanStatus.Liquidated) {
                     newTotalAssets += loan.repayment;
                 } else {
                     // price loan when active
@@ -628,7 +629,6 @@ contract Vault is
 
         // Add loan to pending loan ids
         _pendingLoans[noteToken].add(loanInfo.loanId);
-
     }
 
     /***********/
@@ -799,7 +799,7 @@ contract Vault is
         uint256 payment
     ) external onlyRole(LIQUIDATOR_ROLE) {
         Note storage note = _notes[nft][nftId];
-        
+
         // remove loan and loan ID
         _pendingLoans[note.noteToken].remove(note.loanId);
         delete _loans[note.noteToken][note.loanId];
@@ -816,7 +816,7 @@ contract Vault is
         uint256 nftId
     ) external onlyRole(LIQUIDATOR_ROLE) {
         Note storage note = _notes[nft][nftId];
-        
+
         // remove loan and loan ID
         _pendingLoans[note.noteToken].remove(note.loanId);
         delete _loans[note.noteToken][note.loanId];
