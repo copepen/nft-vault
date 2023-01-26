@@ -55,6 +55,7 @@ abstract contract VaultStorageV1 {
 
     struct Note {
         address noteToken;
+        uint256 noteTokenId;
         uint256 loanId;
     }
 
@@ -402,7 +403,7 @@ contract Vault is
                 // Lookup loan state
                 Loan memory loan = _loans[noteToken][loanId];
 
-                if (noteAdapter.isRepaid(loanId)) {
+                if (noteAdapter.isRepaid && loan.status != LoanStatus.Liquidated) {
                     continue;
                 } else if (
                     loan.status == LoanStatus.Liquidated
@@ -622,6 +623,7 @@ contract Vault is
             loanInfo.collateralTokenId
         ];
         note.noteToken = noteToken;
+        note.noteTokenId = noteTokenId;
         note.loanId = loanInfo.loanId;
 
         // Add loan to pending loan ids
@@ -781,13 +783,13 @@ contract Vault is
         Loan storage loan = _loans[note.noteToken][note.loanId];
         loan.status = LoanStatus.Liquidated;
 
-        IERC721Upgradeable token = IERC721Upgradeable(nft);
-        require(token.ownerOf(nftId) == address(this));
+        IERC721Upgradeable token = IERC721Upgradeable(note.noteToken);
+        require(token.ownerOf(note.noteTokenId) == address(this));
 
-        token.safeTransferFrom(address(this), msg.sender, nftId);
+        token.safeTransferFrom(address(this), msg.sender, note.noteTokenId);
     }
 
-    /// @notice Transfer NFT out of vault
+    /// @notice Pay back proceeds of defaulted asset sale
     /// @param nft NFT contract address
     /// @param nftId NFT token ID
     /// @param payment Payment amount
