@@ -819,6 +819,13 @@ contract Vault is
         (bool success, ) = target.call(data);
         if (!success) revert CallFailed();
 
+        // transfer collateral nft to liquidator
+        loan.collateralToken.safeTransferFrom(
+            address(this),
+            msg.sender,
+            loan.collateralTokenId
+        );
+
         emit LoanLiquidated(noteToken, loanId);
     }
 
