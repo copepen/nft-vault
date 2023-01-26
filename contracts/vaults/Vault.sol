@@ -174,6 +174,15 @@ contract Vault is
     /// @notice Not whitelisted
     error NotWhitelisted();
 
+    /// @notice Unsupported note token
+    error UnsupportedNoteToken();
+
+    /// @notice Invalid loan state
+    error InvalidLoanState();
+
+    /// @notice Call failed
+    error CallFailed();
+
     /**********/
     /* Events */
     /**********/
@@ -202,6 +211,11 @@ contract Vault is
     /// @param noteToken Note token contract
     /// @param noteAdapter Note adapter contract
     event NoteAdapterUpdated(address indexed noteToken, address noteAdapter);
+
+    /// @notice Emitted when loan is liquidated
+    /// @param noteToken Note token contract
+    /// @param loanId Loan ID
+    event LoanLiquidated(address indexed noteToken, uint256 loanId);
 
     /***************/
     /* Constructor */
@@ -772,21 +786,40 @@ contract Vault is
         _asset.approve(spender, amount);
     }
 
-    /// @notice Transfer NFT out of vault
-    /// @param nft NFT contract address
-    /// @param nftId NFT token ID
-    function transferNFT(
-        address nft,
-        uint256 nftId
+    /// @notice Liquidate loan and transfer collateral token to liquidator
+    /// @param noteToken Note token contract
+    /// @param loanId Loan ID
+    function liquidateLoan(
+        address noteToken,
+        uint256 loanId
     ) external onlyRole(LIQUIDATOR_ROLE) {
-        Note storage note = _notes[nft][nftId];
-        Loan storage loan = _loans[note.noteToken][note.loanId];
+        // Lookup note adapter
+        INoteAdapter noteAdapter = _noteAdapters[noteToken];
+
+        // Validate note token is supported
+        if (noteAdapter == INoteAdapter(address(0x0)))
+            revert UnsupportedNoteToken();
+
+        // Lookup loan state
+        Loan storage loan = _loans[noteToken][loanId];
+
+        // Validate if loan status is Active
+        if (loan.status != LoanStatus.Active) revert InvalidLoanState();
+
+        // Update loan status to Liquidated
         loan.status = LoanStatus.Liquidated;
 
-        IERC721Upgradeable token = IERC721Upgradeable(note.noteToken);
-        require(token.ownerOf(note.noteTokenId) == address(this));
+        // Get liquidate target and calldata
+        (address target, bytes memory data) = noteAdapter.getLiquidateCalldata(
+            loanId
+        );
+        if (target == address(0x0)) revert InvalidAddress();
 
-        token.safeTransferFrom(address(this), msg.sender, note.noteTokenId);
+        // Call liquidate on lending platform
+        (bool success, ) = target.call(data);
+        if (!success) revert CallFailed();
+
+        emit LoanLiquidated(noteToken, loanId);
     }
 
     /// @notice Pay back proceeds of defaulted asset sale
