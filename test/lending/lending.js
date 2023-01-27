@@ -14,7 +14,7 @@ describe("Spice Lending", function () {
   let vault;
   let lending;
   let lenderNote, borrowerNote;
-  let nft, nft2;
+  let nft, nft1, nft2;
   let weth;
   let admin, alice, bob, treasury, signer, spiceAdmin;
   let whale, dev;
@@ -112,6 +112,19 @@ describe("Spice Lending", function () {
     ]);
 
     userRole = await nft.USER_ROLE();
+
+    nft1 = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      "Spice0",
+      "s0",
+      weth.address,
+      ethers.utils.parseEther("0.08"),
+      555,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     const Note = await ethers.getContractFactory("Note");
 
@@ -401,6 +414,14 @@ describe("Spice Lending", function () {
       ).to.be.revertedWithCustomError(lending, "LoanTermsExpired");
     });
 
+    it("When loan amount exceeds limit", async function () {
+      loanTerms.loanAmount = ethers.utils.parseEther("60").add(1);
+      const signature = await signLoanTerms(signer, lending.address, loanTerms);
+      await expect(
+        lending.connect(alice).initiateLoan(loanTerms, signature)
+      ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
+    });
+
     it("When signature is invalid #1", async function () {
       const signature = INVALID_SIGNATURE1;
       await expect(
@@ -521,6 +542,16 @@ describe("Spice Lending", function () {
       await weth
         .connect(whale)
         .transfer(alice.address, ethers.utils.parseEther("100"));
+
+      const amount = ethers.utils.parseEther("100");
+      await nft1.connect(dev).grantRole(userRole, alice.address);
+      await weth
+        .connect(whale)
+        .transfer(alice.address, amount.add(ethers.utils.parseEther("0.08")));
+      await weth
+        .connect(alice)
+        .approve(nft1.address, ethers.constants.MaxUint256);
+      await nft1.connect(alice)["deposit(uint256,uint256)"](0, amount);
     });
 
     it("When loan does not exist", async function () {
@@ -552,6 +583,47 @@ describe("Spice Lending", function () {
       await expect(
         lending.connect(alice).updateLoan(loanId, terms, signature)
       ).to.be.revertedWithCustomError(lending, "LoanTermsExpired");
+    });
+
+    it("When loan amount exceeds limit", async function () {
+      const collateral = await nft.tokenShares(1);
+      terms.loanAmount = collateral.mul(6000).div(10000).add(1);
+      const signature = await signLoanTerms(signer, lending.address, terms);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
+    });
+
+    it("When loan terms is invalid #1", async function () {
+      terms.collateralAddress = nft1.address;
+      const signature = await signLoanTerms(signer, lending.address, terms);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("When loan terms is invalid #2", async function () {
+      terms.loanAmount = ethers.utils.parseEther("10");
+      const signature = await signLoanTerms(signer, lending.address, terms);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("When loan terms is invalid #3", async function () {
+      terms.currency = bob.address;
+      const signature = await signLoanTerms(signer, lending.address, terms);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("When loan terms is invalid #4", async function () {
+      terms.priceLiquidation = !terms.priceLiquidation;
+      const signature = await signLoanTerms(signer, lending.address, terms);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
     });
 
     it("When signature is invalid #1", async function () {
@@ -638,6 +710,74 @@ describe("Spice Lending", function () {
       await expect(
         lending.connect(alice).updateLoan(loanId, terms, signature)
       ).to.be.revertedWithCustomError(lending, "InvalidLoanTerms");
+    });
+
+    it("When magicValue is not returned", async function () {
+      // deposit to vault
+      await weth
+        .connect(whale)
+        .approve(vault.address, ethers.constants.MaxUint256);
+      const assets = ethers.utils.parseEther("100");
+      await vault.connect(whale).deposit(assets, whale.address);
+
+      // approve asset to lending contract
+      const marketplacerole = await vault.MARKETPLACE_ROLE();
+      await vault.connect(alice).grantRole(marketplacerole, lending.address);
+      await vault.connect(alice).approveAsset(lending.address, assets);
+
+      // revoke default_admin_role from alice
+      await vault.connect(dev).revokeRole(defaultAdminRole, alice.address);
+
+      await lenderNote
+        .connect(signer)
+        ["safeTransferFrom(address,address,uint256)"](
+          signer.address,
+          vault.address,
+          loanId
+        );
+      terms.lender = vault.address;
+      const signature = await signLoanTerms(alice, lending.address, terms);
+      await lending.connect(admin).grantRole(signerRole, alice.address);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "InvalidSigner");
+    });
+
+    it("When magicValue is returned", async function () {
+      // deposit to vault
+      await weth
+        .connect(whale)
+        .approve(vault.address, ethers.constants.MaxUint256);
+      const assets = ethers.utils.parseEther("100");
+      await vault.connect(whale).deposit(assets, whale.address);
+
+      // approve asset to lending contract
+      const marketplacerole = await vault.MARKETPLACE_ROLE();
+      await vault.connect(alice).grantRole(marketplacerole, lending.address);
+      await vault.connect(alice).approveAsset(lending.address, assets);
+
+      await lenderNote
+        .connect(signer)
+        ["safeTransferFrom(address,address,uint256)"](
+          signer.address,
+          vault.address,
+          loanId
+        );
+      terms.lender = vault.address;
+      const signature = await signLoanTerms(alice, lending.address, terms);
+      await lending.connect(admin).grantRole(signerRole, alice.address);
+      const tx = await lending
+        .connect(alice)
+        .updateLoan(loanId, terms, signature);
+      await expect(tx).to.emit(lending, "LoanUpdated").withArgs(loanId);
+      expect(await nft.tokenShares(terms.collateralId)).to.be.eq(
+        terms.loanAmount.add(ethers.utils.parseEther("100"))
+      );
+      const newLoanData = await lending.getLoanData(loanId);
+      expect(newLoanData.balance).to.be.eq(terms.loanAmount);
+      expect(newLoanData.terms.loanAmount).to.be.eq(terms.loanAmount);
+      expect(newLoanData.terms.duration).to.be.eq(terms.duration);
+      expect(newLoanData.terms.interestRate).to.be.eq(terms.interestRate);
     });
 
     it("Extends loan and transfer additional principal", async function () {
@@ -900,7 +1040,7 @@ describe("Spice Lending", function () {
 
     it("Liquidate NFT loan (price)", async function () {
       await increaseTime(10 * 24 * 3600);
-      
+
       await lending.connect(admin).setLiquidationRatio(10);
 
       const tx = await lending.connect(bob).liquidate(loanId1);
@@ -936,6 +1076,100 @@ describe("Spice Lending", function () {
       await expect(borrowerNote.ownerOf(loanId2)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
+    });
+  });
+
+  describe("Repay Amount", function () {
+    let loanId;
+
+    beforeEach(async function () {
+      loanId = await initiateTestLoan(alice, 1, false);
+    });
+
+    it("When loan does not exist", async function () {
+      await expect(lending.repayAmount(100))
+        .to.be.revertedWithCustomError(lending, "InvalidState")
+        .withArgs(0);
+    });
+
+    it("When loan is not active", async function () {
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      await lending.connect(alice).repay(loanId);
+
+      await expect(lending.repayAmount(loanId))
+        .to.be.revertedWithCustomError(lending, "InvalidState")
+        .withArgs(2);
+    });
+
+    it("When loan is not expired", async function () {
+      await increaseTime(5 * 24 * 3600);
+
+      const loanAmount = ethers.utils.parseEther("10");
+      const interest = loanAmount.mul(500).mul(5).div(10000).div(365);
+      const repayAmount = loanAmount.add(interest);
+      expect(await lending.repayAmount(loanId)).to.be.closeTo(repayAmount, 100);
+    });
+
+    it("When loan is expired", async function () {
+      await increaseTime(10 * 24 * 3600);
+
+      const loanAmount = ethers.utils.parseEther("10");
+      const interest = loanAmount.mul(500).mul(10).div(10000).div(365);
+      const repayAmount = loanAmount.add(interest);
+      expect(await lending.repayAmount(loanId)).to.be.eq(repayAmount);
+    });
+  });
+
+  describe("Make Deposit", function () {
+    let loanId;
+
+    beforeEach(async function () {
+      loanId = await initiateTestLoan(alice, 1, false);
+    });
+
+    it("When asset is not approved", async function () {
+      await weth.connect(alice).approve(lending.address, 0);
+      await expect(
+        lending.connect(alice).makeDeposit(loanId, ethers.utils.parseEther("1"))
+      ).to.be.revertedWith("SafeERC20: low-level call failed");
+    });
+
+    it("When asset balance is not enough", async function () {
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      console.log(await weth.balanceOf(alice.address));
+      const balance = await weth.balanceOf(alice.address);
+      await expect(
+        lending.connect(alice).makeDeposit(loanId, balance.add(1))
+      ).to.be.revertedWith("SafeERC20: low-level call failed");
+    });
+
+    it("When deposit 0 amount", async function () {
+      const shares = await lending
+        .connect(alice)
+        .callStatic.makeDeposit(loanId, 0);
+      expect(shares).to.be.eq(0);
+    });
+
+    it("Make additional deposit", async function () {
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeShares = await nft.tokenShares(1);
+      const amount = ethers.utils.parseEther("1");
+      await weth.connect(whale).transfer(alice.address, amount);
+      const shares = await lending
+        .connect(alice)
+        .callStatic.makeDeposit(loanId, amount);
+      await lending.connect(alice).makeDeposit(loanId, amount);
+
+      const afterShares = await nft.tokenShares(1);
+      expect(shares).to.be.eq(amount);
+      expect(afterShares).to.be.eq(beforeShares.add(shares));
     });
   });
 });
