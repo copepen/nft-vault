@@ -11,6 +11,19 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/IBendLendPool.sol";
+import "../interfaces/uniswap/IUniswapV2Router02.sol";
+
+interface IBendIncentivesController {
+    function getRewardsBalance(
+        address[] calldata _assets,
+        address _user
+    ) external view returns (uint256);
+
+    function claimRewards(
+        address[] calldata _assets,
+        uint256 _amount
+    ) external returns (uint256);
+}
 
 /**
  * @title Storage for Bend4626
@@ -25,6 +38,9 @@ abstract contract Bend4626Storage {
 
     /// @dev Token decimals
     uint8 internal _decimals;
+
+    /// @notice Minimum reward claim amount
+    uint256 public minRewardClaim;
 }
 
 /**
@@ -44,10 +60,20 @@ contract Bend4626 is
     /* Constants */
     /*************/
 
+    /// @notice Bend Incentives Controller address
+    address public constant BEND_INCENTIVES_CONTROLLER =
+        0x26FC1f11E612366d3367fc0cbFfF9e819da91C8d;
+
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint256 public constant ONE_RAY = 1e27;
+
+    IUniswapV2Router02 public constant UNISWAP_V2_ROUTER =
+        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+    IERC20Upgradeable public constant BEND =
+        IERC20Upgradeable(0x0d02755a5700414B26FF040e1dE35D337DF56218);
 
     /**********/
     /* Events */
@@ -77,6 +103,9 @@ contract Bend4626 is
 
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
+
+    /// @notice Not enough reward balance
+    error NotEnoughRewardBalance();
 
     /***************/
     /* Constructor */
@@ -202,11 +231,10 @@ contract Bend4626 is
     /// @param assets The amount of weth being deposited
     /// @param receiver The account that will receive the receipt tokens
     /// @return shares The amount of receipt tokens minted
-    function deposit(uint256 assets, address receiver)
-        external
-        nonReentrant
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) external nonReentrant returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -223,11 +251,10 @@ contract Bend4626 is
     /// @param shares The amount of receipt tokens to mint
     /// @param receiver The account that will receive the receipt tokens
     /// @return assets The amount of weth deposited
-    function mint(uint256 shares, address receiver)
-        external
-        nonReentrant
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        address receiver
+    ) external nonReentrant returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -284,6 +311,58 @@ contract Bend4626 is
         _withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
+    /***********/
+    /* Setters */
+    /***********/
+
+    /// @notice Set the minimum reward claim amount
+    /// @param _minRewardClaim Minimum reward claim amount
+    function setMinRewardClaim(
+        uint256 _minRewardClaim
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        minRewardClaim = _minRewardClaim;
+    }
+
+    /********************/
+    /* Reward Functions */
+    /********************/
+
+    /// @notice Return the pending reward balance
+    /// @return rewardBalance Pending reward balance
+    function getRewardsBalance() public view returns (uint256) {
+        address[] memory assets = new address[](1);
+        assets[0] = lpTokenAddress;
+        return
+            IBendIncentivesController(BEND_INCENTIVES_CONTROLLER)
+                .getRewardsBalance(assets, address(this));
+    }
+
+    /// @notice Claim pending rewards
+    function claimReward() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 rewardBalance = getRewardsBalance();
+        if (rewardBalance < minRewardClaim) {
+            revert NotEnoughRewardBalance();
+        }
+        address[] memory assets = new address[](1);
+        assets[0] = lpTokenAddress;
+        IBendIncentivesController(BEND_INCENTIVES_CONTROLLER).claimRewards(
+            assets,
+            rewardBalance
+        );
+
+        BEND.approve(address(UNISWAP_V2_ROUTER), rewardBalance);
+        address[] memory path = new address[](2);
+        path[0] = address(BEND);
+        path[1] = WETH;
+        UNISWAP_V2_ROUTER.swapExactTokensForTokens(
+            rewardBalance,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
     /*****************************/
     /* Internal Helper Functions */
     /*****************************/
@@ -292,11 +371,10 @@ contract Bend4626 is
     /// @param assets Asset token amount
     /// @param rounding Rounding mode
     /// @return shares Share amount
-    function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
-        internal
-        view
-        returns (uint256 shares)
-    {
+    function _convertToShares(
+        uint256 assets,
+        MathUpgradeable.Rounding rounding
+    ) internal view returns (uint256 shares) {
         uint256 supply = totalSupply();
         return
             (assets == 0 || supply == 0)
@@ -308,11 +386,10 @@ contract Bend4626 is
     /// @param shares Share amount
     /// @param rounding Rounding mode
     /// @return assets Asset token amount
-    function _convertToAssets(uint256 shares, MathUpgradeable.Rounding rounding)
-        internal
-        view
-        returns (uint256 assets)
-    {
+    function _convertToAssets(
+        uint256 shares,
+        MathUpgradeable.Rounding rounding
+    ) internal view returns (uint256 assets) {
         uint256 supply = totalSupply();
         return
             (supply == 0)

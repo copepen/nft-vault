@@ -11,6 +11,13 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/ICEther.sol";
+import "../interfaces/uniswap/IUniswapV2Router02.sol";
+
+interface IComptroller {
+    function compAccrued(address) external view returns (uint256);
+
+    function claimComp(address) external;
+}
 
 /**
  * @title Storage for Drops4626
@@ -22,6 +29,9 @@ abstract contract Drops4626Storage {
 
     /// @dev Token decimals
     uint8 internal _decimals;
+
+    /// @notice Minimum reward claim amount
+    uint256 public minRewardClaim;
 }
 
 /**
@@ -41,10 +51,20 @@ contract Drops4626 is
     /* Constants */
     /*************/
 
+    /// @notice Comptroller address
+    address public constant COMPTROLLER =
+        0xB70FB69a522ed8D4613C4C720F91F93a836EE2f5;
+
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     uint256 public constant ONE_WAD = 1e18;
+
+    IUniswapV2Router02 public constant UNISWAP_V2_ROUTER =
+        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+
+    IERC20Upgradeable public constant DROPS =
+        IERC20Upgradeable(0x6bB61215298F296C55b19Ad842D3Df69021DA2ef);
 
     /**********/
     /* Events */
@@ -74,6 +94,9 @@ contract Drops4626 is
 
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
+
+    /// @notice Not enough reward balance
+    error NotEnoughRewardBalance();
 
     /***************/
     /* Constructor */
@@ -192,11 +215,10 @@ contract Drops4626 is
     /// @param assets The amount of weth being deposited
     /// @param receiver The account that will receive the receipt tokens
     /// @return shares The amount of receipt tokens minted
-    function deposit(uint256 assets, address receiver)
-        external
-        nonReentrant
-        returns (uint256 shares)
-    {
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) external nonReentrant returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -211,11 +233,10 @@ contract Drops4626 is
     /// @param shares The amount of receipt tokens to mint
     /// @param receiver The account that will receive the receipt tokens
     /// @return assets The amount of weth deposited
-    function mint(uint256 shares, address receiver)
-        external
-        nonReentrant
-        returns (uint256 assets)
-    {
+    function mint(
+        uint256 shares,
+        address receiver
+    ) external nonReentrant returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -249,6 +270,49 @@ contract Drops4626 is
         _withdraw(msg.sender, receiver, owner, shares);
     }
 
+    /***********/
+    /* Setters */
+    /***********/
+
+    /// @notice Set the minimum reward claim amount
+    /// @param _minRewardClaim Minimum reward claim amount
+    function setMinRewardClaim(
+        uint256 _minRewardClaim
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        minRewardClaim = _minRewardClaim;
+    }
+
+    /********************/
+    /* Reward Functions */
+    /********************/
+
+    /// @notice Return the pending reward balance
+    /// @return rewardBalance Pending reward balance
+    function getRewardsBalance() public view returns (uint256) {
+        return IComptroller(COMPTROLLER).compAccrued(address(this));
+    }
+
+    /// @notice Claim pending rewards
+    function claimReward() external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 rewardBalance = getRewardsBalance();
+        if (rewardBalance < minRewardClaim) {
+            revert NotEnoughRewardBalance();
+        }
+        IComptroller(COMPTROLLER).claimComp(address(this));
+
+        DROPS.approve(address(UNISWAP_V2_ROUTER), rewardBalance);
+        address[] memory path = new address[](2);
+        path[0] = address(DROPS);
+        path[1] = WETH;
+        UNISWAP_V2_ROUTER.swapExactTokensForTokens(
+            rewardBalance,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+    }
+
     /// @notice Withdraw weth from the pool
     /// @param shares The amount of receipt tokens being burnt
     /// @param receiver The account that will receive weth
@@ -276,11 +340,10 @@ contract Drops4626 is
     /// @param assets Asset token amount
     /// @param rounding Rounding mode
     /// @return shares Share amount
-    function _convertToShares(uint256 assets, MathUpgradeable.Rounding rounding)
-        internal
-        view
-        returns (uint256 shares)
-    {
+    function _convertToShares(
+        uint256 assets,
+        MathUpgradeable.Rounding rounding
+    ) internal view returns (uint256 shares) {
         uint256 exchangeRate = _getExchangeRate();
 
         return assets.mulDiv(ONE_WAD, exchangeRate, rounding);
@@ -290,11 +353,10 @@ contract Drops4626 is
     /// @param shares Share amount
     /// @param rounding Rounding mode
     /// @return assets Asset token amount
-    function _convertToAssets(uint256 shares, MathUpgradeable.Rounding rounding)
-        internal
-        view
-        returns (uint256 assets)
-    {
+    function _convertToAssets(
+        uint256 shares,
+        MathUpgradeable.Rounding rounding
+    ) internal view returns (uint256 assets) {
         uint256 exchangeRate = _getExchangeRate();
 
         return shares.mulDiv(exchangeRate, ONE_WAD, rounding);
@@ -306,10 +368,10 @@ contract Drops4626 is
     }
 
     /// @dev Deposit/mint common workflow.
-    function _deposit(uint256 assets, address receiver)
-        internal
-        returns (uint256 shares)
-    {
+    function _deposit(
+        uint256 assets,
+        address receiver
+    ) internal returns (uint256 shares) {
         // load weth
         IWETH weth = IWETH(WETH);
 
