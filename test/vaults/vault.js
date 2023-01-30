@@ -8,7 +8,6 @@ const constants = require("../constants");
 describe("Vault", function () {
   let vault;
   let token;
-  let nft;
   let admin, alice, bob, carol, dave, treasury, marketplace1, marketplace2;
   let snapshotId;
   let dev;
@@ -38,13 +37,6 @@ describe("Vault", function () {
     return token;
   }
 
-  async function deployNFT() {
-    const TestERC721 = await ethers.getContractFactory("TestERC721");
-    const nft = await TestERC721.deploy("TestNFT", "NFT", "baseuri");
-
-    return nft;
-  }
-
   async function checkRole(user, role, check) {
     expect(await vault.hasRole(role, user)).to.equal(check);
   }
@@ -70,8 +62,6 @@ describe("Vault", function () {
       [admin, alice, bob, carol, dave],
       amount
     );
-
-    nft = await deployNFT();
 
     const Vault = await ethers.getContractFactory("Vault");
     const beacon = await upgrades.deployBeacon(Vault);
@@ -212,7 +202,7 @@ describe("Vault", function () {
     });
 
     it("Should set the correct implementation version", async function () {
-      expect(await vault.IMPLEMENTATION_VERSION()).to.equal("1.0");
+      expect(await vault.IMPLEMENTATION_VERSION()).to.equal("1.1");
     });
 
     it("Should initialize once", async function () {
@@ -1006,29 +996,6 @@ describe("Vault", function () {
         );
         expect(allowance).to.be.eq(amount);
       });
-    });
-
-    it("Transfer NFT out of Vault", async function () {
-      await nft.mint(alice.address, 1);
-      await nft.mint(vault.address, 2);
-
-      await expect(
-        vault.connect(alice).transferNFT(nft.address, 1)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${liquidatorRole}`
-      );
-
-      await expect(
-        vault.connect(dev).transferNFT(nft.address, 1)
-      ).to.be.revertedWithoutReason();
-
-      await expect(
-        vault.connect(dev).transferNFT(token.address, 1)
-      ).to.be.revertedWithoutReason();
-
-      await vault.connect(dev).transferNFT(nft.address, 2);
-
-      expect(await nft.ownerOf(2)).to.be.eq(dev.address);
     });
   });
 
