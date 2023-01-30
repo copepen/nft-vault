@@ -41,7 +41,7 @@ describe("SpiceFiNFT4626", function () {
   const spiceVaultName = "Spice0";
   const spiceVaultSymbol = "s0";
   const mintPrice = ethers.utils.parseEther("0.08");
-  const maxSupply = 555;
+  const maxSupply = 3;
 
   async function deployTokenAndAirdrop(users, amount) {
     const Token = await ethers.getContractFactory("TestERC20");
@@ -666,7 +666,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Can't mint twice on same wallet", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
         await spiceVault.grantRole(userRole, whale.address);
 
         const amount = ethers.utils.parseEther("100");
@@ -679,6 +678,38 @@ describe("SpiceFiNFT4626", function () {
         await expect(
           spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount)
         ).to.be.revertedWithCustomError(spiceVault, "MoreThanOne");
+      });
+
+      it("Can't mint more than maxSupply", async function () {
+        await spiceVault.grantRole(userRole, alice.address);
+        await spiceVault.grantRole(userRole, bob.address);
+        await spiceVault.grantRole(userRole, carol.address);
+        await spiceVault.grantRole(userRole, whale.address);
+
+        await weth
+          .connect(alice)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await weth
+          .connect(bob)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await weth
+          .connect(carol)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        const amount = ethers.utils.parseEther("10");
+        await weth.connect(whale).transfer(alice.address, amount.mul(2));
+        await weth.connect(whale).transfer(bob.address, amount.mul(2));
+        await weth.connect(whale).transfer(carol.address, amount.mul(2));
+
+        await spiceVault.connect(alice)["deposit(uint256,uint256)"](0, amount);
+        await spiceVault.connect(bob)["deposit(uint256,uint256)"](0, amount);
+        await spiceVault.connect(carol)["deposit(uint256,uint256)"](0, amount);
+        await expect(
+          spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount)
+        ).to.be.revertedWithCustomError(spiceVault, "OutOfSupply");
       });
 
       it("When not owning NFT", async function () {
