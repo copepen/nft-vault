@@ -141,6 +141,9 @@ contract SpiceFiNFT4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
+    /// @notice Caller not enabled
+    error CallerNotEnabled();
+
     /**********/
     /* Events */
     /**********/
@@ -331,9 +334,9 @@ contract SpiceFiNFT4626 is
             revert MetadataRevealed();
         }
         _previewUri = previewUri;
-	if (_tokenIdPointer > 0) {
-	  emit BatchMetadataUpdate(1, _tokenIdPointer);
-       }
+        if (_tokenIdPointer > 0) {
+            emit BatchMetadataUpdate(1, _tokenIdPointer);
+        }
     }
 
     /// @notice Sets base uri and reveal
@@ -343,9 +346,9 @@ contract SpiceFiNFT4626 is
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _revealed = true;
         _baseUri = baseUri;
-	if (_tokenIdPointer > 0) {
-	  emit BatchMetadataUpdate(1, _tokenIdPointer);
-       }
+        if (_tokenIdPointer > 0) {
+            emit BatchMetadataUpdate(1, _tokenIdPointer);
+        }
     }
 
     /// @notice Set verified
@@ -480,11 +483,13 @@ contract SpiceFiNFT4626 is
         override(ERC721Upgradeable, AccessControlEnumerableUpgradeable)
         returns (bool)
     {
-        return interfaceId == bytes4(0x49064906) || super.supportsInterface(interfaceId);
+        return
+            interfaceId == bytes4(0x49064906) ||
+            super.supportsInterface(interfaceId);
     }
 
     function contractURI() public pure returns (string memory) {
-      return "https://b3ec853c.spicefi.xyz/metadata/os";
+        return "https://b3ec853c.spicefi.xyz/metadata/os";
     }
 
     /// @notice See {IERC721Metadata-tokenURI}.
@@ -494,11 +499,11 @@ contract SpiceFiNFT4626 is
         _requireMinted(tokenId);
 
         if (!_revealed) {
-	  string memory previewURI = _previewUri;
-	  return
-            bytes(previewURI).length > 0
-	    ? string(abi.encodePacked(previewURI, tokenId.toString()))
-	    : "";
+            string memory previewURI = _previewUri;
+            return
+                bytes(previewURI).length > 0
+                    ? string(abi.encodePacked(previewURI, tokenId.toString()))
+                    : "";
         }
 
         string memory baseURI = _baseUri;
@@ -506,6 +511,12 @@ contract SpiceFiNFT4626 is
             bytes(baseURI).length > 0
                 ? string(abi.encodePacked(baseURI, tokenId.toString()))
                 : "";
+    }
+
+    /// @notice Return total supply
+    /// @return totalSupply Current total supply
+    function totalSupply() external view returns (uint256) {
+        return _tokenIdPointer;
     }
 
     /******************/
@@ -690,10 +701,9 @@ contract SpiceFiNFT4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        require(
-            getRoleMemberCount(USER_ROLE) == 0 || hasRole(USER_ROLE, caller),
-            "caller is not enabled"
-        );
+        if (getRoleMemberCount(USER_ROLE) > 0 && !hasRole(USER_ROLE, caller)) {
+            revert CallerNotEnabled();
+        }
 
         if (tokenId == 0) {
             // mints new NFT
@@ -787,6 +797,6 @@ contract SpiceFiNFT4626 is
      * @dev Returns the address of the current owner.
      */
     function owner() public view returns (address) {
-      return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
+        return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
     }
 }

@@ -544,7 +544,7 @@ describe("SpiceFi4626", function () {
           spiceVault
             .connect(whale)
             ["deposit(uint256,address)"](amount, whale.address)
-        ).to.be.revertedWith("caller is not enabled");
+        ).to.be.revertedWithCustomError(spiceVault, "CallerNotEnabled");
 
         await spiceVault.grantRole(userRole, whale.address);
 

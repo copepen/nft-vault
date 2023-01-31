@@ -8,7 +8,6 @@ const constants = require("../constants");
 describe("Vault", function () {
   let vault;
   let token;
-  let nft;
   let admin, alice, bob, carol, dave, treasury, marketplace1, marketplace2;
   let snapshotId;
   let dev;
@@ -16,7 +15,6 @@ describe("Vault", function () {
   let defaultAdminRole,
     creatorRole,
     assetReceiverRole,
-    keeperRole,
     liquidatorRole,
     bidderRole,
     whitelistRole,
@@ -37,13 +35,6 @@ describe("Vault", function () {
     }
 
     return token;
-  }
-
-  async function deployNFT() {
-    const TestERC721 = await ethers.getContractFactory("TestERC721");
-    const nft = await TestERC721.deploy("TestNFT", "NFT", "baseuri");
-
-    return nft;
   }
 
   async function checkRole(user, role, check) {
@@ -71,8 +62,6 @@ describe("Vault", function () {
       [admin, alice, bob, carol, dave],
       amount
     );
-
-    nft = await deployNFT();
 
     const Vault = await ethers.getContractFactory("Vault");
     const beacon = await upgrades.deployBeacon(Vault);
@@ -167,7 +156,6 @@ describe("Vault", function () {
     defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
     creatorRole = await vault.CREATOR_ROLE();
     assetReceiverRole = await vault.ASSET_RECEIVER_ROLE();
-    keeperRole = await vault.KEEPER_ROLE();
     liquidatorRole = await vault.LIQUIDATOR_ROLE();
     bidderRole = await vault.BIDDER_ROLE();
     whitelistRole = await vault.WHITELIST_ROLE();
@@ -207,7 +195,6 @@ describe("Vault", function () {
       await checkRole(constants.accounts.Dev, defaultAdminRole, true);
       await checkRole(constants.accounts.Multisig, defaultAdminRole, true);
       await checkRole(constants.accounts.Multisig, assetReceiverRole, true);
-      await checkRole(constants.accounts.Dev, keeperRole, true);
       await checkRole(constants.accounts.Dev, liquidatorRole, true);
       await checkRole(constants.accounts.Dev, bidderRole, true);
       await checkRole(marketplace1.address, marketplaceRole, true);
@@ -215,7 +202,7 @@ describe("Vault", function () {
     });
 
     it("Should set the correct implementation version", async function () {
-      expect(await vault.IMPLEMENTATION_VERSION()).to.equal("1.0");
+      expect(await vault.IMPLEMENTATION_VERSION()).to.equal("1.1");
     });
 
     it("Should initialize once", async function () {
@@ -900,11 +887,9 @@ describe("Vault", function () {
       expect(await vault.dev()).to.be.eq(dave.address);
 
       await checkRole(constants.accounts.Dev, defaultAdminRole, false);
-      await checkRole(constants.accounts.Dev, keeperRole, false);
       await checkRole(constants.accounts.Dev, liquidatorRole, false);
       await checkRole(constants.accounts.Dev, bidderRole, false);
       await checkRole(dave.address, defaultAdminRole, true);
-      await checkRole(dave.address, keeperRole, true);
       await checkRole(dave.address, liquidatorRole, true);
       await checkRole(dave.address, bidderRole, true);
     });
@@ -929,6 +914,21 @@ describe("Vault", function () {
       await checkRole(constants.accounts.Multisig, assetReceiverRole, false);
       await checkRole(dave.address, defaultAdminRole, true);
       await checkRole(dave.address, assetReceiverRole, true);
+    });
+
+    it("Set total assets", async function () {
+      const totalAssets = ethers.utils.parseEther("1000");
+      await expect(
+        vault.connect(alice).setTotalAssets(totalAssets)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+      );
+
+      const tx = await vault.connect(dev).setTotalAssets(totalAssets);
+
+      await expect(tx).to.emit(vault, "TotalAssets").withArgs(totalAssets);
+
+      expect(await vault.totalAssets()).to.be.eq(totalAssets);
     });
 
     it("Pause", async function () {
@@ -996,29 +996,6 @@ describe("Vault", function () {
         );
         expect(allowance).to.be.eq(amount);
       });
-    });
-
-    it("Transfer NFT out of Vault", async function () {
-      await nft.mint(alice.address, 1);
-      await nft.mint(vault.address, 2);
-
-      await expect(
-        vault.connect(alice).transferNFT(nft.address, 1)
-      ).to.be.revertedWith(
-        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${liquidatorRole}`
-      );
-
-      await expect(
-        vault.connect(dev).transferNFT(nft.address, 1)
-      ).to.be.revertedWithoutReason();
-
-      await expect(
-        vault.connect(dev).transferNFT(token.address, 1)
-      ).to.be.revertedWithoutReason();
-
-      await vault.connect(dev).transferNFT(nft.address, 2);
-
-      expect(await nft.ownerOf(2)).to.be.eq(dev.address);
     });
   });
 

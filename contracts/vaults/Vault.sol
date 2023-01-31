@@ -10,17 +10,59 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "prb-math/contracts/PRBMathUD60x18.sol";
 
 import "../interfaces/IVault.sol";
+import "../interfaces/INoteAdapter.sol";
 
 /**
  * @title Storage for Vault
  * @author Spice Finance Inc
  */
 abstract contract VaultStorageV1 {
+    /**************/
+    /* Structures */
+    /**************/
+
+    /// @notice Loan status
+    enum LoanStatus {
+        Uninitialized,
+        Active,
+        Liquidated
+    }
+
+    /// @notice Loan state
+    /// @param status Loan status
+    /// @param maturity Maturity in seconds since Unix epoch
+    /// @param duration Duration in seconds
+    /// @param collateralToken Collateral token contract
+    /// @param collateralTokenId Collateral token ID
+    /// @param principal Principal value
+    /// @param repayment Repayment in currency tokens
+    struct Loan {
+        LoanStatus status;
+        uint64 maturity;
+        uint64 duration;
+        IERC721 collateralToken;
+        uint256 collateralTokenId;
+        uint256 principal;
+        uint256 repayment;
+    }
+
+    struct Note {
+        address noteToken;
+        uint256 noteTokenId;
+        uint256 loanId;
+    }
+
+    /*********/
+    /* State */
+    /*********/
+
     /// @dev Asset token
     IERC20Upgradeable internal _asset;
 
@@ -41,6 +83,21 @@ abstract contract VaultStorageV1 {
 
     /// @dev Total assets value
     uint256 internal _totalAssets;
+
+    /// @dev Note list
+    EnumerableSetUpgradeable.AddressSet internal _noteTokens;
+
+    /// @dev Note adapters
+    mapping(address => INoteAdapter) internal _noteAdapters;
+
+    /// @dev Mapping of collateral token contract to collateral token ID to note info
+    mapping(address => mapping(uint256 => Note)) internal _notes;
+
+    /// @dev Mapping of note token contract to loan ID to loan
+    mapping(address => mapping(uint256 => Loan)) internal _loans;
+
+    /// @dev Mapping of note token contract to list of loan IDs
+    mapping(address => EnumerableSetUpgradeable.UintSet) internal _pendingLoans;
 }
 
 /**
@@ -64,17 +121,19 @@ contract Vault is
     AccessControlEnumerableUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    ERC721Holder
+    IERC721Receiver
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using MathUpgradeable for uint256;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.AddressSet;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
 
     /*************/
     /* Constants */
     /*************/
 
     /// @notice Implementation version
-    string public constant IMPLEMENTATION_VERSION = "1.0";
+    string public constant IMPLEMENTATION_VERSION = "1.1";
 
     /************************/
     /* Access Control Roles */
@@ -82,9 +141,6 @@ contract Vault is
 
     /// @notice Creator role
     bytes32 public constant CREATOR_ROLE = keccak256("CREATOR_ROLE");
-
-    /// @notice Keeper role
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
 
     /// @notice Liquidator role
     bytes32 public constant LIQUIDATOR_ROLE = keccak256("LIQUIDATOR_ROLE");
@@ -118,6 +174,15 @@ contract Vault is
     /// @notice Not whitelisted
     error NotWhitelisted();
 
+    /// @notice Unsupported note token
+    error UnsupportedNoteToken();
+
+    /// @notice Invalid loan state
+    error InvalidLoanState();
+
+    /// @notice Call failed
+    error CallFailed();
+
     /**********/
     /* Events */
     /**********/
@@ -141,6 +206,16 @@ contract Vault is
     /// @notice Emitted when totalAssets is updated
     /// @param totalAssets Total assets
     event TotalAssets(uint256 totalAssets);
+
+    /// @notice Emitted when note adapter is updated
+    /// @param noteToken Note token contract
+    /// @param noteAdapter Note adapter contract
+    event NoteAdapterUpdated(address indexed noteToken, address noteAdapter);
+
+    /// @notice Emitted when loan is liquidated
+    /// @param noteToken Note token contract
+    /// @param loanId Loan ID
+    event LoanLiquidated(address indexed noteToken, uint256 loanId);
 
     /***************/
     /* Constructor */
@@ -194,7 +269,6 @@ contract Vault is
         _setupRole(DEFAULT_ADMIN_ROLE, _dev);
         _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
         _setupRole(ASSET_RECEIVER_ROLE, _multisig);
-        _setupRole(KEEPER_ROLE, _dev);
         _setupRole(LIQUIDATOR_ROLE, _dev);
         _setupRole(BIDDER_ROLE, _dev);
 
@@ -308,6 +382,64 @@ contract Vault is
                 shares.mulDiv(10_000 - withdrawalFees, 10_000),
                 MathUpgradeable.Rounding.Down
             );
+    }
+
+    /// @notice Get loan info
+    /// @param noteToken Note token contract address
+    /// @param loanId Loan ID
+    /// @return loan Loan info
+    function getLoan(
+        address noteToken,
+        uint256 loanId
+    ) external view returns (Loan memory loan) {
+        loan = _loans[noteToken][loanId];
+    }
+
+    /// @notice Calculate total assets using current loans info
+    function calcTotalAssets() public view returns (uint256) {
+        uint256 newTotalAssets = _asset.balanceOf(address(this));
+
+        // For each note token
+        uint256 numNoteTokens = _noteTokens.length();
+        for (uint256 i; i != numNoteTokens; ++i) {
+            // Get note token
+            address noteToken = _noteTokens.at(i);
+
+            // Lookup note adapter
+            INoteAdapter noteAdapter = _noteAdapters[noteToken];
+
+            // For each loan ID
+            uint256 numLoans = _pendingLoans[noteToken].length();
+            for (uint256 j; j != numLoans; ) {
+                // Get loan ID
+                uint256 loanId = _pendingLoans[noteToken].at(j);
+
+                // Lookup loan state
+                Loan memory loan = _loans[noteToken][loanId];
+
+                if (
+                    noteAdapter.isRepaid(loanId) &&
+                    loan.status != LoanStatus.Liquidated
+                ) {
+                    continue;
+                } else if (loan.status == LoanStatus.Liquidated) {
+                    newTotalAssets += loan.repayment;
+                } else {
+                    // price loan when active
+                    uint256 repayment = loan.repayment;
+                    uint256 interest = repayment - loan.principal;
+                    uint256 maturity = loan.maturity;
+                    uint256 timeRemaining = maturity > block.timestamp
+                        ? maturity - block.timestamp
+                        : 0;
+                    newTotalAssets +=
+                        repayment -
+                        (interest * timeRemaining) /
+                        loan.duration;
+                }
+            }
+        }
+        return newTotalAssets;
     }
 
     /******************/
@@ -479,6 +611,40 @@ contract Vault is
         emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
     }
 
+    /// @dev Store loan info when new note token is received
+    /// @param noteToken Note token contract
+    /// @param noteTokenId Note token ID
+    function _onNoteReceived(address noteToken, uint256 noteTokenId) internal {
+        // Lookup note adapter
+        INoteAdapter noteAdapter = _noteAdapters[noteToken];
+
+        // Get loan info
+        INoteAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(
+            noteTokenId
+        );
+
+        // Store loan state
+        Loan storage loan = _loans[noteToken][loanInfo.loanId];
+        loan.status = LoanStatus.Active;
+        loan.maturity = loanInfo.maturity;
+        loan.duration = loanInfo.duration;
+        loan.collateralToken = IERC721(loanInfo.collateralToken);
+        loan.collateralTokenId = loanInfo.collateralTokenId;
+        loan.principal = loanInfo.principal;
+        loan.repayment = loanInfo.repayment;
+
+        // Store note
+        Note storage note = _notes[loanInfo.collateralToken][
+            loanInfo.collateralTokenId
+        ];
+        note.noteToken = noteToken;
+        note.noteTokenId = noteTokenId;
+        note.loanId = loanInfo.loanId;
+
+        // Add loan to pending loan ids
+        _pendingLoans[noteToken].add(loanInfo.loanId);
+    }
+
     /***********/
     /* Setters */
     /***********/
@@ -525,14 +691,12 @@ contract Vault is
 
         address oldDev = dev;
         _revokeRole(DEFAULT_ADMIN_ROLE, oldDev);
-        _revokeRole(KEEPER_ROLE, oldDev);
         _revokeRole(LIQUIDATOR_ROLE, oldDev);
         _revokeRole(BIDDER_ROLE, oldDev);
 
         dev = _dev;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _dev);
-        _setupRole(KEEPER_ROLE, _dev);
         _setupRole(LIQUIDATOR_ROLE, _dev);
         _setupRole(BIDDER_ROLE, _dev);
 
@@ -570,10 +734,30 @@ contract Vault is
     /// @param totalAssets_ New total assets value
     function setTotalAssets(
         uint256 totalAssets_
-    ) external onlyRole(KEEPER_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         _totalAssets = totalAssets_;
 
         emit TotalAssets(totalAssets_);
+    }
+
+    // @notice Set note adapter contract
+    //
+    // Emits a {NoteAdapterUpdated} event.
+    //
+    // @param noteToken Note token contract
+    // @param noteAdapter Note adapter contract
+    function setNoteAdapter(
+        address noteToken,
+        address noteAdapter
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (noteToken == address(0)) revert InvalidAddress();
+        _noteAdapters[noteToken] = INoteAdapter(noteAdapter);
+        if (noteAdapter != address(0)) {
+            _noteTokens.add(noteToken);
+        } else {
+            _noteTokens.remove(noteToken);
+        }
+        emit NoteAdapterUpdated(noteToken, noteAdapter);
     }
 
     /// @notice Pause contract
@@ -602,17 +786,81 @@ contract Vault is
         _asset.approve(spender, amount);
     }
 
-    /// @notice Transfer NFT out of vault
+    /// @notice Liquidate loan and transfer collateral token to liquidator
+    /// @param noteToken Note token contract
+    /// @param loanId Loan ID
+    function liquidateLoan(
+        address noteToken,
+        uint256 loanId
+    ) external onlyRole(LIQUIDATOR_ROLE) {
+        // Lookup note adapter
+        INoteAdapter noteAdapter = _noteAdapters[noteToken];
+
+        // Validate note token is supported
+        if (noteAdapter == INoteAdapter(address(0x0)))
+            revert UnsupportedNoteToken();
+
+        // Lookup loan state
+        Loan storage loan = _loans[noteToken][loanId];
+
+        // Validate if loan status is Active
+        if (loan.status != LoanStatus.Active) revert InvalidLoanState();
+
+        // Update loan status to Liquidated
+        loan.status = LoanStatus.Liquidated;
+
+        // Get liquidate target and calldata
+        (address target, bytes memory data) = noteAdapter.getLiquidateCalldata(
+            loanId
+        );
+        if (target == address(0x0)) revert InvalidAddress();
+
+        // Call liquidate on lending platform
+        (bool success, ) = target.call(data);
+        if (!success) revert CallFailed();
+
+        // transfer collateral nft to liquidator
+        loan.collateralToken.safeTransferFrom(
+            address(this),
+            msg.sender,
+            loan.collateralTokenId
+        );
+
+        emit LoanLiquidated(noteToken, loanId);
+    }
+
+    /// @notice Pay back proceeds of defaulted asset sale
     /// @param nft NFT contract address
     /// @param nftId NFT token ID
-    function transferNFT(
+    /// @param payment Payment amount
+    function payLoan(
+        address nft,
+        uint256 nftId,
+        uint256 payment
+    ) external onlyRole(LIQUIDATOR_ROLE) {
+        Note storage note = _notes[nft][nftId];
+
+        // remove loan and loan ID
+        _pendingLoans[note.noteToken].remove(note.loanId);
+        delete _loans[note.noteToken][note.loanId];
+        delete _notes[nft][nftId];
+
+        _asset.safeTransferFrom(msg.sender, address(this), payment);
+    }
+
+    /// @notice Mark loan as repaid
+    /// @param nft NFT contract address
+    /// @param nftId NFT token ID
+    function markRepaid(
         address nft,
         uint256 nftId
     ) external onlyRole(LIQUIDATOR_ROLE) {
-        IERC721Upgradeable token = IERC721Upgradeable(nft);
-        require(token.ownerOf(nftId) == address(this));
+        Note storage note = _notes[nft][nftId];
 
-        token.safeTransferFrom(address(this), msg.sender, nftId);
+        // remove loan and loan ID
+        _pendingLoans[note.noteToken].remove(note.loanId);
+        delete _loans[note.noteToken][note.loanId];
+        delete _notes[nft][nftId];
     }
 
     /************/
@@ -638,5 +886,24 @@ contract Vault is
         } else {
             return 0xffffffff;
         }
+    }
+
+    /***********/
+    /* ERC-721 */
+    /***********/
+
+    /// See {IERC721Receiver-onERC721Received}
+    function onERC721Received(
+        address,
+        address,
+        uint256 tokenId,
+        bytes calldata
+    ) public override returns (bytes4) {
+        address nft = msg.sender;
+        if (_noteAdapters[nft] != INoteAdapter(address(0))) {
+            _onNoteReceived(nft, tokenId);
+        }
+
+        return this.onERC721Received.selector;
     }
 }
