@@ -10,7 +10,7 @@ const INVALID_SIGNATURE1 = "0x0000";
 const INVALID_SIGNATURE2 =
   "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
-describe("Spice Lending", function () {
+describe.only("Spice Lending", function () {
   let vault;
   let lending;
   let lenderNote, borrowerNote;
@@ -414,6 +414,12 @@ describe("Spice Lending", function () {
       ).to.be.revertedWithCustomError(lending, "LoanTermsExpired");
     });
 
+    it("When caller is not borrower", async function () {
+      await expect(
+        lending.connect(bob).initiateLoan(loanTerms, "0x")
+      ).to.be.revertedWithCustomError(lending, "InvalidMsgSender");
+    });
+
     it("When loan amount exceeds limit", async function () {
       loanTerms.loanAmount = ethers.utils.parseEther("60").add(1);
       const signature = await signLoanTerms(signer, lending.address, loanTerms);
@@ -516,6 +522,18 @@ describe("Spice Lending", function () {
       expect(loanData.startedAt).to.be.eq(loanData.updatedAt);
 
       expect(await lending.getNextLoanId()).to.be.eq(loanId + 1);
+    });
+
+    it("Signature replay attack", async function () {
+      await nft.connect(alice).setApprovalForAll(lending.address, true);
+      await weth
+        .connect(signer)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      const signature = await signLoanTerms(signer, lending.address, loanTerms);
+      await lending.connect(alice).initiateLoan(loanTerms, signature);
+      await expect(lending.connect(alice).initiateLoan(loanTerms, signature))
+        .to.be.revertedWithCustomError(lending, "SignatureUsed")
+        .withArgs(signature);
     });
   });
 
@@ -674,18 +692,6 @@ describe("Spice Lending", function () {
       await expect(
         lending.connect(alice).updateLoan(loanId, terms, signature)
       ).to.be.revertedWithCustomError(lending, "InvalidMsgSender");
-    });
-
-    it("Invalid loan terms #1", async function () {
-      await weth
-        .connect(signer)
-        .approve(lending.address, ethers.constants.MaxUint256);
-      terms.collateralAddress = nft2.address;
-      const signature = await signLoanTerms(bob, lending.address, terms);
-      await lending.connect(admin).grantRole(signerRole, bob.address);
-      await expect(
-        lending.connect(alice).updateLoan(loanId, terms, signature)
-      ).to.be.revertedWithCustomError(lending, "CollateralNotSupported");
     });
 
     it("Invalid loan terms #2", async function () {

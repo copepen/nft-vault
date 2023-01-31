@@ -145,9 +145,6 @@ contract SpiceLending is
     /// @notice Signer not enabled
     error SignerNotEnabled();
 
-    /// @notice Collateral not supported
-    error CollateralNotSupported();
-
     /***************/
     /* Constructor */
     /***************/
@@ -274,6 +271,11 @@ contract SpiceLending is
             revert LoanTermsExpired();
         }
 
+        // check borrower
+        if (msg.sender != _terms.borrower) {
+            revert InvalidMsgSender();
+        }
+
         // check loan amount
         uint256 collateral = _getCollateralAmount(
             _terms.collateralAddress,
@@ -282,6 +284,9 @@ contract SpiceLending is
         if (_terms.loanAmount > (collateral * loanRatio) / DENOMINATOR) {
             revert LoanAmountExceeded();
         }
+
+        // check if signature is used
+        _checkSignatureUsage(_signature);
 
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
@@ -347,7 +352,7 @@ contract SpiceLending is
         data.interestAccrued = _calcInterest(data);
         data.updatedAt = block.timestamp;
 
-        // check lender
+        // check borrower & lender
         address lender = lenderNote.ownerOf(_loanId);
         if (msg.sender != data.terms.borrower && msg.sender != lender) {
             revert InvalidMsgSender();
@@ -764,13 +769,8 @@ contract SpiceLending is
         address _collateralAddress,
         uint256 _collateralId
     ) internal view returns (uint256 assets) {
-        try
-            ISpiceFiNFT4626(_collateralAddress).tokenShares(_collateralId)
-        returns (uint256 shares) {
-            assets = ISpiceFiNFT4626(_collateralAddress).previewRedeem(shares);
-        } catch {
-            revert CollateralNotSupported();
-        }
+        uint256 shares = ISpiceFiNFT4626(_collateralAddress).tokenShares(_collateralId);
+        assets = ISpiceFiNFT4626(_collateralAddress).previewRedeem(shares);
     }
 
     /// @dev Calc total interest to pay
