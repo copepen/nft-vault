@@ -25,7 +25,7 @@ describe("Spice Lending", function () {
   let whale, dev;
   let snapshotId;
 
-  let defaultAdminRole, spiceRole, spiceNftRole, userRole;
+  let defaultAdminRole, spiceRole, spiceNftRole;
 
   async function deployNFT() {
     const TestERC721 = await ethers.getContractFactory("TestERC721");
@@ -149,8 +149,6 @@ describe("Spice Lending", function () {
       treasury.address,
     ]);
 
-    userRole = await spiceNft.USER_ROLE();
-
     const Note = await ethers.getContractFactory("Note");
 
     lenderNote = await Note.deploy("Spice Lender Note", "Spice Lender Note");
@@ -241,7 +239,6 @@ describe("Spice Lending", function () {
 
     await vault.connect(dev).grantRole(defaultAdminRole, alice.address);
 
-    await spiceNft.connect(dev).grantRole(userRole, alice.address);
     const amount = ethers.utils.parseEther("100");
     await weth
       .connect(whale)
