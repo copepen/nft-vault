@@ -1,35 +1,12 @@
 const { BigNumber, constants, utils } = require("ethers");
 
-const BaseTerms = [
-  {
-    name: "collateralAddress",
-    type: "address",
-  },
-  {
-    name: "collateralId",
-    type: "uint256",
-  },
-  {
-    name: "expiration",
-    type: "uint256",
-  },
+const LoanTerms = [
   {
     name: "lender",
     type: "address",
   },
   {
-    name: "borrower",
-    type: "address",
-  },
-];
-
-const LoanTerms = [
-  {
-    name: "baseTerms",
-    type: "BaseTerms",
-  },
-  {
-    name: "principal",
+    name: "loanAmount",
     type: "uint256",
   },
   {
@@ -41,65 +18,34 @@ const LoanTerms = [
     type: "uint32",
   },
   {
+    name: "collateralAddress",
+    type: "address",
+  },
+  {
+    name: "collateralId",
+    type: "uint256",
+  },
+  {
+    name: "borrower",
+    type: "address",
+  },
+  {
+    name: "expiration",
+    type: "uint256",
+  },
+  {
     name: "currency",
     type: "address",
   },
-];
-
-const ExtendLoanTerms = [
   {
-    name: "baseTerms",
-    type: "BaseTerms",
-  },
-  {
-    name: "additionalPrincipal",
-    type: "uint256",
-  },
-  {
-    name: "newInterestRate",
-    type: "uint160",
-  },
-  {
-    name: "additionalDuration",
-    type: "uint32",
-  },
-];
-
-const IncreaseLoanTerms = [
-  {
-    name: "baseTerms",
-    type: "BaseTerms",
-  },
-  {
-    name: "additionalPrincipal",
-    type: "uint256",
-  },
-  {
-    name: "newInterestRate",
-    type: "uint160",
+    name: "priceLiquidation",
+    type: "bool",
   },
 ];
 
 const signLoanTerms = async (signer, verifier, terms) => {
   const types = {
     LoanTerms,
-    BaseTerms,
-  };
-  return await sign(signer, verifier, types, terms);
-};
-
-const signExtendLoanTerms = async (signer, verifier, terms) => {
-  const types = {
-    ExtendLoanTerms,
-    BaseTerms,
-  };
-  return await sign(signer, verifier, types, terms);
-};
-
-const signIncreaseLoanTerms = async (signer, verifier, terms) => {
-  const types = {
-    IncreaseLoanTerms,
-    BaseTerms,
   };
   return await sign(signer, verifier, types, terms);
 };
@@ -142,7 +88,5 @@ const signTestHashAndSignature = async (signer) => {
 
 module.exports = {
   signLoanTerms,
-  signExtendLoanTerms,
-  signIncreaseLoanTerms,
   signTestHashAndSignature,
 };

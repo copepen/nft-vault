@@ -138,6 +138,9 @@ contract SpiceFiNFT4626 is
     /// @notice Slippage too high
     error SlippageTooHigh();
 
+    /// @notice Caller not enabled
+    error CallerNotEnabled();
+
     /**********/
     /* Events */
     /**********/
@@ -688,7 +691,6 @@ contract SpiceFiNFT4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-
         if (tokenId == 0) {
             // mints new NFT
             tokenId = _mintInternal(caller);

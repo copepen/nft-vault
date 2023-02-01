@@ -29,18 +29,9 @@ interface ISpiceLending {
     /// @param borrower Borrower address
     event LoanStarted(uint256 loanId, address borrower);
 
-    /// @notice Emitted when note contracts are set
-    /// @param lenderNote Lender Note address
-    /// @param borrowerNote Borrower Note address
-    event NotesUpdated(address lenderNote, address borrowerNote);
-
-    /// @notice Emitted when the loan is extended
+    /// @notice Emitted when the loan is updated
     /// @param loanId Loan Id
-    event LoanExtended(uint256 loanId);
-
-    /// @notice Emitted when the loan is increased
-    /// @param loanId Loan Id
-    event LoanIncreased(uint256 loanId);
+    event LoanUpdated(uint256 loanId);
 
     /// @notice Emitted when the loan is repaid
     /// @param loanId Loan Id
@@ -65,6 +56,27 @@ interface ISpiceLending {
         bytes calldata _signature
     ) external returns (uint256 loanId);
 
+    /// @notice Update loan terms
+    /// @dev Emits {LoanUpdated} event
+    /// @param _loanId The loan ID
+    /// @param _terms New Loan Terms
+    /// @param _signature Signature
+    function updateLoan(
+        uint256 _loanId,
+        LibLoan.LoanTerms calldata _terms,
+        bytes calldata _signature
+    ) external;
+
+    /// @notice Deposit into vault NFT represents
+    /// @param _loanId Loan ID
+    /// @param _amount Amount to deopsit
+    ///
+    /// @return shares additional shares of vault
+    function makeDeposit(
+        uint256 _loanId, 
+        uint256 _amount
+    ) external returns (uint256 shares);
+
     /// @notice Partialy repay the loan
     /// @dev Emits {LoanRepaid} event
     /// @param _loanId The loan ID
@@ -75,28 +87,6 @@ interface ISpiceLending {
     /// @dev Emits {LoanRepaid} event
     /// @param _loanId The loan ID
     function repay(uint256 _loanId) external;
-
-    /// @notice Extend loan principal and duration
-    /// @dev Emits {LoanExtended} event
-    /// @param _loanId The loan ID
-    /// @param _terms Extend Loan Terms
-    /// @param _signature Signature
-    function extendLoan(
-        uint256 _loanId,
-        LibLoan.ExtendLoanTerms calldata _terms,
-        bytes calldata _signature
-    ) external;
-
-    /// @notice Increase loan principal
-    /// @dev Emits {LoanIncreased} event
-    /// @param _loanId The loan ID
-    /// @param _terms Increase Loan Terms
-    /// @param _signature Signature
-    function increaseLoan(
-        uint256 _loanId,
-        LibLoan.IncreaseLoanTerms calldata _terms,
-        bytes calldata _signature
-    ) external;
 
     /// @notice Liquidate loan that is past its duration
     /// @dev Emits {LoanLiquidated} event
@@ -114,4 +104,9 @@ interface ISpiceLending {
     /// @notice Return next loan ID
     /// @return id The next loan ID
     function getNextLoanId() external view returns (uint256);
+
+    /// @notice Return amount needed to completely repay loan
+    /// @param _loanId The loan ID
+    /// @return amount The max repay amount
+    function repayAmount(uint256 _loanId) external view returns (uint256);
 }
