@@ -556,7 +556,6 @@ describe("Spice Lending", function () {
         .transfer(alice.address, ethers.utils.parseEther("100"));
 
       const amount = ethers.utils.parseEther("100");
-      await nft1.connect(dev).grantRole(userRole, alice.address);
       await weth
         .connect(whale)
         .transfer(alice.address, amount.add(ethers.utils.parseEther("0.08")));
