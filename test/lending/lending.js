@@ -10,7 +10,7 @@ const INVALID_SIGNATURE1 = "0x0000";
 const INVALID_SIGNATURE2 =
   "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
 
-describe.only("Spice Lending", function () {
+describe("Spice Lending", function () {
   let vault;
   let lending;
   let lenderNote, borrowerNote;

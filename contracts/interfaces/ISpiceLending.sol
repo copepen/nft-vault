@@ -29,14 +29,6 @@ interface ISpiceLending {
     /// @param borrower Borrower address
     event LoanStarted(uint256 loanId, address borrower);
 
-<<<<<<< HEAD
-    /// @notice Emitted when note contracts are set
-    /// @param lenderNote Lender Note address
-    /// @param borrowerNote Borrower Note address
-    event NotesUpdated(address lenderNote, address borrowerNote);
-
-=======
->>>>>>> aa066a7b33d8dd5adc4f7d0d45a216e8521b8e63
     /// @notice Emitted when the loan is updated
     /// @param loanId Loan Id
     event LoanUpdated(uint256 loanId);

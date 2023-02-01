@@ -13,11 +13,7 @@ library LibLoan {
         Repaid,
         Defaulted
     }
-<<<<<<< HEAD
-    
-=======
 
->>>>>>> aa066a7b33d8dd5adc4f7d0d45a216e8521b8e63
     /// @notice Loan Terms struct
     struct LoanTerms {
         address lender;
