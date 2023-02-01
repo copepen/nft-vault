@@ -27,7 +27,6 @@ describe("SpiceFiNFT4626", function () {
     strategistRole,
     vaultRole,
     assetReceiverRole,
-    userRole,
     spiceRole,
     creatorRole;
 
@@ -237,7 +236,6 @@ describe("SpiceFiNFT4626", function () {
     strategistRole = await spiceVault.STRATEGIST_ROLE();
     vaultRole = await spiceVault.VAULT_ROLE();
     assetReceiverRole = await spiceVault.ASSET_RECEIVER_ROLE();
-    userRole = await spiceVault.USER_ROLE();
     spiceRole = await spiceVault.SPICE_ROLE();
     creatorRole = await spiceVault.CREATOR_ROLE();
 
@@ -301,9 +299,6 @@ describe("SpiceFiNFT4626", function () {
         assetReceiverRole,
         true
       );
-      await checkRole(spiceVault, constants.accounts.Dev, userRole, true);
-      await checkRole(spiceVault, constants.accounts.Multisig, userRole, true);
-      await checkRole(spiceVault, admin.address, userRole, true);
       await checkRole(spiceVault, constants.accounts.Multisig, spiceRole, true);
     });
 
@@ -337,7 +332,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -358,7 +352,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -379,7 +372,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -400,7 +392,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -421,7 +412,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -442,7 +432,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -490,7 +479,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When balance is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -514,7 +502,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When balance is non-zero", async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const assets = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -536,8 +523,6 @@ describe("SpiceFiNFT4626", function () {
 
       it("When not revealed", async function () {
         await spiceVault.setPreviewURI("previewuri/");
-
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -549,8 +534,6 @@ describe("SpiceFiNFT4626", function () {
 
       it("When base uri is empty", async function () {
         await spiceVault.setBaseURI("");
-
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -562,8 +545,6 @@ describe("SpiceFiNFT4626", function () {
 
       it("When base uri is not empty", async function () {
         await spiceVault.setBaseURI("baseuri://");
-
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -590,38 +571,7 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWith("Pausable: paused");
       });
 
-      it("When there are no accounts with USER_ROLE", async function () {
-        await spiceVault
-          .connect(dev)
-          .revokeRole(userRole, constants.accounts.Dev);
-        await spiceVault
-          .connect(dev)
-          .revokeRole(userRole, constants.accounts.Multisig);
-        await spiceVault.connect(dev).revokeRole(userRole, admin.address);
-        const amount = ethers.utils.parseEther("100");
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
-      });
-
-      it("When there is account with USER_ROLE", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-
-        const amount = ethers.utils.parseEther("100");
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-
-        await expect(
-          spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount)
-        ).to.be.revertedWithCustomError(spiceVault, "CallerNotEnabled");
-      });
-
       it("Only mint new NFT and deposit nothing", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-        await spiceVault.grantRole(userRole, whale.address);
-
         await weth
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
@@ -642,9 +592,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Mint new NFT and deposit", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -666,8 +613,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Can't mint twice on same wallet", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -681,11 +626,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Can't mint more than maxSupply", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-        await spiceVault.grantRole(userRole, bob.address);
-        await spiceVault.grantRole(userRole, carol.address);
-        await spiceVault.grantRole(userRole, whale.address);
-
         await weth
           .connect(alice)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
@@ -713,8 +653,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When not owning NFT", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("10");
         await weth
           .connect(whale)
@@ -736,8 +674,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Deposit using NFT", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("10");
         await weth
           .connect(whale)
@@ -774,38 +710,7 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWith("Pausable: paused");
       });
 
-      it("When there are no accounts with USER_ROLE", async function () {
-        await spiceVault
-          .connect(dev)
-          .revokeRole(userRole, constants.accounts.Dev);
-        await spiceVault
-          .connect(dev)
-          .revokeRole(userRole, constants.accounts.Multisig);
-        await spiceVault.connect(dev).revokeRole(userRole, admin.address);
-        const amount = ethers.utils.parseEther("100");
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-        await spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount);
-      });
-
-      it("When there is account with USER_ROLE", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-
-        const amount = ethers.utils.parseEther("100");
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-
-        await expect(
-          spiceVault.connect(whale)["mint(uint256,uint256)"](0, amount)
-        ).to.be.revertedWithCustomError(spiceVault, "CallerNotEnabled");
-      });
-
       it("Only mint new NFT and deposit nothing", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-        await spiceVault.grantRole(userRole, whale.address);
-
         await weth
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
@@ -826,9 +731,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Mint new NFT and deposit", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -850,9 +752,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Can't mint twice on same wallet", async function () {
-        await spiceVault.grantRole(userRole, alice.address);
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -866,8 +765,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When not owning NFT", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("10");
         await weth
           .connect(whale)
@@ -889,8 +786,6 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Deposit using NFT", async function () {
-        await spiceVault.grantRole(userRole, whale.address);
-
         const amount = ethers.utils.parseEther("10");
         await weth
           .connect(whale)
@@ -915,7 +810,6 @@ describe("SpiceFiNFT4626", function () {
 
     describe("Withdraw", function () {
       beforeEach(async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -1072,7 +966,6 @@ describe("SpiceFiNFT4626", function () {
 
     describe("Redeem", function () {
       beforeEach(async function () {
-        await spiceVault.connect(dev).grantRole(userRole, whale.address);
         const amount = ethers.utils.parseEther("100");
         await weth
           .connect(whale)
@@ -1232,7 +1125,6 @@ describe("SpiceFiNFT4626", function () {
     describe("Vault", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1305,7 +1197,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Mint", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1378,7 +1269,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Withdraw", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1453,7 +1343,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Redeem", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1530,7 +1419,6 @@ describe("SpiceFiNFT4626", function () {
     describe("Bend", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1603,7 +1491,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Mint", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1676,7 +1563,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Withdraw", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1751,7 +1637,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Redeem", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1828,7 +1713,6 @@ describe("SpiceFiNFT4626", function () {
     describe("Drops", function () {
       describe("Deposit", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1904,7 +1788,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Mint", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -1980,7 +1863,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Withdraw", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -2055,7 +1937,6 @@ describe("SpiceFiNFT4626", function () {
 
       describe("Redeem", function () {
         beforeEach(async function () {
-          await spiceVault.connect(dev).grantRole(userRole, whale.address);
           const assets = ethers.utils.parseEther("100");
           await weth
             .connect(whale)
@@ -2177,10 +2058,8 @@ describe("SpiceFiNFT4626", function () {
         strategistRole,
         false
       );
-      await checkRole(spiceVault, constants.accounts.Dev, userRole, false);
       await checkRole(spiceVault, carol.address, defaultAdminRole, true);
       await checkRole(spiceVault, carol.address, strategistRole, true);
-      await checkRole(spiceVault, carol.address, userRole, true);
     });
 
     it("Set Multisig", async function () {
@@ -2213,7 +2092,6 @@ describe("SpiceFiNFT4626", function () {
         assetReceiverRole,
         false
       );
-      await checkRole(spiceVault, constants.accounts.Multisig, userRole, false);
       await checkRole(
         spiceVault,
         constants.accounts.Multisig,
@@ -2222,7 +2100,6 @@ describe("SpiceFiNFT4626", function () {
       );
       await checkRole(spiceVault, carol.address, defaultAdminRole, true);
       await checkRole(spiceVault, carol.address, assetReceiverRole, true);
-      await checkRole(spiceVault, carol.address, userRole, true);
       await checkRole(spiceVault, carol.address, spiceRole, true);
     });
 

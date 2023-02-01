@@ -98,9 +98,6 @@ contract SpiceFiNFT4626 is
     bytes32 public constant ASSET_RECEIVER_ROLE =
         keccak256("ASSET_RECEIVER_ROLE");
 
-    /// @notice Contracts allowed to deposit
-    bytes32 public constant USER_ROLE = keccak256("USER_ROLE");
-
     /// @notice Spice role
     bytes32 public constant SPICE_ROLE = keccak256("SPICE_ROLE");
 
@@ -232,9 +229,6 @@ contract SpiceFiNFT4626 is
         _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
         _setupRole(STRATEGIST_ROLE, _dev);
         _setupRole(ASSET_RECEIVER_ROLE, _multisig);
-        _setupRole(USER_ROLE, _dev);
-        _setupRole(USER_ROLE, _multisig);
-        _setupRole(USER_ROLE, _creator);
         _setupRole(SPICE_ROLE, _multisig);
     }
 
@@ -271,13 +265,11 @@ contract SpiceFiNFT4626 is
         address oldDev = dev;
         _revokeRole(DEFAULT_ADMIN_ROLE, oldDev);
         _revokeRole(STRATEGIST_ROLE, oldDev);
-        _revokeRole(USER_ROLE, oldDev);
 
         dev = _dev;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _dev);
         _setupRole(STRATEGIST_ROLE, _dev);
-        _setupRole(USER_ROLE, _dev);
 
         emit DevUpdated(_dev);
     }
@@ -297,14 +289,12 @@ contract SpiceFiNFT4626 is
         address oldMultisig = multisig;
         _revokeRole(DEFAULT_ADMIN_ROLE, oldMultisig);
         _revokeRole(ASSET_RECEIVER_ROLE, oldMultisig);
-        _revokeRole(USER_ROLE, oldMultisig);
         _revokeRole(SPICE_ROLE, oldMultisig);
 
         multisig = _multisig;
 
         _setupRole(DEFAULT_ADMIN_ROLE, _multisig);
         _setupRole(ASSET_RECEIVER_ROLE, _multisig);
-        _setupRole(USER_ROLE, _multisig);
         _setupRole(SPICE_ROLE, _multisig);
 
         emit MultisigUpdated(_multisig);
@@ -701,10 +691,6 @@ contract SpiceFiNFT4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        if (getRoleMemberCount(USER_ROLE) > 0 && !hasRole(USER_ROLE, caller)) {
-            revert CallerNotEnabled();
-        }
-
         if (tokenId == 0) {
             // mints new NFT
             tokenId = _mintInternal(caller);

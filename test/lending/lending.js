@@ -20,7 +20,7 @@ describe("Spice Lending", function () {
   let whale, dev;
   let snapshotId;
 
-  let defaultAdminRole, spiceRole, signerRole, spiceNftRole, userRole;
+  let defaultAdminRole, spiceRole, signerRole, spiceNftRole;
 
   async function deployNFT() {
     const TestERC721 = await ethers.getContractFactory("TestERC721");
@@ -110,8 +110,6 @@ describe("Spice Lending", function () {
       constants.accounts.Multisig,
       treasury.address,
     ]);
-
-    userRole = await nft.USER_ROLE();
 
     nft1 = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
       "Spice0",
@@ -252,10 +250,6 @@ describe("Spice Lending", function () {
     await nft.connect(dev).grantRole(spiceRole, spiceAdmin.address);
 
     await vault.connect(dev).grantRole(defaultAdminRole, alice.address);
-
-    await nft.connect(dev).grantRole(userRole, alice.address);
-    await nft.connect(dev).grantRole(userRole, bob.address);
-    await nft.connect(dev).grantRole(userRole, lending.address);
 
     const amount = ethers.utils.parseEther("100");
     await weth
