@@ -64,8 +64,6 @@ contract Bend4626 is
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
-    uint256 public constant ONE_RAY = 1e27;
-
     IUniswapV2Router02 public constant UNISWAP_V2_ROUTER =
         IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
 
