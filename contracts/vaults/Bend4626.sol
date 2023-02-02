@@ -354,13 +354,22 @@ contract Bend4626 is
         address[] memory path = new address[](2);
         path[0] = address(BEND);
         path[1] = WETH;
-        UNISWAP_V2_ROUTER.swapExactTokensForTokens(
+        uint256[] memory amounts = UNISWAP_V2_ROUTER.swapExactTokensForTokens(
             rewardBalance,
             0,
             path,
             address(this),
             block.timestamp
         );
+
+        // load weth
+        IWETH weth = IWETH(WETH);
+
+        // approve weth deposit into underlying marketplace
+        weth.approve(poolAddress, amounts[0]);
+
+        // deposit into underlying marketplace
+        IBendLendPool(poolAddress).deposit(WETH, amounts[0], address(this), 0);
     }
 
     /*****************************/

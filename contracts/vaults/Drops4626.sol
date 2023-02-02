@@ -152,8 +152,17 @@ contract Drops4626 is
     }
 
     /// @notice See {IERC4626-totalAssets}
-    function totalAssets() external view returns (uint256) {
-        return _convertToAssets(totalSupply(), MathUpgradeable.Rounding.Down);
+    function totalAssets() public view returns (uint256) {
+        uint256 exchangeRate = _getExchangeRate();
+        uint256 lpTokenBalance = IERC20Upgradeable(lpTokenAddress).balanceOf(
+            address(this)
+        );
+        return
+            lpTokenBalance.mulDiv(
+                exchangeRate,
+                ONE_WAD,
+                MathUpgradeable.Rounding.Down
+            );
     }
 
     /// @notice See {IERC4626-convertToShares}
@@ -226,7 +235,9 @@ contract Drops4626 is
             revert InvalidAddress();
         }
 
-        shares = _deposit(assets, receiver);
+        shares = previewDeposit(assets);
+
+        _deposit(assets, shares, receiver);
     }
 
     /// @notice Deposits weth into CEther and receive receipt tokens
@@ -246,7 +257,7 @@ contract Drops4626 is
 
         assets = previewMint(shares);
 
-        _deposit(assets, receiver);
+        _deposit(assets, shares, receiver);
     }
 
     /// @notice Withdraw weth from the pool
@@ -304,13 +315,19 @@ contract Drops4626 is
         address[] memory path = new address[](2);
         path[0] = address(DROPS);
         path[1] = WETH;
-        UNISWAP_V2_ROUTER.swapExactTokensForTokens(
+        uint256[] memory amounts = UNISWAP_V2_ROUTER.swapExactTokensForETH(
             rewardBalance,
             0,
             path,
             address(this),
             block.timestamp
         );
+
+        // get cether contract
+        ICEther cEther = ICEther(lpTokenAddress);
+
+        // mint ctoken
+        cEther.mint{value: amounts[0]}();
     }
 
     /// @notice Withdraw weth from the pool
@@ -344,9 +361,11 @@ contract Drops4626 is
         uint256 assets,
         MathUpgradeable.Rounding rounding
     ) internal view returns (uint256 shares) {
-        uint256 exchangeRate = _getExchangeRate();
-
-        return assets.mulDiv(ONE_WAD, exchangeRate, rounding);
+        uint256 supply = totalSupply();
+        return
+            (assets == 0 || supply == 0)
+                ? assets
+                : assets.mulDiv(supply, totalAssets(), rounding);
     }
 
     /// @dev Get estimated share amount for assets
@@ -357,9 +376,11 @@ contract Drops4626 is
         uint256 shares,
         MathUpgradeable.Rounding rounding
     ) internal view returns (uint256 assets) {
-        uint256 exchangeRate = _getExchangeRate();
-
-        return shares.mulDiv(exchangeRate, ONE_WAD, rounding);
+        uint256 supply = totalSupply();
+        return
+            (supply == 0)
+                ? shares
+                : shares.mulDiv(totalAssets(), supply, rounding);
     }
 
     /// @dev Get Exchange Rate
@@ -370,8 +391,9 @@ contract Drops4626 is
     /// @dev Deposit/mint common workflow.
     function _deposit(
         uint256 assets,
+        uint256 shares,
         address receiver
-    ) internal returns (uint256 shares) {
+    ) internal {
         // load weth
         IWETH weth = IWETH(WETH);
 
@@ -384,16 +406,8 @@ contract Drops4626 is
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
 
-        uint256 beforeBalance = IERC20Upgradeable(lpTokenAddress).balanceOf(
-            address(this)
-        );
-
         // mint ctoken
         cEther.mint{value: assets}();
-
-        shares =
-            IERC20Upgradeable(lpTokenAddress).balanceOf(address(this)) -
-            beforeBalance;
 
         // Mint receipt tokens to receiver
         _mint(receiver, shares);
@@ -421,8 +435,15 @@ contract Drops4626 is
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
 
+        uint256 exchangeRate = _getExchangeRate();
+        uint256 redeemAmount = shares.mulDiv(
+                ONE_WAD,
+                exchangeRate,
+                MathUpgradeable.Rounding.Down
+            );
+
         // trade ctokens for eth
-        cEther.redeem(shares);
+        cEther.redeem(redeemAmount);
 
         assets = address(this).balance;
 

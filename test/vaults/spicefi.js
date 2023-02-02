@@ -1463,7 +1463,7 @@ describe("SpiceFi4626", function () {
         });
 
         it("Only strategist can call", async function () {
-          const shares = ethers.utils.parseUnits("100", 6);
+          const shares = ethers.utils.parseEther("50");
           const assets = await drops.previewRedeem(shares);
           await expect(
             spiceVault
@@ -1479,7 +1479,7 @@ describe("SpiceFi4626", function () {
         });
 
         it("Only redeem from drops", async function () {
-          const shares = ethers.utils.parseUnits("100", 6);
+          const shares = ethers.utils.parseEther("50");
           const assets = await drops.previewRedeem(shares);
           await expect(
             spiceVault
@@ -1495,7 +1495,7 @@ describe("SpiceFi4626", function () {
         });
 
         it("When slippage is too high", async function () {
-          const shares = ethers.utils.parseUnits("100", 6);
+          const shares = ethers.utils.parseEther("50");
           const assets = await drops.previewRedeem(shares);
           await expect(
             spiceVault
@@ -1509,7 +1509,7 @@ describe("SpiceFi4626", function () {
         });
 
         it("Redeem assets", async function () {
-          const shares = ethers.utils.parseUnits("100", 6);
+          const shares = ethers.utils.parseEther("50");
           const assets = await drops.previewRedeem(shares);
           await spiceVault
             .connect(strategist)
