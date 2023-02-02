@@ -63,7 +63,7 @@ describe("Drops4626", function () {
     });
 
     it("Should set the correct decimal", async function () {
-      expect(await vault.decimals()).to.equal(await token.decimals());
+      expect(await vault.decimals()).to.equal(18);
     });
 
     it("Should return correct asset", async function () {

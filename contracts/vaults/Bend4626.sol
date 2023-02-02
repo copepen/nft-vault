@@ -36,9 +36,6 @@ abstract contract Bend4626Storage {
     /// @notice BToken address
     address public lpTokenAddress;
 
-    /// @dev Token decimals
-    uint8 internal _decimals;
-
     /// @notice Minimum reward claim amount
     uint256 public minRewardClaim;
 }
@@ -135,17 +132,7 @@ contract Bend4626 is
 
         poolAddress = poolAddress_;
 
-        uint8 decimals_;
-        try
-            IERC20MetadataUpgradeable(address(lpTokenAddress_)).decimals()
-        returns (uint8 value) {
-            decimals_ = value;
-        } catch {
-            decimals_ = super.decimals();
-        }
-
         lpTokenAddress = lpTokenAddress_;
-        _decimals = decimals_;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -156,11 +143,6 @@ contract Bend4626 is
     /***********/
     /* Getters */
     /***********/
-
-    /// @notice See {IERC20Metadata-decimals}.
-    function decimals() public view override returns (uint8) {
-        return _decimals;
-    }
 
     /// @notice Get underlying token address
     function asset() external pure returns (address) {
