@@ -6,7 +6,6 @@ const constants = require("../constants");
 
 describe("Drops4626", function () {
   let vault;
-  let token;
   let weth;
   let admin, alice, bob;
   let whale;
@@ -20,11 +19,6 @@ describe("Drops4626", function () {
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
 
-    token = await ethers.getContractAt(
-      "ICEther",
-      constants.tokens.DropsETH,
-      admin
-    );
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
     const Drops4626 = await ethers.getContractFactory("Drops4626", alice);

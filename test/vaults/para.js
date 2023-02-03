@@ -4,14 +4,12 @@ const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
 const { impersonateAccount } = require("../helpers/account");
 const constants = require("../constants");
 
-describe("Bend4626", function () {
+describe("Para4626", function () {
   let vault;
   let weth;
   let admin, alice, bob;
   let whale;
   let snapshotId;
-
-  let defaultAdminRole;
 
   const name = "Spice interest bearing WETH";
   const symbol = "spiceETH";
@@ -23,34 +21,32 @@ describe("Bend4626", function () {
 
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
-    const Bend4626 = await ethers.getContractFactory("Bend4626");
-    const beacon = await upgrades.deployBeacon(Bend4626);
+    const Para4626 = await ethers.getContractFactory("Para4626");
+    const beacon = await upgrades.deployBeacon(Para4626);
 
     await expect(
-      upgrades.deployBeaconProxy(beacon, Bend4626, [
+      upgrades.deployBeaconProxy(beacon, Para4626, [
         name,
         symbol,
         ethers.constants.AddressZero,
-        constants.tokens.BendWETH,
+        constants.tokens.pWETH,
       ])
-    ).to.be.revertedWithCustomError(Bend4626, "InvalidAddress");
+    ).to.be.revertedWithCustomError(Para4626, "InvalidAddress");
     await expect(
-      upgrades.deployBeaconProxy(beacon, Bend4626, [
+      upgrades.deployBeaconProxy(beacon, Para4626, [
         name,
         symbol,
-        constants.contracts.BendPool,
+        constants.contracts.ParaPool,
         ethers.constants.AddressZero,
       ])
-    ).to.be.revertedWithCustomError(Bend4626, "InvalidAddress");
+    ).to.be.revertedWithCustomError(Para4626, "InvalidAddress");
 
-    vault = await upgrades.deployBeaconProxy(beacon, Bend4626, [
+    vault = await upgrades.deployBeaconProxy(beacon, Para4626, [
       name,
       symbol,
-      constants.contracts.BendPool,
-      constants.tokens.BendWETH,
+      constants.contracts.ParaPool,
+      constants.tokens.pWETH,
     ]);
-
-    defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
   });
 
   beforeEach(async () => {
@@ -83,8 +79,8 @@ describe("Bend4626", function () {
         vault.initialize(
           name,
           symbol,
-          constants.contracts.BendPool,
-          constants.tokens.BendWETH
+          constants.contracts.ParaPool,
+          constants.tokens.pWETH
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
