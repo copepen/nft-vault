@@ -36,6 +36,15 @@ abstract contract Bend4626Storage {
     /// @notice BToken address
     address public lpTokenAddress;
 
+    /// @dev Token decimals
+    uint8 internal _decimals;
+}
+
+/**
+ * @title More Storage for Bend4626
+ * @author Spice Finance Inc
+ */
+abstract contract MoreBend4626Storage {
     /// @notice Minimum reward claim amount
     uint256 public minRewardClaim;
 }
@@ -49,7 +58,8 @@ contract Bend4626 is
     Initializable,
     ERC20Upgradeable,
     ReentrancyGuardUpgradeable,
-    AccessControlEnumerableUpgradeable
+    AccessControlEnumerableUpgradeable,
+    MoreBend4626Storage
 {
     using MathUpgradeable for uint256;
 

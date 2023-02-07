@@ -5,7 +5,7 @@ async function main() {
 
   const beacon = await deployments.get("Bend4626");
   const Bend4626 = await ethers.getContractFactory("Bend4626");
-  const vault = await upgrades.upgradeBeacon(beacon.address, Bend4626);
+  const vault = await upgrades.upgradeBeacon(beacon.address, Bend4626, {'timeout': 0});
   await vault.deployed();
 
   console.log("Bend4626 successfully upgraded!");
