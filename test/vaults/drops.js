@@ -1,5 +1,5 @@
 const { expect } = require("chai");
-const { ethers, upgrades, network } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
 const { impersonateAccount } = require("../helpers/account");
 const constants = require("../constants");
@@ -12,15 +12,8 @@ describe("Drops4626", function () {
   let whale;
   let snapshotId;
 
-  let defaultAdminRole;
-
   const name = "Spice CEther";
   const symbol = "SCEther";
-  const ONE_WAD = ethers.utils.parseUnits("1", 18);
-
-  const getExchangeRate = async () => {
-    return await token.exchangeRateStored();
-  };
 
   before("Deploy", async function () {
     [admin, alice, bob] = await ethers.getSigners();
@@ -50,8 +43,6 @@ describe("Drops4626", function () {
       symbol,
       constants.tokens.DropsETH,
     ]);
-
-    defaultAdminRole = await vault.DEFAULT_ADMIN_ROLE();
   });
 
   beforeEach(async () => {
@@ -72,7 +63,7 @@ describe("Drops4626", function () {
     });
 
     it("Should set the correct decimal", async function () {
-      expect(await vault.decimals()).to.equal(await token.decimals());
+      expect(await vault.decimals()).to.equal(18);
     });
 
     it("Should return correct asset", async function () {
@@ -94,10 +85,7 @@ describe("Drops4626", function () {
 
       it("Non-zero assets", async function () {
         const assets = ethers.utils.parseEther("100");
-        const exchangeRate = await getExchangeRate();
-        expect(await vault.convertToShares(assets)).to.be.eq(
-          assets.mul(ONE_WAD).div(exchangeRate)
-        );
+        expect(await vault.convertToShares(assets)).to.be.eq(assets);
       });
     });
 
@@ -108,10 +96,7 @@ describe("Drops4626", function () {
 
       it("Non-zero shares", async function () {
         const shares = ethers.utils.parseEther("100");
-        const exchangeRate = await getExchangeRate();
-        expect(await vault.convertToAssets(shares)).to.be.eq(
-          shares.mul(exchangeRate).div(ONE_WAD)
-        );
+        expect(await vault.convertToAssets(shares)).to.be.eq(shares);
       });
     });
 
@@ -122,10 +107,7 @@ describe("Drops4626", function () {
 
       it("Non-zero assets", async function () {
         const assets = ethers.utils.parseEther("100");
-        const exchangeRate = await getExchangeRate();
-        expect(await vault.previewDeposit(assets)).to.be.eq(
-          assets.mul(ONE_WAD).div(exchangeRate)
-        );
+        expect(await vault.previewDeposit(assets)).to.be.eq(assets);
       });
     });
 
@@ -136,10 +118,7 @@ describe("Drops4626", function () {
 
       it("Non-zero shares", async function () {
         const shares = ethers.utils.parseEther("100");
-        const exchangeRate = await getExchangeRate();
-        expect(await vault.previewMint(shares)).to.be.eq(
-          shares.mul(exchangeRate).div(ONE_WAD)
-        );
+        expect(await vault.previewMint(shares)).to.be.eq(shares);
       });
     });
 
@@ -150,11 +129,7 @@ describe("Drops4626", function () {
 
       it("Non-zero assets", async function () {
         const assets = ethers.utils.parseEther("100");
-        const exchangeRate = await getExchangeRate();
-        expect(await vault.previewWithdraw(assets)).to.be.closeTo(
-          assets.mul(ONE_WAD).div(exchangeRate),
-          1
-        );
+        expect(await vault.previewWithdraw(assets)).to.be.eq(assets);
       });
     });
 
@@ -165,11 +140,7 @@ describe("Drops4626", function () {
 
       it("Non-zero shares", async function () {
         const shares = ethers.utils.parseEther("100");
-        const exchangeRate = await getExchangeRate();
-        expect(await vault.previewRedeem(shares)).to.be.closeTo(
-          shares.mul(exchangeRate).div(ONE_WAD),
-          1
-        );
+        expect(await vault.previewRedeem(shares)).to.be.eq(shares);
       });
     });
 
@@ -213,6 +184,23 @@ describe("Drops4626", function () {
 
         expect(await vault.maxRedeem(whale.address)).to.be.eq(
           await vault.balanceOf(whale.address)
+        );
+      });
+    });
+
+    describe("totalAssets", function () {
+      it("When there is no deposit", async function () {
+        expect(await vault.totalAssets()).to.be.eq(0);
+      });
+
+      it("When there is deposit", async function () {
+        const assets = ethers.utils.parseEther("100");
+        await weth.connect(whale).approve(vault.address, assets);
+        await vault.connect(whale).deposit(assets, whale.address);
+
+        expect(await vault.totalAssets()).to.be.closeTo(
+          assets,
+          assets.div(ethers.utils.parseUnits("1", 10))
         );
       });
     });
@@ -263,10 +251,7 @@ describe("Drops4626", function () {
         const tx = await vault.connect(whale).deposit(assets, bob.address);
 
         const shareBalance = await vault.balanceOf(bob.address);
-        expect(shareBalance).to.be.closeTo(
-          shares,
-          assets.div(ethers.utils.parseUnits("1", 6))
-        );
+        expect(shareBalance).to.be.eq(assets);
         expect(await weth.balanceOf(whale.address)).to.be.eq(
           beforeAssetBalance.sub(assets)
         );
@@ -412,7 +397,7 @@ describe("Drops4626", function () {
 
         expect(afterAssetBalance).to.be.closeTo(
           beforeAssetBalance.add(assets),
-          assets.div(1000000)
+          assets.div(ethers.utils.parseUnits("1", 6))
         );
         expect(beforeShareBalance).to.be.closeTo(
           afterShareBalance.add(shares),
@@ -459,7 +444,7 @@ describe("Drops4626", function () {
       });
 
       it("Redeem shares", async function () {
-        const shares = ethers.utils.parseUnits("100", 6);
+        const shares = ethers.utils.parseEther("50");
         const assets = await vault.previewRedeem(shares);
 
         const beforeAssetBalance = await weth.balanceOf(bob.address);
