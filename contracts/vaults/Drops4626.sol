@@ -27,6 +27,15 @@ abstract contract Drops4626Storage {
     /// @notice CEther address
     address public lpTokenAddress;
 
+    /// @dev Token decimals
+    uint8 internal _decimals;
+}
+
+/**
+ * @title More Storage for Bend4626
+ * @author Spice Finance Inc
+ */
+abstract contract MoreDrops4626Storage {
     /// @notice Minimum reward claim amount
     uint256 public minRewardClaim;
 }
@@ -40,7 +49,8 @@ contract Drops4626 is
     Initializable,
     ERC20Upgradeable,
     ReentrancyGuardUpgradeable,
-    AccessControlEnumerableUpgradeable
+    AccessControlEnumerableUpgradeable,
+    MoreDrops4626Storage
 {
     using MathUpgradeable for uint256;
 
