@@ -1,5 +1,6 @@
 const hre = require("hardhat");
 const { getLoanTerms } = require("../api");
+const { LoanTermsRequestType } = require("../constants");
 
 async function main() {
   const { ethers } = hre;
@@ -27,46 +28,15 @@ async function main() {
     additionalDuration: "",
   };
   const types = {
-    LoanTerms: [
-      {
-        name: "loanAmount",
-        type: "string",
-      },
-      {
-        name: "duration",
-        type: "string",
-      },
-      {
-        name: "collateralAddress",
-        type: "address",
-      },
-      {
-        name: "collateralId",
-        type: "uint256",
-      },
-      {
-        name: "borrower",
-        type: "address",
-      },
-      {
-        name: "currency",
-        type: "address",
-      },
-      {
-        name: "additionalLoanAmount",
-        type: "string",
-      },
-      {
-        name: "additionalDuration",
-        type: "string",
-      },
-    ],
+    LoanTerms: LoanTermsRequestType,
   };
   const signature = await signer._signTypedData(domain, types, terms);
   const res = await getLoanTerms(terms, signature, "initiate", chainId);
 
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
-  const lending = SpiceLending.attach("0x6a3F93048661192aEd72cd8472414eE8502a14A4");
+  const lending = SpiceLending.attach(
+    "0x6a3F93048661192aEd72cd8472414eE8502a14A4"
+  );
 
   const loanterms = {
     ...res.data.loanterms,
@@ -74,7 +44,10 @@ async function main() {
   };
   delete loanterms.repayment;
 
-  const loanId = await lending.callStatic.initiateLoan(loanterms, res.data.signature);
+  const loanId = await lending.callStatic.initiateLoan(
+    loanterms,
+    res.data.signature
+  );
   const tx = await lending.initiateLoan(loanterms, res.data.signature);
   await tx.wait();
   console.log(`New loan initiated with loan ID ${loanId}`);
