@@ -19,13 +19,13 @@ async function main() {
   );
   const terms = {
     loanAmount: ethers.utils.parseEther("0.1").toString(),
-    duration: (10 * 24 * 3600).toString(), // 10 days
+    duration: 10 * 24 * 3600, // 10 days
     collateralAddress: vault.address,
     collateralId: 4,
     borrower: signer.address,
     currency: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
-    additionalLoanAmount: "",
-    additionalDuration: "",
+    additionalLoanAmount: 0,
+    additionalDuration: 0,
   };
   const types = {
     LoanTerms: LoanTermsRequestType,
