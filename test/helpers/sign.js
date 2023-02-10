@@ -53,7 +53,7 @@ const signLoanTerms = async (signer, verifier, terms) => {
 const sign = async (signer, verifier, types, terms) => {
   const chainId = BigNumber.from(await signer.getChainId());
   const domain = {
-    name: "SpiceLending",
+    name: "Spice Finance",
     version: "1",
     chainId,
     verifyingContract: verifier,
@@ -65,7 +65,7 @@ const sign = async (signer, verifier, types, terms) => {
 const signTestHashAndSignature = async (signer) => {
   const chainId = BigNumber.from(await signer.getChainId());
   const domain = {
-    name: "SpiceLending",
+    name: "Spice Finance",
     version: "1",
     chainId,
     verifyingContract: constants.AddressZero,
@@ -79,7 +79,7 @@ const signTestHashAndSignature = async (signer) => {
     ],
   };
   const data = {
-    value: 10
+    value: 10,
   };
   const hash = utils._TypedDataEncoder.hash(domain, types, data);
   const signature = await signer._signTypedData(domain, types, data);

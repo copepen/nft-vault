@@ -187,7 +187,7 @@ contract SpiceLending is
             revert InvalidAddress();
         }
 
-        __EIP712_init("SpiceLending", "1");
+        __EIP712_init("Spice Finance", "1");
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(SIGNER_ROLE, _signer);

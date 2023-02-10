@@ -1139,7 +1139,6 @@ describe("Spice Lending", function () {
       await weth
         .connect(alice)
         .approve(lending.address, ethers.constants.MaxUint256);
-      console.log(await weth.balanceOf(alice.address));
       const balance = await weth.balanceOf(alice.address);
       await expect(
         lending.connect(alice).makeDeposit(loanId, balance.add(1))
