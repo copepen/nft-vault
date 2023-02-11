@@ -12,6 +12,7 @@ async function main() {
   let vault;
   let bend;
   let drops;
+  let para;
   let spiceVault;
   let spiceNFTVault;
 
@@ -25,6 +26,8 @@ async function main() {
   const bendVaultSymbol = "spiceETH";
   const dropsVaultName = "Spice CEther";
   const dropsVaultSymbol = "SCEther";
+  const paraVaultName = "Spice pWETH";
+  const paraVaultSymbol = "spWETH";
 
   async function checkRole(contract, user, role, check) {
     expect(await contract.hasRole(role, user)).to.equal(check);
@@ -58,7 +61,10 @@ async function main() {
     vaultName,
     vaultSymbol,
     weth.address,
-    0,
+    [],
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    treasury.address,
     treasury.address,
   ]);
 
@@ -81,16 +87,30 @@ async function main() {
     constants.tokens.DropsETH,
   ]);
 
+  const Para4626 = await ethers.getContractFactory("Para4626");
+  beacon = await upgrades.deployBeacon(Para4626);
+
+  para = await upgrades.deployBeaconProxy(beacon, Para4626, [
+    paraVaultName,
+    paraVaultSymbol,
+    constants.contracts.ParaPool,
+    constants.tokens.pWETH,
+  ]);
+
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
   beacon = await upgrades.deployBeacon(SpiceFi4626, {
     unsafeAllow: ["delegatecall"],
   });
 
   spiceVault = await upgrades.deployBeaconProxy(beacon, SpiceFi4626, [
+    "SpiceAggVault",
+    "SAV",
     weth.address,
-    strategist.address,
-    assetReceiver.address,
-    700,
+    [],
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    treasury.address,
+    treasury.address,
   ]);
 
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
@@ -99,16 +119,23 @@ async function main() {
   });
 
   spiceNFTVault = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+    "SpiceNFTAggVault",
+    "SNAV",
     weth.address,
-    strategist.address,
-    assetReceiver.address,
-    700,
+    ethers.utils.parseEther("0"),
+    555,
+    [],
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    treasury.address,
+    treasury.address,
   ]);
 
   out = {
     "spice-nftfi": vault.address,
     bend: bend.address,
     drops: drops.address,
+    para: para.address,
     spiceVault: spiceVault.address,
     spiceNFTVault: spiceNFTVault.address,
   };
@@ -133,25 +160,26 @@ async function main() {
 
   await spiceVault.grantRole(strategistRole, strategist.address);
   await spiceVault.grantRole(strategistRole, admin.address);
-  await spiceVault.grantRole(vaultRole, vault.address);
+  // await spiceVault.grantRole(vaultRole, vault.address);
   await spiceVault.grantRole(vaultRole, bend.address);
   await spiceVault.grantRole(vaultRole, drops.address);
+  await spiceVault.grantRole(vaultRole, para.address);
+  await spiceVault.grantRole(userRole, whale.address);
   await checkRole(spiceVault, strategist.address, strategistRole, true);
-  await checkRole(spiceVault, vault.address, vaultRole, true);
+  // await checkRole(spiceVault, vault.address, vaultRole, true);
   await checkRole(spiceVault, bend.address, vaultRole, true);
   await checkRole(spiceVault, drops.address, vaultRole, true);
+  await checkRole(spiceVault, para.address, vaultRole, true);
+  await checkRole(spiceVault, whale.address, userRole, true);
 
   await spiceVault.grantRole(spiceRole, spiceAdmin.address);
   await checkRole(spiceVault, spiceAdmin.address, spiceRole, true);
 
   // set up spicefinft4626
-  await spiceNFTVault.setMaxTotalSupply(ethers.constants.MaxUint256);
-
   defaultAdminRoleNFT = await spiceNFTVault.DEFAULT_ADMIN_ROLE();
   strategistRoleNFT = await spiceNFTVault.STRATEGIST_ROLE();
   vaultRoleNFT = await spiceNFTVault.VAULT_ROLE();
   assetReceiverRoleNFT = await spiceNFTVault.ASSET_RECEIVER_ROLE();
-  userRoleNFT = await spiceNFTVault.USER_ROLE();
   spiceRoleNFT = await spiceNFTVault.SPICE_ROLE();
 
   await spiceNFTVault.grantRole(strategistRoleNFT, strategist.address);
@@ -159,10 +187,12 @@ async function main() {
   await spiceNFTVault.grantRole(vaultRoleNFT, vault.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, bend.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, drops.address);
+  await spiceNFTVault.grantRole(vaultRoleNFT, para.address);
   await checkRole(spiceNFTVault, strategist.address, strategistRoleNFT, true);
   await checkRole(spiceNFTVault, vault.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, bend.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, drops.address, vaultRoleNFT, true);
+  await checkRole(spiceNFTVault, para.address, vaultRoleNFT, true);
 
   await spiceNFTVault.grantRole(spiceRoleNFT, spiceAdmin.address);
   await checkRole(spiceNFTVault, spiceAdmin.address, spiceRoleNFT, true);
@@ -198,7 +228,7 @@ async function main() {
     //console.log(receipt.events?.filter((x) => {return x.event == "Transfer"}));
     await spiceNFTVault
       .connect(whale)
-      ["deposit(uint256,address)"](amount, whale.address);
+      ["deposit(uint256,uint256)"](0, amount);
   }
   await depositfundsNFT();
   console.log(weth.address);
