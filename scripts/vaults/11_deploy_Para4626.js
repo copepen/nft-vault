@@ -11,11 +11,11 @@ async function main() {
   ];
 
   const Para4626 = await ethers.getContractFactory("Para4626");
-  const beacon = await upgrades.deployBeacon(Para4626);
+  const beacon = await upgrades.deployBeacon(Para4626, {timeout: 0});
   await beacon.deployed();
   await deployments.save("Para4626", beacon);
 
-  const vault = await upgrades.deployBeaconProxy(beacon, Para4626, args);
+  const vault = await upgrades.deployBeaconProxy(beacon, Para4626, args, {timeout: 0});
   await vault.deployed();
 
   console.log(`Para4626 deployed to ${vault.address}`);
