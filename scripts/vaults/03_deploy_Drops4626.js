@@ -6,9 +6,7 @@ async function main() {
   const args = [
     "sDrops",
     "sD1-ETH",
-    hre.network.name === "mainnet"
-      ? "0xD72929e284E8bc2f7458A6302bE961B91bccB339"
-      : "",
+    "0xD72929e284E8bc2f7458A6302bE961B91bccB339",
   ];
 
   const Drops4626 = await ethers.getContractFactory("Drops4626");
