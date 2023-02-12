@@ -319,7 +319,7 @@ contract Drops4626 is
         ICEther cEther = ICEther(lpTokenAddress);
 
         // mint ctoken
-        cEther.mint{value: amounts[0]}();
+        cEther.mint{value: amounts[1]}();
     }
 
     /// @notice Withdraw weth from the pool

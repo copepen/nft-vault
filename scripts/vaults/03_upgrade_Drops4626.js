@@ -8,12 +8,12 @@ async function main() {
   // const vault = await upgrades.upgradeBeacon(beacon.address, Drops4626, {'timeout': 0});
   // await vault.deployed();
 // 
-  // console.log(`Drops4626 successfully upgraded to ${vault.address}!`);
+  // console.log(`Drops4626 successfully upgraded!`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0xDFf540f3922d53544aEBa4D0Aec0f0c42c706904",
+        address: "0xfE58706c68D900FD9bfE5E5f0d435204C500CAFb",
         contract: "contracts/vaults/Drops4626.sol:Drops4626",
         constructorArguments: [],
       });

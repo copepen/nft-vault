@@ -356,10 +356,10 @@ contract Bend4626 is
         IWETH weth = IWETH(WETH);
 
         // approve weth deposit into underlying marketplace
-        weth.approve(poolAddress, amounts[0]);
+        weth.approve(poolAddress, amounts[1]);
 
         // deposit into underlying marketplace
-        IBendLendPool(poolAddress).deposit(WETH, amounts[0], address(this), 0);
+        IBendLendPool(poolAddress).deposit(WETH, amounts[1], address(this), 0);
     }
 
     /*****************************/
