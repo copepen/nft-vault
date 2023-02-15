@@ -380,28 +380,31 @@ contract SpiceLending is
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        uint256 additionalTransfer = _terms.loanAmount -
-            data.balance -
-            interestAccrued;
+        uint256 additionalTransfer = _terms.loanAmount >
+            (data.balance + interestAccrued)
+            ? (_terms.loanAmount - data.balance - interestAccrued)
+            : 0;
 
         // update loan
         data.terms = _terms;
         data.balance = _terms.loanAmount;
         data.startedAt = block.timestamp;
 
-        IERC20Upgradeable(_terms.currency).safeTransferFrom(
-            lender,
-            address(this),
-            additionalTransfer
-        );
-        IERC20Upgradeable(_terms.currency).safeApprove(
-            _terms.collateralAddress,
-            additionalTransfer
-        );
-        ISpiceFiNFT4626(_terms.collateralAddress).deposit(
-            _terms.collateralId,
-            additionalTransfer
-        );
+        if (additionalTransfer > 0) {
+            IERC20Upgradeable(_terms.currency).safeTransferFrom(
+                lender,
+                address(this),
+                additionalTransfer
+            );
+            IERC20Upgradeable(_terms.currency).safeApprove(
+                _terms.collateralAddress,
+                additionalTransfer
+            );
+            ISpiceFiNFT4626(_terms.collateralAddress).deposit(
+                _terms.collateralId,
+                additionalTransfer
+            );
+        }
 
         emit LoanUpdated(_loanId);
     }
