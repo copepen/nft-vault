@@ -743,6 +743,8 @@ describe("Spice Lending", function () {
     });
 
     it("When magicValue is returned", async function () {
+      await increaseTime(5 * 24 * 3600);
+
       // deposit to vault
       await weth
         .connect(whale)
@@ -763,14 +765,22 @@ describe("Spice Lending", function () {
           loanId
         );
       terms.lender = vault.address;
+      terms.expiration = terms.expiration + 5 * 24 * 3600;
       const signature = await signLoanTerms(alice, lending.address, terms);
       await lending.connect(admin).grantRole(signerRole, alice.address);
+      const interestAccrued = ethers.utils
+        .parseEther("10")
+        .mul(terms.interestRate * 5)
+        .div(10000 * 365);
       const tx = await lending
         .connect(alice)
         .updateLoan(loanId, terms, signature);
       await expect(tx).to.emit(lending, "LoanUpdated").withArgs(loanId);
-      expect(await nft.tokenShares(terms.collateralId)).to.be.eq(
-        terms.loanAmount.add(ethers.utils.parseEther("100"))
+      expect(await nft.tokenShares(terms.collateralId)).to.be.closeTo(
+        terms.loanAmount
+          .sub(interestAccrued)
+          .add(ethers.utils.parseEther("100")),
+        interestAccrued.div(10)
       );
       const newLoanData = await lending.getLoanData(loanId);
       expect(newLoanData.balance).to.be.eq(terms.loanAmount);
@@ -780,6 +790,8 @@ describe("Spice Lending", function () {
     });
 
     it("Extends loan and transfer additional principal", async function () {
+      await increaseTime(5 * 24 * 3600);
+
       await weth
         .connect(signer)
         .transfer(bob.address, ethers.utils.parseEther("5"));
@@ -794,14 +806,22 @@ describe("Spice Lending", function () {
           loanId
         );
       terms.lender = bob.address;
+      terms.expiration = terms.expiration + 5 * 24 * 3600;
       const signature = await signLoanTerms(bob, lending.address, terms);
       await lending.connect(admin).grantRole(signerRole, bob.address);
+      const interestAccrued = ethers.utils
+        .parseEther("10")
+        .mul(terms.interestRate * 5)
+        .div(10000 * 365);
       const tx = await lending
         .connect(alice)
         .updateLoan(loanId, terms, signature);
       await expect(tx).to.emit(lending, "LoanUpdated").withArgs(loanId);
-      expect(await nft.tokenShares(terms.collateralId)).to.be.eq(
-        terms.loanAmount.add(ethers.utils.parseEther("100"))
+      expect(await nft.tokenShares(terms.collateralId)).to.be.closeTo(
+        terms.loanAmount
+          .sub(interestAccrued)
+          .add(ethers.utils.parseEther("100")),
+        interestAccrued.div(10)
       );
       const newLoanData = await lending.getLoanData(loanId);
       expect(newLoanData.balance).to.be.eq(terms.loanAmount);

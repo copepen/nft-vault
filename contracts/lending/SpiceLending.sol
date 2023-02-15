@@ -348,8 +348,9 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
-        // update interestAccrued and updatedAt
-        data.interestAccrued = _calcInterest(data);
+        // calc interestAccrued and reset interestAccrued and updatedAt
+        uint256 interestAccrued = _calcInterest(data);
+        data.interestAccrued = 0;
         data.updatedAt = block.timestamp;
 
         // check borrower & lender
@@ -379,7 +380,9 @@ contract SpiceLending is
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        uint256 additionalTransfer = _terms.loanAmount - data.balance;
+        uint256 additionalTransfer = _terms.loanAmount -
+            data.balance -
+            interestAccrued;
 
         // update loan
         data.terms = _terms;
