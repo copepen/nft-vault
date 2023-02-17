@@ -44,6 +44,50 @@ async function main() {
   };
   delete loanterms.repayment;
 
+  if (!loanterms.lender || !ethers.utils.isAddress(loanterms.lender)) {
+    console.log("'lender' is missing or invalid");
+    return;
+  }
+  if (loanterms.borrower != terms.borrower) {
+    console.log("'borrower' changed");
+    return;
+  }
+  if (loanterms.loanAmount != terms.loanAmount) {
+    console.log("'loanAmount' changed");
+    return;
+  }
+  if (!loanterms.interestRate) {
+    console.log("'interestRate' is missing");
+    return;
+  }
+  if (loanterms.duration != terms.duration) {
+    console.log("'duration' changed");
+    return;
+  }
+  if (loanterms.collateralAddress != terms.collateralAddress) {
+    console.log("'collateralAddress' changed");
+    return;
+  }
+  if (loanterms.collateralId != terms.collateralId) {
+    console.log("'collateralAddress' changed");
+    return;
+  }
+  if (!loanterms.expiration || loanterms.expiration < Math.floor(Date.now() / 1000)) {
+    console.log("'expiration' is missing or invalid");
+    return;
+  }
+  if (loanterms.currency != terms.currency) {
+    console.log("'currency' is missing");
+    return;
+  }
+  if (
+    loanterms.priceLiquidation == undefined ||
+    typeof loanterms.priceLiquidation != "boolean"
+  ) {
+    console.log("'priceLiquidation' is missing or invalid");
+    return;
+  }
+
   const loanId = await lending.callStatic.initiateLoan(
     loanterms,
     res.data.signature
