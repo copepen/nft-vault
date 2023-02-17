@@ -13,6 +13,22 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 import "../interfaces/ISpiceFiNFT4626.sol";
 import "../interfaces/IAggregatorVault.sol";
 import "../interfaces/IERC4906.sol";
+import "../libraries/LibLoan.sol";
+
+interface ISpiceLending {
+    function loans(
+        uint256 loanId
+    ) external view returns (LibLoan.LoanData memory);
+
+    function liquidationFee() external view returns (uint256);
+
+    function collateralToLoanId(
+        address collateralAddress,
+        uint256 collateralId
+    ) external view returns (uint256);
+
+    function repayAmount(uint256 loanId) external view returns (uint256);
+}
 
 /**
  * @title Storage for SpiceFiNFT4626
@@ -45,6 +61,9 @@ abstract contract SpiceFiNFT4626Storage {
 
     /// @notice Max totla supply
     uint256 public maxSupply;
+
+    /// @notice Spice lending contract
+    ISpiceLending public lending;
 
     /// @notice Token ID Pointer
     uint256 internal _tokenIdPointer;
@@ -132,6 +151,9 @@ contract SpiceFiNFT4626 is
     /// @notice Withdraw is disabled
     error WithdrawDisabled();
 
+    /// @notice Insolvent
+    error Insolvent();
+
     /// @notice Insufficient share balance
     error InsufficientShareBalance();
 
@@ -161,6 +183,10 @@ contract SpiceFiNFT4626 is
     /// @param feeRecipient New fee recipient address
     event FeeRecipientUpdated(address feeRecipient);
 
+    /// @notice Emitted when lending is updated
+    /// @param lending New lending address
+    event LendingUpdated(address lending);
+
     /***************/
     /* Constructor */
     /***************/
@@ -182,6 +208,7 @@ contract SpiceFiNFT4626 is
         address __asset,
         uint256 _mintPrice,
         uint256 _maxSupply,
+        ISpiceLending _lending,
         address[] memory _vaults,
         address _creator,
         address _dev,
@@ -193,6 +220,9 @@ contract SpiceFiNFT4626 is
         }
         if (_maxSupply == 0) {
             revert ParameterOutOfBounds();
+        }
+        if (address(_lending) == address(0)) {
+            revert InvalidAddress();
         }
         if (_creator == address(0)) {
             revert InvalidAddress();
@@ -212,6 +242,7 @@ contract SpiceFiNFT4626 is
         _asset = __asset;
         mintPrice = _mintPrice;
         maxSupply = _maxSupply;
+        lending = _lending;
         dev = _dev;
         multisig = _multisig;
         feeRecipient = _feeRecipient;
@@ -313,6 +344,21 @@ contract SpiceFiNFT4626 is
         }
         feeRecipient = _feeRecipient;
         emit FeeRecipientUpdated(_feeRecipient);
+    }
+
+    /// @notice Set the fee recipient address
+    ///
+    /// Emits a {LendingUpdated} event.
+    ///
+    /// @param _lending New fee recipient address
+    function setLending(
+        address _lending
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_lending == address(0)) {
+            revert InvalidAddress();
+        }
+        lending = ISpiceLending(_lending);
+        emit LendingUpdated(_lending);
     }
 
     /// @notice Sets preview uri
@@ -674,6 +720,18 @@ contract SpiceFiNFT4626 is
 
         totalShares -= shares;
         tokenShares[tokenId] -= shares;
+
+        if (msg.sender != address(lending)) {
+            uint256 remainingWithdrawable = previewRedeem(tokenShares[tokenId]);
+            uint256 loanId = lending.collateralToLoanId(address(this), tokenId);
+            if (
+                loanId > 0 &&
+                remainingWithdrawable <
+                lending.liquidationFee() + lending.repayAmount(loanId)
+            ) {
+                revert Insolvent();
+            }
+        }
 
         uint256 half = fees / 2;
 

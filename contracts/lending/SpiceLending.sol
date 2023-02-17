@@ -61,11 +61,17 @@ abstract contract SpiceLendingStorage {
     /// @notice Liquidation ratio
     uint256 public liquidationRatio;
 
+    /// @notice Liquidation fee
+    uint256 public liquidationFee;
+
     /// @notice Loan ratio
     uint256 public loanRatio;
 
     /// @notice Signature used
     mapping(bytes32 => bool) public signatureUsed;
+
+    /// @notice Collateral contract => Collateral Id => Loan Id
+    mapping(address => mapping(uint256 => uint256)) public collateralToLoanId;
 }
 
 /**
@@ -155,6 +161,7 @@ contract SpiceLending is
     /// @param _borrowerNote Borrower note contract address
     /// @param _interestFee Interest fee rate
     /// @param _liquidationRatio Liquidation ratio
+    /// @param _liquidationFee Liquidation fee
     /// @param _loanRatio Loan ratio
     function initialize(
         address _signer,
@@ -162,6 +169,7 @@ contract SpiceLending is
         INote _borrowerNote,
         uint256 _interestFee,
         uint256 _liquidationRatio,
+        uint256 _liquidationFee,
         uint256 _loanRatio,
         address _feeRecipient
     ) external initializer {
@@ -197,6 +205,7 @@ contract SpiceLending is
         borrowerNote = _borrowerNote;
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
+        liquidationFee = _liquidationFee;
         loanRatio = _loanRatio;
     }
 
@@ -239,6 +248,19 @@ contract SpiceLending is
         liquidationRatio = _liquidationRatio;
 
         emit LiquidationRatioUpdated(_liquidationRatio);
+    }
+
+    /// @notice Set the liquidation ratio
+    ///
+    /// Emits a {LiquidationFeeUpdated} event.
+    ///
+    /// @param _liquidationFee Liquidation ratio
+    function setLiquidationFee(
+        uint256 _liquidationFee
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        liquidationFee = _liquidationFee;
+
+        emit LiquidationFeeUpdated(_liquidationFee);
     }
 
     /// @notice Set the loan ratio
@@ -291,9 +313,9 @@ contract SpiceLending is
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        // get current loanId and increment for next function call
-        loanId = loanIdTracker.current();
+        // get current loanId
         loanIdTracker.increment();
+        loanId = loanIdTracker.current();
 
         // initiate new loan
         loans[loanId] = LibLoan.LoanData({
@@ -304,6 +326,7 @@ contract SpiceLending is
             interestAccrued: 0,
             updatedAt: block.timestamp
         });
+        collateralToLoanId[_terms.collateralAddress][_terms.collateralId] = loanId;
 
         // mint notes
         _mintNote(loanId, _terms.lender, _terms.borrower);
@@ -496,6 +519,8 @@ contract SpiceLending is
             lenderNote.burn(_loanId);
             borrowerNote.burn(_loanId);
 
+            collateralToLoanId[data.terms.collateralAddress][data.terms.collateralId] = 0;
+
             // return collateral NFT to borrower
             IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
                 address(this),
@@ -555,6 +580,8 @@ contract SpiceLending is
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
+        collateralToLoanId[data.terms.collateralAddress][data.terms.collateralId] = 0;
+
         // return collateral NFT to borrower
         IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
             address(this),
@@ -572,15 +599,13 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
+        uint256 owedAmount = data.balance + _calcInterest(data);
         if (data.terms.priceLiquidation) {
             uint256 collateral = _getCollateralAmount(
                 data.terms.collateralAddress,
                 data.terms.collateralId
             );
-            if (
-                data.balance + _calcInterest(data) <=
-                (collateral * liquidationRatio) / DENOMINATOR
-            ) {
+            if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
                 revert NotLiquidatible();
             }
         } else {
@@ -595,14 +620,24 @@ contract SpiceLending is
         data.state = LibLoan.LoanState.Defaulted;
 
         address lender = lenderNote.ownerOf(_loanId);
+        address borrower = borrowerNote.ownerOf(_loanId);
+
+        // send owed amount to lender
+        ISpiceFiNFT4626(data.terms.collateralAddress).withdraw(
+            data.terms.collateralId,
+            owedAmount + liquidationFee,
+            lender
+        );
 
         // burn notes
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
+        collateralToLoanId[data.terms.collateralAddress][data.terms.collateralId] = 0;
+
         IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
             address(this),
-            lender,
+            borrower,
             data.terms.collateralId
         );
 
@@ -622,7 +657,7 @@ contract SpiceLending is
 
     /// @notice See {ISpiceLending-getNextLoanId}
     function getNextLoanId() external view returns (uint256) {
-        return loanIdTracker.current();
+        return loanIdTracker.current() + 1;
     }
 
     /// @notice See {ISpiceLending-repayAmount}

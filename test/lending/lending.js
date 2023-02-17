@@ -93,37 +93,6 @@ describe("Spice Lending", function () {
       treasury.address,
     ]);
 
-    const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
-    beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
-      unsafeAllow: ["delegatecall"],
-    });
-
-    nft = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
-      "Spice0",
-      "s0",
-      weth.address,
-      ethers.utils.parseEther("0.08"),
-      555,
-      [],
-      admin.address,
-      constants.accounts.Dev,
-      constants.accounts.Multisig,
-      treasury.address,
-    ]);
-
-    nft1 = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
-      "Spice0",
-      "s0",
-      weth.address,
-      ethers.utils.parseEther("0.08"),
-      555,
-      [],
-      admin.address,
-      constants.accounts.Dev,
-      constants.accounts.Multisig,
-      treasury.address,
-    ]);
-
     const Note = await ethers.getContractFactory("Note");
 
     lenderNote = await Note.deploy("Spice Lender Note", "Spice Lender Note");
@@ -145,6 +114,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
+        ethers.utils.parseEther("0.1"),
         6000,
         treasury.address,
       ])
@@ -157,6 +127,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
+        ethers.utils.parseEther("0.1"),
         6000,
         treasury.address,
       ])
@@ -169,6 +140,7 @@ describe("Spice Lending", function () {
         ethers.constants.AddressZero,
         500,
         8000,
+        ethers.utils.parseEther("0.1"),
         6000,
         treasury.address,
       ])
@@ -181,6 +153,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         10001,
         8000,
+        ethers.utils.parseEther("0.1"),
         6000,
         treasury.address,
       ])
@@ -193,6 +166,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         10001,
+        ethers.utils.parseEther("0.1"),
         6000,
         treasury.address,
       ])
@@ -205,6 +179,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
+        ethers.utils.parseEther("0.1"),
         10001,
         treasury.address,
       ])
@@ -217,6 +192,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
+        ethers.utils.parseEther("0.1"),
         6000,
         ethers.constants.AddressZero,
       ])
@@ -228,6 +204,7 @@ describe("Spice Lending", function () {
       borrowerNote.address,
       500,
       8000,
+      ethers.utils.parseEther("0.1"),
       6000,
       treasury.address,
     ]);
@@ -236,6 +213,39 @@ describe("Spice Lending", function () {
     spiceRole = await lending.SPICE_ROLE();
     signerRole = await lending.SIGNER_ROLE();
     spiceNftRole = await lending.SPICE_NFT_ROLE();
+
+    const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
+    beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
+      unsafeAllow: ["delegatecall"],
+    });
+
+    nft = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      "Spice0",
+      "s0",
+      weth.address,
+      ethers.utils.parseEther("0.08"),
+      555,
+      lending.address,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
+
+    nft1 = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      "Spice0",
+      "s0",
+      weth.address,
+      ethers.utils.parseEther("0.08"),
+      555,
+      lending.address,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
 
     await lending.connect(admin).grantRole(spiceRole, spiceAdmin.address);
     await lending.connect(admin).grantRole(spiceNftRole, nft.address);
@@ -306,6 +316,7 @@ describe("Spice Lending", function () {
           borrowerNote.address,
           500,
           8000,
+          ethers.utils.parseEther("0.1"),
           6000,
           treasury.address
         )
@@ -515,7 +526,7 @@ describe("Spice Lending", function () {
       expect(loanData.interestAccrued).to.be.eq(0);
       expect(loanData.startedAt).to.be.eq(loanData.updatedAt);
 
-      expect(await lending.getNextLoanId()).to.be.eq(loanId + 1);
+      expect(await lending.getNextLoanId()).to.be.eq(loanId.add(1));
     });
 
     it("Signature replay attack", async function () {
@@ -1069,7 +1080,7 @@ describe("Spice Lending", function () {
       const loanData = await lending.getLoanData(loanId1);
       expect(loanData.state).to.be.eq(3);
 
-      expect(await nft.ownerOf(1)).to.be.eq(signer.address);
+      expect(await nft.ownerOf(1)).to.be.eq(alice.address);
       await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
@@ -1088,7 +1099,7 @@ describe("Spice Lending", function () {
       const loanData = await lending.getLoanData(loanId2);
       expect(loanData.state).to.be.eq(3);
 
-      expect(await nft.ownerOf(2)).to.be.eq(signer.address);
+      expect(await nft.ownerOf(2)).to.be.eq(bob.address);
       await expect(lenderNote.ownerOf(loanId2)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
