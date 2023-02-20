@@ -10,7 +10,6 @@ describe("SpiceFiNFTFactory", function () {
   let drops;
   let factory;
   let beacon;
-  let lending;
 
   let admin, alice, bob, signer, treasury;
 
@@ -71,34 +70,6 @@ describe("SpiceFiNFTFactory", function () {
       dropsVaultName,
       dropsVaultSymbol,
       constants.tokens.DropsETH,
-    ]);
-
-    const Note = await ethers.getContractFactory("Note");
-
-    const lenderNote = await Note.deploy(
-      "Spice Lender Note",
-      "Spice Lender Note"
-    );
-    await lenderNote.deployed();
-
-    const borrowerNote = await Note.deploy(
-      "Spice Borrower Note",
-      "Spice Borrower Note"
-    );
-    await borrowerNote.deployed();
-
-    const SpiceLending = await ethers.getContractFactory("SpiceLending");
-    beacon = await upgrades.deployBeacon(SpiceLending);
-
-    lending = await upgrades.deployBeaconProxy(beacon, SpiceLending, [
-      signer.address,
-      lenderNote.address,
-      borrowerNote.address,
-      500,
-      8000,
-      ethers.utils.parseEther("0.1"),
-      6000,
-      treasury.address,
     ]);
 
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
@@ -177,7 +148,6 @@ describe("SpiceFiNFTFactory", function () {
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           555,
-          lending.address,
           [vault.address, bend.address, drops.address]
         )
     ).to.be.revertedWith(
@@ -196,7 +166,6 @@ describe("SpiceFiNFTFactory", function () {
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           555,
-          lending.address,
           [vault.address, bend.address, drops.address]
         )
     ).to.be.revertedWith(
@@ -217,7 +186,6 @@ describe("SpiceFiNFTFactory", function () {
           ethers.constants.AddressZero,
           ethers.utils.parseEther("0.08"),
           555,
-          lending.address,
           []
         )
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "InvalidAddress");
@@ -236,29 +204,9 @@ describe("SpiceFiNFTFactory", function () {
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           0,
-          lending.address,
           []
         )
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "ParameterOutOfBounds");
-  });
-
-  it("When lending is 0x0", async function () {
-    const SpiceFiNFTFactory = await ethers.getContractFactory(
-      "SpiceFiNFTFactory"
-    );
-    await expect(
-      factory
-        .connect(alice)
-        .createVault(
-          spiceVaultName,
-          spiceVaultSymbol,
-          constants.tokens.WETH,
-          ethers.utils.parseEther("0.08"),
-          555,
-          ethers.constants.AddressZero,
-          []
-        )
-    ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "InvalidAddress");
   });
 
   it("Create Vault", async function () {
@@ -275,7 +223,6 @@ describe("SpiceFiNFTFactory", function () {
         constants.tokens.WETH,
         ethers.utils.parseEther("0.08"),
         555,
-        lending.address,
         [vault.address, bend.address, drops.address]
       );
 
@@ -287,7 +234,6 @@ describe("SpiceFiNFTFactory", function () {
         constants.tokens.WETH,
         ethers.utils.parseEther("0.08"),
         555,
-        lending.address,
         [vault.address, bend.address, drops.address]
       );
 

@@ -120,34 +120,6 @@ describe("SpiceFiNFT4626", function () {
       constants.tokens.DropsETH,
     ]);
 
-    const Note = await ethers.getContractFactory("Note");
-
-    const lenderNote = await Note.deploy(
-      "Spice Lender Note",
-      "Spice Lender Note"
-    );
-    await lenderNote.deployed();
-
-    const borrowerNote = await Note.deploy(
-      "Spice Borrower Note",
-      "Spice Borrower Note"
-    );
-    await borrowerNote.deployed();
-
-    const SpiceLending = await ethers.getContractFactory("SpiceLending");
-    beacon = await upgrades.deployBeacon(SpiceLending);
-
-    lending = await upgrades.deployBeaconProxy(beacon, SpiceLending, [
-      signer.address,
-      lenderNote.address,
-      borrowerNote.address,
-      500,
-      8000,
-      ethers.utils.parseEther("0.1"),
-      6000,
-      treasury.address,
-    ]);
-
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
     beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
       unsafeAllow: ["delegatecall"],
@@ -160,7 +132,6 @@ describe("SpiceFiNFT4626", function () {
         ethers.constants.AddressZero,
         mintPrice,
         maxSupply,
-        lending.address,
         [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
@@ -175,7 +146,6 @@ describe("SpiceFiNFT4626", function () {
         weth.address,
         mintPrice,
         0,
-        lending.address,
         [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
@@ -190,22 +160,6 @@ describe("SpiceFiNFT4626", function () {
         weth.address,
         mintPrice,
         maxSupply,
-        ethers.constants.AddressZero,
-        [vault.address, bend.address, drops.address],
-        admin.address,
-        constants.accounts.Dev,
-        constants.accounts.Multisig,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceFiNFT4626, "InvalidAddress");
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
-        spiceVaultName,
-        spiceVaultSymbol,
-        weth.address,
-        mintPrice,
-        maxSupply,
-        lending.address,
         [vault.address, bend.address, ethers.constants.AddressZero],
         admin.address,
         constants.accounts.Dev,
@@ -220,7 +174,6 @@ describe("SpiceFiNFT4626", function () {
         weth.address,
         mintPrice,
         maxSupply,
-        lending.address,
         [vault.address, bend.address, drops.address],
         ethers.constants.AddressZero,
         constants.accounts.Dev,
@@ -235,7 +188,6 @@ describe("SpiceFiNFT4626", function () {
         weth.address,
         mintPrice,
         maxSupply,
-        lending.address,
         [vault.address, bend.address, drops.address],
         admin.address,
         ethers.constants.AddressZero,
@@ -250,7 +202,6 @@ describe("SpiceFiNFT4626", function () {
         weth.address,
         mintPrice,
         maxSupply,
-        lending.address,
         [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
@@ -265,7 +216,6 @@ describe("SpiceFiNFT4626", function () {
         weth.address,
         mintPrice,
         maxSupply,
-        lending.address,
         [vault.address, bend.address, drops.address],
         admin.address,
         constants.accounts.Dev,
@@ -280,7 +230,6 @@ describe("SpiceFiNFT4626", function () {
       weth.address,
       mintPrice,
       maxSupply,
-      lending.address,
       [vault.address, bend.address, drops.address],
       admin.address,
       constants.accounts.Dev,
@@ -366,7 +315,6 @@ describe("SpiceFiNFT4626", function () {
           weth.address,
           mintPrice,
           maxSupply,
-          lending.address,
           [vault.address, bend.address, drops.address],
           admin.address,
           constants.accounts.Dev,

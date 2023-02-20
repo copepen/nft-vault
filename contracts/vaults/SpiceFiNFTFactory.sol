@@ -161,7 +161,6 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
     /// @param _asset Asset address for the vault
     /// @param _mintPrice NFT mint price
     /// @param _maxSupply Max total supply
-    /// @param _lending Lending contract address
     /// @param _vaults Default vault addresses
     /// @return vault Created vault address
     function createVault(
@@ -170,7 +169,6 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
         address _asset,
         uint256 _mintPrice,
         uint256 _maxSupply,
-        address _lending,
         address[] calldata _vaults
     ) external returns (address vault) {
         if (_asset == address(0)) {
@@ -178,9 +176,6 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
         }
         if (_maxSupply == 0) {
             revert ParameterOutOfBounds();
-        }
-        if (_lending == address(0)) {
-            revert InvalidAddress();
         }
 
         _checkRole(ASSET_ROLE, _asset);
@@ -194,13 +189,12 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
             new BeaconProxy(
                 beacon,
                 abi.encodeWithSignature(
-                    "initialize(string,string,address,uint256,uint256,address,address[],address,address,address,address)",
+                    "initialize(string,string,address,uint256,uint256,address[],address,address,address,address)",
                     _name,
                     _symbol,
                     _asset,
                     _mintPrice,
                     _maxSupply,
-                    _lending,
                     _vaults,
                     msg.sender,
                     dev,
