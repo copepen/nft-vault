@@ -1,6 +1,7 @@
 const hre = require("hardhat");
 const { getLoanTerms } = require("../api");
 const { LoanTermsRequestType } = require("../constants");
+const { comapreTerms } = require("./util");
 
 async function main() {
   const { ethers } = hre;
@@ -52,7 +53,7 @@ async function main() {
   };
   delete loanterms.repayment;
 
-  const data = await lending.getLoanData(loanId);
+  let data = await lending.getLoanData(loanId);
 
   if (!loanterms.lender || !ethers.utils.isAddress(loanterms.lender)) {
     console.log("'lender' is missing or invalid");
@@ -102,6 +103,9 @@ async function main() {
   console.log("Increase tx submitted: ", tx.hash);
   await tx.wait();
   console.log(`Loan #${loanId} has been increased!`);
+
+  data = await lending.getLoanData(loanId);
+  comapreTerms(loanterms, data.terms);
 }
 
 main().catch((error) => {

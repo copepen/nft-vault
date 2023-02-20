@@ -1,6 +1,7 @@
 const hre = require("hardhat");
 const { getLoanTerms } = require("../api");
 const { LoanTermsRequestType } = require("../constants");
+const { comapreTerms } = require("./util");
 
 async function main() {
   const { ethers } = hre;
@@ -95,6 +96,9 @@ async function main() {
   const tx = await lending.initiateLoan(loanterms, res.data.signature);
   await tx.wait();
   console.log(`New loan initiated with loan ID ${loanId}`);
+
+  const data = await lending.getLoanData(loanId);
+  comapreTerms(loanterms, data.terms);
 }
 
 main().catch((error) => {
