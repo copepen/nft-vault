@@ -114,7 +114,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
-        ethers.utils.parseEther("0.1"),
+        1000,
         6000,
         treasury.address,
       ])
@@ -127,7 +127,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
-        ethers.utils.parseEther("0.1"),
+        1000,
         6000,
         treasury.address,
       ])
@@ -140,7 +140,7 @@ describe("Spice Lending", function () {
         ethers.constants.AddressZero,
         500,
         8000,
-        ethers.utils.parseEther("0.1"),
+        1000,
         6000,
         treasury.address,
       ])
@@ -153,7 +153,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         10001,
         8000,
-        ethers.utils.parseEther("0.1"),
+        1000,
         6000,
         treasury.address,
       ])
@@ -166,7 +166,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         10001,
-        ethers.utils.parseEther("0.1"),
+        1000,
         6000,
         treasury.address,
       ])
@@ -179,7 +179,20 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
-        ethers.utils.parseEther("0.1"),
+        10001,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        8000,
+        1000,
         10001,
         treasury.address,
       ])
@@ -192,7 +205,7 @@ describe("Spice Lending", function () {
         borrowerNote.address,
         500,
         8000,
-        ethers.utils.parseEther("0.1"),
+        1000,
         6000,
         ethers.constants.AddressZero,
       ])
@@ -204,7 +217,7 @@ describe("Spice Lending", function () {
       borrowerNote.address,
       500,
       8000,
-      ethers.utils.parseEther("0.1"),
+      1000,
       6000,
       treasury.address,
     ]);
@@ -314,7 +327,7 @@ describe("Spice Lending", function () {
           borrowerNote.address,
           500,
           8000,
-          ethers.utils.parseEther("0.1"),
+          1000,
           6000,
           treasury.address
         )

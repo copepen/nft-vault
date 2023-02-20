@@ -62,7 +62,7 @@ abstract contract SpiceLendingStorage {
     uint256 public liquidationRatio;
 
     /// @notice Liquidation fee
-    uint256 public liquidationFee;
+    uint256 public liquidationFeeRatio;
 
     /// @notice Loan ratio
     uint256 public loanRatio;
@@ -161,7 +161,7 @@ contract SpiceLending is
     /// @param _borrowerNote Borrower note contract address
     /// @param _interestFee Interest fee rate
     /// @param _liquidationRatio Liquidation ratio
-    /// @param _liquidationFee Liquidation fee
+    /// @param _liquidationFeeRatio Liquidation fee
     /// @param _loanRatio Loan ratio
     function initialize(
         address _signer,
@@ -169,7 +169,7 @@ contract SpiceLending is
         INote _borrowerNote,
         uint256 _interestFee,
         uint256 _liquidationRatio,
-        uint256 _liquidationFee,
+        uint256 _liquidationFeeRatio,
         uint256 _loanRatio,
         address _feeRecipient
     ) external initializer {
@@ -186,6 +186,9 @@ contract SpiceLending is
             revert ParameterOutOfBounds();
         }
         if (_liquidationRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
+        if (_liquidationFeeRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
         if (_loanRatio > DENOMINATOR) {
@@ -205,7 +208,7 @@ contract SpiceLending is
         borrowerNote = _borrowerNote;
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
-        liquidationFee = _liquidationFee;
+        liquidationFeeRatio = _liquidationFeeRatio;
         loanRatio = _loanRatio;
     }
 
@@ -252,15 +255,18 @@ contract SpiceLending is
 
     /// @notice Set the liquidation ratio
     ///
-    /// Emits a {LiquidationFeeUpdated} event.
+    /// Emits a {LiquidationFeeRatioUpdated} event.
     ///
-    /// @param _liquidationFee Liquidation ratio
-    function setLiquidationFee(
-        uint256 _liquidationFee
+    /// @param _liquidationFeeRatio Liquidation ratio
+    function setLiquidationFeeRatio(
+        uint256 _liquidationFeeRatio
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        liquidationFee = _liquidationFee;
+        if (_liquidationFeeRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
+        liquidationFeeRatio = _liquidationFeeRatio;
 
-        emit LiquidationFeeUpdated(_liquidationFee);
+        emit LiquidationFeeRatioUpdated(_liquidationFeeRatio);
     }
 
     /// @notice Set the loan ratio
@@ -326,7 +332,9 @@ contract SpiceLending is
             interestAccrued: 0,
             updatedAt: block.timestamp
         });
-        collateralToLoanId[_terms.collateralAddress][_terms.collateralId] = loanId;
+        collateralToLoanId[_terms.collateralAddress][
+            _terms.collateralId
+        ] = loanId;
 
         // mint notes
         _mintNote(loanId, _terms.lender, _terms.borrower);
@@ -519,7 +527,9 @@ contract SpiceLending is
             lenderNote.burn(_loanId);
             borrowerNote.burn(_loanId);
 
-            collateralToLoanId[data.terms.collateralAddress][data.terms.collateralId] = 0;
+            collateralToLoanId[data.terms.collateralAddress][
+                data.terms.collateralId
+            ] = 0;
 
             // return collateral NFT to borrower
             IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
@@ -580,7 +590,9 @@ contract SpiceLending is
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
-        collateralToLoanId[data.terms.collateralAddress][data.terms.collateralId] = 0;
+        collateralToLoanId[data.terms.collateralAddress][
+            data.terms.collateralId
+        ] = 0;
 
         // return collateral NFT to borrower
         IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
@@ -625,7 +637,7 @@ contract SpiceLending is
         // send owed amount to lender
         ISpiceFiNFT4626(data.terms.collateralAddress).withdraw(
             data.terms.collateralId,
-            owedAmount + liquidationFee,
+            (owedAmount * (DENOMINATOR + liquidationFeeRatio)) / DENOMINATOR,
             lender
         );
 
@@ -633,7 +645,9 @@ contract SpiceLending is
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
-        collateralToLoanId[data.terms.collateralAddress][data.terms.collateralId] = 0;
+        collateralToLoanId[data.terms.collateralAddress][
+            data.terms.collateralId
+        ] = 0;
 
         IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
             address(this),
