@@ -1,14 +1,15 @@
 const hre = require("hardhat");
+const config = require("./config");
 
 async function main() {
   const { ethers } = hre;
+  const signer = (await ethers.getSigners())[0];
+  const chainId = await signer.getChainId();
 
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
-  const lending = SpiceLending.attach(
-    "0x6a3F93048661192aEd72cd8472414eE8502a14A4"
-  );
+  const lending = SpiceLending.attach(config[chainId].lending);
 
-  const loanId = 0;
+  const loanId = 1;
 
   const gasLimit = await lending.estimateGas.repay(loanId);
   const tx = await lending.repay(loanId, {

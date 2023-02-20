@@ -2,6 +2,7 @@ const hre = require("hardhat");
 const { getLoanTerms } = require("../api");
 const { LoanTermsRequestType } = require("../constants");
 const { compareTerms } = require("./util");
+const config = require("./config");
 
 async function main() {
   const { ethers } = hre;
@@ -15,16 +16,14 @@ async function main() {
   };
 
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
-  const vault = SpiceFiNFT4626.attach(
-    "0xc118f4bF7f156F3B2027394f2129f32C03FbB1D4"
-  );
+  const vault = SpiceFiNFT4626.attach(config[chainId].prologue);
   const terms = {
     loanAmount: ethers.utils.parseEther("0.1").toString(),
     duration: 10 * 24 * 3600, // 10 days
     collateralAddress: vault.address,
     collateralId: 4,
     borrower: signer.address,
-    currency: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
+    currency: config[chainId].weth,
     additionalLoanAmount: 0,
     additionalDuration: 0,
   };
@@ -35,9 +34,7 @@ async function main() {
   const res = await getLoanTerms(terms, signature, "initiate", chainId);
 
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
-  const lending = SpiceLending.attach(
-    "0x6a3F93048661192aEd72cd8472414eE8502a14A4"
-  );
+  const lending = SpiceLending.attach(config[chainId].lending);
 
   const loanterms = {
     ...res.data.loanterms,
@@ -73,7 +70,10 @@ async function main() {
     console.log("'collateralAddress' changed");
     return;
   }
-  if (!loanterms.expiration || loanterms.expiration < Math.floor(Date.now() / 1000)) {
+  if (
+    !loanterms.expiration ||
+    loanterms.expiration < Math.floor(Date.now() / 1000)
+  ) {
     console.log("'expiration' is missing or invalid");
     return;
   }
