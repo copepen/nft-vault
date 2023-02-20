@@ -1,4 +1,4 @@
-const comapreTerms = (termsA, termsB) => {
+const compareTerms = (termsA, termsB) => {
   if (termsA.lender.toLowerCase() != termsB.lender.toLowerCase()) {
     console.log("'lender' is different");
   }
@@ -32,5 +32,5 @@ const comapreTerms = (termsA, termsB) => {
 };
 
 module.exports = {
-  comapreTerms,
+  compareTerms,
 };

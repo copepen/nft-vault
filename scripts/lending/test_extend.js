@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 const { getLoanTerms } = require("../api");
 const { LoanTermsRequestType } = require("../constants");
-const { comapreTerms } = require("./util");
+const { compareTerms } = require("./util");
 
 async function main() {
   const { ethers } = hre;
@@ -105,7 +105,7 @@ async function main() {
   console.log(`Loan #${loanId} has been extended!`);
 
   data = await lending.getLoanData(loanId);
-  comapreTerms(loanterms, data.terms);
+  compareTerms(loanterms, data.terms);
 }
 
 main().catch((error) => {
