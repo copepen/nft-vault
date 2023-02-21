@@ -16,7 +16,7 @@ describe("SpiceFiNFT4626", function () {
   let spiceVault;
 
   // accounts
-  let admin, alice, bob, carol, strategist, spiceAdmin, assetReceiver, treasury;
+  let admin, alice, bob, carol, strategist, spiceAdmin, signer, treasury;
   let whale, dev;
 
   // snapshot ID
@@ -65,9 +65,14 @@ describe("SpiceFiNFT4626", function () {
       carol,
       strategist,
       spiceAdmin,
-      assetReceiver,
+      signer,
       treasury,
     ] = await ethers.getSigners();
+
+    await alice.sendTransaction({
+      to: constants.accounts.Dev,
+      value: ethers.utils.parseEther("10")
+    });
 
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);

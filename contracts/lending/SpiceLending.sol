@@ -61,11 +61,17 @@ abstract contract SpiceLendingStorage {
     /// @notice Liquidation ratio
     uint256 public liquidationRatio;
 
+    /// @notice Liquidation fee
+    uint256 public liquidationFeeRatio;
+
     /// @notice Loan ratio
     uint256 public loanRatio;
 
     /// @notice Signature used
     mapping(bytes32 => bool) public signatureUsed;
+
+    /// @notice Collateral contract => Collateral Id => Loan Id
+    mapping(address => mapping(uint256 => uint256)) public collateralToLoanId;
 }
 
 /**
@@ -155,6 +161,7 @@ contract SpiceLending is
     /// @param _borrowerNote Borrower note contract address
     /// @param _interestFee Interest fee rate
     /// @param _liquidationRatio Liquidation ratio
+    /// @param _liquidationFeeRatio Liquidation fee
     /// @param _loanRatio Loan ratio
     function initialize(
         address _signer,
@@ -162,6 +169,7 @@ contract SpiceLending is
         INote _borrowerNote,
         uint256 _interestFee,
         uint256 _liquidationRatio,
+        uint256 _liquidationFeeRatio,
         uint256 _loanRatio,
         address _feeRecipient
     ) external initializer {
@@ -180,6 +188,9 @@ contract SpiceLending is
         if (_liquidationRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
+        if (_liquidationFeeRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
         if (_loanRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
@@ -187,7 +198,7 @@ contract SpiceLending is
             revert InvalidAddress();
         }
 
-        __EIP712_init("SpiceLending", "1");
+        __EIP712_init("Spice Finance", "1");
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(SIGNER_ROLE, _signer);
@@ -197,6 +208,7 @@ contract SpiceLending is
         borrowerNote = _borrowerNote;
         interestFee = _interestFee;
         liquidationRatio = _liquidationRatio;
+        liquidationFeeRatio = _liquidationFeeRatio;
         loanRatio = _loanRatio;
     }
 
@@ -239,6 +251,22 @@ contract SpiceLending is
         liquidationRatio = _liquidationRatio;
 
         emit LiquidationRatioUpdated(_liquidationRatio);
+    }
+
+    /// @notice Set the liquidation ratio
+    ///
+    /// Emits a {LiquidationFeeRatioUpdated} event.
+    ///
+    /// @param _liquidationFeeRatio Liquidation ratio
+    function setLiquidationFeeRatio(
+        uint256 _liquidationFeeRatio
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_liquidationFeeRatio > DENOMINATOR) {
+            revert ParameterOutOfBounds();
+        }
+        liquidationFeeRatio = _liquidationFeeRatio;
+
+        emit LiquidationFeeRatioUpdated(_liquidationFeeRatio);
     }
 
     /// @notice Set the loan ratio
@@ -291,9 +319,9 @@ contract SpiceLending is
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        // get current loanId and increment for next function call
-        loanId = loanIdTracker.current();
+        // get current loanId
         loanIdTracker.increment();
+        loanId = loanIdTracker.current();
 
         // initiate new loan
         loans[loanId] = LibLoan.LoanData({
@@ -304,6 +332,9 @@ contract SpiceLending is
             interestAccrued: 0,
             updatedAt: block.timestamp
         });
+        collateralToLoanId[_terms.collateralAddress][
+            _terms.collateralId
+        ] = loanId;
 
         // mint notes
         _mintNote(loanId, _terms.lender, _terms.borrower);
@@ -348,8 +379,9 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
-        // update interestAccrued and updatedAt
-        data.interestAccrued = _calcInterest(data);
+        // calc interestAccrued and reset interestAccrued and updatedAt
+        uint256 interestAccrued = _calcInterest(data);
+        data.interestAccrued = 0;
         data.updatedAt = block.timestamp;
 
         // check borrower & lender
@@ -379,26 +411,31 @@ contract SpiceLending is
         // verify loan terms signature
         _verifyLoanTermsSignature(_terms, _signature);
 
-        uint256 additionalTransfer = _terms.loanAmount - data.balance;
+        uint256 additionalTransfer = _terms.loanAmount >
+            (data.balance + interestAccrued)
+            ? (_terms.loanAmount - data.balance - interestAccrued)
+            : 0;
 
         // update loan
         data.terms = _terms;
         data.balance = _terms.loanAmount;
         data.startedAt = block.timestamp;
 
-        IERC20Upgradeable(_terms.currency).safeTransferFrom(
-            lender,
-            address(this),
-            additionalTransfer
-        );
-        IERC20Upgradeable(_terms.currency).safeApprove(
-            _terms.collateralAddress,
-            additionalTransfer
-        );
-        ISpiceFiNFT4626(_terms.collateralAddress).deposit(
-            _terms.collateralId,
-            additionalTransfer
-        );
+        if (additionalTransfer > 0) {
+            IERC20Upgradeable(_terms.currency).safeTransferFrom(
+                lender,
+                address(this),
+                additionalTransfer
+            );
+            IERC20Upgradeable(_terms.currency).safeApprove(
+                _terms.collateralAddress,
+                additionalTransfer
+            );
+            ISpiceFiNFT4626(_terms.collateralAddress).deposit(
+                _terms.collateralId,
+                additionalTransfer
+            );
+        }
 
         emit LoanUpdated(_loanId);
     }
@@ -490,6 +527,10 @@ contract SpiceLending is
             lenderNote.burn(_loanId);
             borrowerNote.burn(_loanId);
 
+            collateralToLoanId[data.terms.collateralAddress][
+                data.terms.collateralId
+            ] = 0;
+
             // return collateral NFT to borrower
             IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
                 address(this),
@@ -549,6 +590,10 @@ contract SpiceLending is
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
+        collateralToLoanId[data.terms.collateralAddress][
+            data.terms.collateralId
+        ] = 0;
+
         // return collateral NFT to borrower
         IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
             address(this),
@@ -566,15 +611,13 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
+        uint256 owedAmount = data.balance + _calcInterest(data);
         if (data.terms.priceLiquidation) {
             uint256 collateral = _getCollateralAmount(
                 data.terms.collateralAddress,
                 data.terms.collateralId
             );
-            if (
-                data.balance + _calcInterest(data) <=
-                (collateral * liquidationRatio) / DENOMINATOR
-            ) {
+            if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
                 revert NotLiquidatible();
             }
         } else {
@@ -589,14 +632,26 @@ contract SpiceLending is
         data.state = LibLoan.LoanState.Defaulted;
 
         address lender = lenderNote.ownerOf(_loanId);
+        address borrower = borrowerNote.ownerOf(_loanId);
+
+        // send owed amount to lender
+        ISpiceFiNFT4626(data.terms.collateralAddress).withdraw(
+            data.terms.collateralId,
+            (owedAmount * (DENOMINATOR + liquidationFeeRatio)) / DENOMINATOR,
+            lender
+        );
 
         // burn notes
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
+        collateralToLoanId[data.terms.collateralAddress][
+            data.terms.collateralId
+        ] = 0;
+
         IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
             address(this),
-            lender,
+            borrower,
             data.terms.collateralId
         );
 
@@ -616,7 +671,7 @@ contract SpiceLending is
 
     /// @notice See {ISpiceLending-getNextLoanId}
     function getNextLoanId() external view returns (uint256) {
-        return loanIdTracker.current();
+        return loanIdTracker.current() + 1;
     }
 
     /// @notice See {ISpiceLending-repayAmount}

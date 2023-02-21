@@ -11,7 +11,7 @@ describe("SpiceFiNFTFactory", function () {
   let factory;
   let beacon;
 
-  let admin, alice, bob, treasury;
+  let admin, alice, bob, signer, treasury;
 
   let snapshotId;
 
@@ -31,7 +31,7 @@ describe("SpiceFiNFTFactory", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, treasury] = await ethers.getSigners();
+    [admin, alice, bob, signer, treasury] = await ethers.getSigners();
 
     weth = await ethers.getContractAt(
       "TestERC20",
@@ -143,11 +143,11 @@ describe("SpiceFiNFTFactory", function () {
       factory
         .connect(alice)
         .createVault(
+          spiceVaultName,
+          spiceVaultSymbol,
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           555,
-          spiceVaultName,
-          spiceVaultSymbol,
           [vault.address, bend.address, drops.address]
         )
     ).to.be.revertedWith(
@@ -161,11 +161,11 @@ describe("SpiceFiNFTFactory", function () {
       factory
         .connect(alice)
         .createVault(
+          spiceVaultName,
+          spiceVaultSymbol,
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           555,
-          spiceVaultName,
-          spiceVaultSymbol,
           [vault.address, bend.address, drops.address]
         )
     ).to.be.revertedWith(
@@ -181,11 +181,11 @@ describe("SpiceFiNFTFactory", function () {
       factory
         .connect(alice)
         .createVault(
+          spiceVaultName,
+          spiceVaultSymbol,
           ethers.constants.AddressZero,
           ethers.utils.parseEther("0.08"),
           555,
-          spiceVaultName,
-          spiceVaultSymbol,
           []
         )
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "InvalidAddress");
@@ -199,11 +199,11 @@ describe("SpiceFiNFTFactory", function () {
       factory
         .connect(alice)
         .createVault(
+          spiceVaultName,
+          spiceVaultSymbol,
           constants.tokens.WETH,
           ethers.utils.parseEther("0.08"),
           0,
-          spiceVaultName,
-          spiceVaultSymbol,
           []
         )
     ).to.be.revertedWithCustomError(SpiceFiNFTFactory, "ParameterOutOfBounds");
@@ -218,22 +218,22 @@ describe("SpiceFiNFTFactory", function () {
     const created = await factory
       .connect(alice)
       .callStatic.createVault(
+        spiceVaultName,
+        spiceVaultSymbol,
         constants.tokens.WETH,
         ethers.utils.parseEther("0.08"),
         555,
-        spiceVaultName,
-        spiceVaultSymbol,
         [vault.address, bend.address, drops.address]
       );
 
     const tx = await factory
       .connect(alice)
       .createVault(
+        spiceVaultName,
+        spiceVaultSymbol,
         constants.tokens.WETH,
         ethers.utils.parseEther("0.08"),
         555,
-        spiceVaultName,
-        spiceVaultSymbol,
         [vault.address, bend.address, drops.address]
       );
 

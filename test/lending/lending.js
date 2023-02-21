@@ -93,6 +93,140 @@ describe("Spice Lending", function () {
       treasury.address,
     ]);
 
+    const Note = await ethers.getContractFactory("Note");
+
+    lenderNote = await Note.deploy("Spice Lender Note", "Spice Lender Note");
+    await lenderNote.deployed();
+
+    borrowerNote = await Note.deploy(
+      "Spice Borrower Note",
+      "Spice Borrower Note"
+    );
+    await borrowerNote.deployed();
+
+    const SpiceLending = await ethers.getContractFactory("SpiceLending");
+    beacon = await upgrades.deployBeacon(SpiceLending);
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        ethers.constants.AddressZero,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        8000,
+        1000,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        ethers.constants.AddressZero,
+        borrowerNote.address,
+        500,
+        8000,
+        1000,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        ethers.constants.AddressZero,
+        500,
+        8000,
+        1000,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        10001,
+        8000,
+        1000,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        10001,
+        1000,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        8000,
+        10001,
+        6000,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        8000,
+        1000,
+        10001,
+        treasury.address,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
+
+    await expect(
+      upgrades.deployBeaconProxy(beacon, SpiceLending, [
+        signer.address,
+        lenderNote.address,
+        borrowerNote.address,
+        500,
+        8000,
+        1000,
+        6000,
+        ethers.constants.AddressZero,
+      ])
+    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
+
+    lending = await upgrades.deployBeaconProxy(beacon, SpiceLending, [
+      signer.address,
+      lenderNote.address,
+      borrowerNote.address,
+      500,
+      8000,
+      1000,
+      6000,
+      treasury.address,
+    ]);
+
+    defaultAdminRole = await lending.DEFAULT_ADMIN_ROLE();
+    spiceRole = await lending.SPICE_ROLE();
+    signerRole = await lending.SIGNER_ROLE();
+    spiceNftRole = await lending.SPICE_NFT_ROLE();
+
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
     beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
       unsafeAllow: ["delegatecall"],
@@ -123,119 +257,6 @@ describe("Spice Lending", function () {
       constants.accounts.Multisig,
       treasury.address,
     ]);
-
-    const Note = await ethers.getContractFactory("Note");
-
-    lenderNote = await Note.deploy("Spice Lender Note", "Spice Lender Note");
-    await lenderNote.deployed();
-
-    borrowerNote = await Note.deploy(
-      "Spice Borrower Note",
-      "Spice Borrower Note"
-    );
-    await borrowerNote.deployed();
-
-    const SpiceLending = await ethers.getContractFactory("SpiceLending");
-    beacon = await upgrades.deployBeacon(SpiceLending);
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        ethers.constants.AddressZero,
-        lenderNote.address,
-        borrowerNote.address,
-        500,
-        8000,
-        6000,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        ethers.constants.AddressZero,
-        borrowerNote.address,
-        500,
-        8000,
-        6000,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        lenderNote.address,
-        ethers.constants.AddressZero,
-        500,
-        8000,
-        6000,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        lenderNote.address,
-        borrowerNote.address,
-        10001,
-        8000,
-        6000,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        lenderNote.address,
-        borrowerNote.address,
-        500,
-        10001,
-        6000,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        lenderNote.address,
-        borrowerNote.address,
-        500,
-        8000,
-        10001,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        lenderNote.address,
-        borrowerNote.address,
-        500,
-        8000,
-        6000,
-        ethers.constants.AddressZero,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
-
-    lending = await upgrades.deployBeaconProxy(beacon, SpiceLending, [
-      signer.address,
-      lenderNote.address,
-      borrowerNote.address,
-      500,
-      8000,
-      6000,
-      treasury.address,
-    ]);
-
-    defaultAdminRole = await lending.DEFAULT_ADMIN_ROLE();
-    spiceRole = await lending.SPICE_ROLE();
-    signerRole = await lending.SIGNER_ROLE();
-    spiceNftRole = await lending.SPICE_NFT_ROLE();
 
     await lending.connect(admin).grantRole(spiceRole, spiceAdmin.address);
     await lending.connect(admin).grantRole(spiceNftRole, nft.address);
@@ -306,6 +327,7 @@ describe("Spice Lending", function () {
           borrowerNote.address,
           500,
           8000,
+          1000,
           6000,
           treasury.address
         )
@@ -515,7 +537,7 @@ describe("Spice Lending", function () {
       expect(loanData.interestAccrued).to.be.eq(0);
       expect(loanData.startedAt).to.be.eq(loanData.updatedAt);
 
-      expect(await lending.getNextLoanId()).to.be.eq(loanId + 1);
+      expect(await lending.getNextLoanId()).to.be.eq(loanId.add(1));
     });
 
     it("Signature replay attack", async function () {
@@ -743,6 +765,8 @@ describe("Spice Lending", function () {
     });
 
     it("When magicValue is returned", async function () {
+      await increaseTime(5 * 24 * 3600);
+
       // deposit to vault
       await weth
         .connect(whale)
@@ -763,14 +787,22 @@ describe("Spice Lending", function () {
           loanId
         );
       terms.lender = vault.address;
+      terms.expiration = terms.expiration + 5 * 24 * 3600;
       const signature = await signLoanTerms(alice, lending.address, terms);
       await lending.connect(admin).grantRole(signerRole, alice.address);
+      const interestAccrued = ethers.utils
+        .parseEther("10")
+        .mul(terms.interestRate * 5)
+        .div(10000 * 365);
       const tx = await lending
         .connect(alice)
         .updateLoan(loanId, terms, signature);
       await expect(tx).to.emit(lending, "LoanUpdated").withArgs(loanId);
-      expect(await nft.tokenShares(terms.collateralId)).to.be.eq(
-        terms.loanAmount.add(ethers.utils.parseEther("100"))
+      expect(await nft.tokenShares(terms.collateralId)).to.be.closeTo(
+        terms.loanAmount
+          .sub(interestAccrued)
+          .add(ethers.utils.parseEther("100")),
+        interestAccrued.div(10)
       );
       const newLoanData = await lending.getLoanData(loanId);
       expect(newLoanData.balance).to.be.eq(terms.loanAmount);
@@ -780,6 +812,8 @@ describe("Spice Lending", function () {
     });
 
     it("Extends loan and transfer additional principal", async function () {
+      await increaseTime(5 * 24 * 3600);
+
       await weth
         .connect(signer)
         .transfer(bob.address, ethers.utils.parseEther("5"));
@@ -794,14 +828,22 @@ describe("Spice Lending", function () {
           loanId
         );
       terms.lender = bob.address;
+      terms.expiration = terms.expiration + 5 * 24 * 3600;
       const signature = await signLoanTerms(bob, lending.address, terms);
       await lending.connect(admin).grantRole(signerRole, bob.address);
+      const interestAccrued = ethers.utils
+        .parseEther("10")
+        .mul(terms.interestRate * 5)
+        .div(10000 * 365);
       const tx = await lending
         .connect(alice)
         .updateLoan(loanId, terms, signature);
       await expect(tx).to.emit(lending, "LoanUpdated").withArgs(loanId);
-      expect(await nft.tokenShares(terms.collateralId)).to.be.eq(
-        terms.loanAmount.add(ethers.utils.parseEther("100"))
+      expect(await nft.tokenShares(terms.collateralId)).to.be.closeTo(
+        terms.loanAmount
+          .sub(interestAccrued)
+          .add(ethers.utils.parseEther("100")),
+        interestAccrued.div(10)
       );
       const newLoanData = await lending.getLoanData(loanId);
       expect(newLoanData.balance).to.be.eq(terms.loanAmount);
@@ -1049,7 +1091,7 @@ describe("Spice Lending", function () {
       const loanData = await lending.getLoanData(loanId1);
       expect(loanData.state).to.be.eq(3);
 
-      expect(await nft.ownerOf(1)).to.be.eq(signer.address);
+      expect(await nft.ownerOf(1)).to.be.eq(alice.address);
       await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
@@ -1068,7 +1110,7 @@ describe("Spice Lending", function () {
       const loanData = await lending.getLoanData(loanId2);
       expect(loanData.state).to.be.eq(3);
 
-      expect(await nft.ownerOf(2)).to.be.eq(signer.address);
+      expect(await nft.ownerOf(2)).to.be.eq(bob.address);
       await expect(lenderNote.ownerOf(loanId2)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
@@ -1139,7 +1181,6 @@ describe("Spice Lending", function () {
       await weth
         .connect(alice)
         .approve(lending.address, ethers.constants.MaxUint256);
-      console.log(await weth.balanceOf(alice.address));
       const balance = await weth.balanceOf(alice.address);
       await expect(
         lending.connect(alice).makeDeposit(loanId, balance.add(1))

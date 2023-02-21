@@ -156,17 +156,19 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
     /*************/
 
     /// @notice Creates new BeaconProxy for SpiceFi4626 vault
+    /// @param _name Vault name
+    /// @param _symbol Vault symbol
     /// @param _asset Asset address for the vault
     /// @param _mintPrice NFT mint price
     /// @param _maxSupply Max total supply
     /// @param _vaults Default vault addresses
     /// @return vault Created vault address
     function createVault(
+        string memory _name,
+        string memory _symbol,
         address _asset,
         uint256 _mintPrice,
         uint256 _maxSupply,
-        string memory name,
-        string memory symbol,
         address[] calldata _vaults
     ) external returns (address vault) {
         if (_asset == address(0)) {
@@ -188,8 +190,8 @@ contract SpiceFiNFTFactory is AccessControlEnumerable {
                 beacon,
                 abi.encodeWithSignature(
                     "initialize(string,string,address,uint256,uint256,address[],address,address,address,address)",
-                    name,
-                    symbol,
+                    _name,
+                    _symbol,
                     _asset,
                     _mintPrice,
                     _maxSupply,

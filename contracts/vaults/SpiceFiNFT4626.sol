@@ -132,6 +132,9 @@ contract SpiceFiNFT4626 is
     /// @notice Withdraw is disabled
     error WithdrawDisabled();
 
+    /// @notice Insolvent
+    error Insolvent();
+
     /// @notice Insufficient share balance
     error InsufficientShareBalance();
 
