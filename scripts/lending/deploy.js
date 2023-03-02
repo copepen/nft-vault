@@ -29,8 +29,9 @@ async function main() {
     constants.accounts.Dev, // signer address
     lenderNote.address, // lender note address
     borrowerNote.address, // borrower note address
-    300, // interest fee
+    1000, // interest fee
     8000, // liquidation ratio
+    1000, // liquidation ratio
     6000, // loan ratio
     accounts[0].address, // fee recipient
   ];

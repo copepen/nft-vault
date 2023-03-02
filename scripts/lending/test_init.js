@@ -19,9 +19,9 @@ async function main() {
   const vault = SpiceFiNFT4626.attach(config[chainId].prologue);
   const terms = {
     loanAmount: ethers.utils.parseEther("0.1").toString(),
-    duration: 10 * 24 * 3600, // 10 days
+    duration: 360,
     collateralAddress: vault.address,
-    collateralId: 4,
+    collateralId: 550,
     borrower: signer.address,
     currency: config[chainId].weth,
     additionalLoanAmount: 0,
@@ -42,6 +42,10 @@ async function main() {
   };
   delete loanterms.repayment;
 
+  if (res.data.success != true) {
+    console.log("no loan terms provided");
+    return;
+  }
   if (!loanterms.lender || !ethers.utils.isAddress(loanterms.lender)) {
     console.log("'lender' is missing or invalid");
     return;

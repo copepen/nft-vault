@@ -23,7 +23,7 @@ async function main() {
     loanAmount: ethers.utils.parseEther("0.1").toString(),
     duration: (10 * 24 * 3600).toString(), // 10 days
     collateralAddress: vault.address,
-    collateralId: 4,
+    collateralId: 550,
     borrower: signer.address,
     currency: config[chainId].weth,
     additionalLoanAmount: 0,
@@ -64,10 +64,6 @@ async function main() {
   }
   if (!loanterms.interestRate) {
     console.log("'interestRate' is missing");
-    return;
-  }
-  if (loanterms.duration != terms.duration) {
-    console.log("'duration' changed");
     return;
   }
   if (loanterms.collateralAddress != terms.collateralAddress) {

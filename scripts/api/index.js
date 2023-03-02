@@ -9,13 +9,15 @@ const getLoanTerms = async (
   signature,
   requestType,
   chainId = 1,
-  loanId = -1
+  loanId = -1,
+  test = true
 ) => {
   const requestBody = {
     signature,
     loanterms: terms,
     requestType,
     chainId,
+    test,
   };
   if (loanId !== -1) {
     requestBody.loanId = loanId;
