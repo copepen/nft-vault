@@ -10,26 +10,29 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
-import "../interfaces/IPoolCore.sol";
+import "../interfaces/IMetaVault.sol";
 
 /**
- * @title Storage for Para4626
+ * @title Storage for Meta4626
  * @author Spice Finance Inc
  */
-abstract contract Para4626Storage {
-    /// @notice ParaPool address
-    address public poolAddress;
+abstract contract Meta4626Storage {
+    /// @notice Metastreet vault address
+    address public vaultAddress;
 
-    /// @notice BToken address
+    /// @notice LpToken address
     address public lpTokenAddress;
+
+    /// @dev Total assets value
+    uint256 internal _totalAssets;
 }
 
 /**
- * @title ERC4626 Wrapper for ParaPool
+ * @title ERC4626 Wrapper for Metastreet
  * @author Spice Finance Inc
  */
-contract Para4626 is
-    Para4626Storage,
+contract Meta4626 is
+    Meta4626Storage,
     Initializable,
     ERC20Upgradeable,
     ReentrancyGuardUpgradeable,
@@ -63,6 +66,10 @@ contract Para4626 is
         uint256 shares
     );
 
+    /// @notice Emitted when totalAssets is updated
+    /// @param totalAssets Total assets
+    event TotalAssets(uint256 totalAssets);
+
     /**********/
     /* Errors */
     /**********/
@@ -73,22 +80,25 @@ contract Para4626 is
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
 
+    /// @notice Not enough reward balance
+    error NotEnoughRewardBalance();
+
     /***************/
     /* Constructor */
     /***************/
 
-    /// @notice Para4626 constructor (for proxy)
+    /// @notice Meta4626 constructor (for proxy)
     /// @param name_ Receipt token name
     /// @param symbol_ Receipt token symbol
-    /// @param poolAddress_ LendPool address
-    /// @param lpTokenAddress_ BToken address
+    /// @param vaultAddress_ Vault address
+    /// @param lpTokenAddress_ lpToken address
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        address poolAddress_,
+        address vaultAddress_,
         address lpTokenAddress_
     ) external initializer {
-        if (poolAddress_ == address(0)) {
+        if (vaultAddress_ == address(0)) {
             revert InvalidAddress();
         }
         if (lpTokenAddress_ == address(0)) {
@@ -99,7 +109,7 @@ contract Para4626 is
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
 
-        poolAddress = poolAddress_;
+        vaultAddress = vaultAddress_;
 
         lpTokenAddress = lpTokenAddress_;
     }
@@ -120,7 +130,7 @@ contract Para4626 is
 
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() public view returns (uint256) {
-        return IERC20Upgradeable(lpTokenAddress).balanceOf(address(this));
+        return _totalAssets;
     }
 
     /// @notice See {IERC4626-convertToShares}
@@ -145,8 +155,7 @@ contract Para4626 is
 
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
-        return
-            _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Down);
+        return _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-maxRedeem}
@@ -266,6 +275,18 @@ contract Para4626 is
     /* Internal Helper Functions */
     /*****************************/
 
+    /// @dev Current redemption share price on metastree vault
+    /// @return sharePrice Current redemption share price
+    function _redemptionSharePrice()
+        internal
+        view
+        returns (uint256 sharePrice)
+    {
+        sharePrice = IMetaVault(vaultAddress).redemptionSharePrice(
+            IMetaVault.TrancheId.Junior
+        );
+    }
+
     /// @dev Get estimated share amount for assets
     /// @param assets Asset token amount
     /// @param rounding Rounding mode
@@ -302,6 +323,9 @@ contract Para4626 is
         uint256 shares,
         address receiver
     ) internal {
+        // Increase total assets value of vault
+        _totalAssets += assets;
+
         // load weth
         IWETH weth = IWETH(WETH);
 
@@ -309,10 +333,10 @@ contract Para4626 is
         weth.transferFrom(msg.sender, address(this), assets);
 
         // approve weth deposit into underlying marketplace
-        weth.approve(poolAddress, assets);
+        weth.approve(vaultAddress, assets);
 
         // deposit into underlying marketplace
-        IPoolCore(poolAddress).supply(WETH, assets, address(this), 0);
+        IMetaVault(vaultAddress).deposit(IMetaVault.TrancheId.Junior, assets);
 
         // Mint receipt tokens to receiver
         _mint(receiver, shares);
@@ -332,17 +356,53 @@ contract Para4626 is
             _spendAllowance(owner, caller, shares);
         }
 
+        // Decrease total assets value of vault
+        _totalAssets = _totalAssets - assets;
+
         // Burn receipt tokens from owner
         _burn(owner, shares);
 
         // get lp token contract
-        IERC20Upgradeable pWETH = IERC20Upgradeable(lpTokenAddress);
+        IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
 
-        pWETH.approve(poolAddress, assets);
+        uint256 redemptionSharePrice = _redemptionSharePrice();
+        uint256 lpRedeemAmount = assets.mulDiv(
+            1e18,
+            redemptionSharePrice,
+            MathUpgradeable.Rounding.Up
+        );
+
+        lpToken.approve(vaultAddress, lpRedeemAmount);
+
+        // load weth
+        IWETH weth = IWETH(WETH);
+
+        uint256 beforeBalance = weth.balanceOf(address(this));
 
         // withdraw weth from the pool and send it to `receiver`
-        IPoolCore(poolAddress).withdraw(WETH, assets, receiver);
+        IMetaVault(vaultAddress).redeem(IMetaVault.TrancheId.Junior, lpRedeemAmount);
+
+        assets = weth.balanceOf(address(this)) - beforeBalance;
+
+        weth.transfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /***********/
+    /* Setters */
+    /***********/
+
+    /// @notice Set total assets
+    ///
+    /// Emits a {TotalAssets} event.
+    ///
+    /// @param totalAssets_ New total assets value
+    function setTotalAssets(
+        uint256 totalAssets_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _totalAssets = totalAssets_;
+
+        emit TotalAssets(totalAssets_);
     }
 }
