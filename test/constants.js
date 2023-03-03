@@ -14,6 +14,6 @@ module.exports = {
   contracts: {
     BendPool: "0x70b97A0da65C15dfb0FFA02aEE6FA36e507C2762",
     ParaPool: "0x638a98BBB92a7582d07C52ff407D49664DC8b3Ee",
-    MetaPool: "",
+    MetaPool: "0x7770cD73e035C37BDf8875eEE81577c63202Ab8d",
   },
 };
