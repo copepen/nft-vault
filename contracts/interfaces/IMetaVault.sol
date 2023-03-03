@@ -11,6 +11,13 @@ interface IMetaVault {
     }
 
     /**
+     * @notice Get LP token
+     * @param trancheId Tranche
+     * @return LP token contract
+     */
+    function lpToken(TrancheId trancheId) external view returns (address);
+
+    /**
      * @notice Get share price
      * @param trancheId Tranche
      * @return Share price in UD60x18

@@ -91,17 +91,12 @@ contract Meta4626 is
     /// @param name_ Receipt token name
     /// @param symbol_ Receipt token symbol
     /// @param vaultAddress_ Vault address
-    /// @param lpTokenAddress_ lpToken address
     function initialize(
         string calldata name_,
         string calldata symbol_,
-        address vaultAddress_,
-        address lpTokenAddress_
+        address vaultAddress_
     ) external initializer {
         if (vaultAddress_ == address(0)) {
-            revert InvalidAddress();
-        }
-        if (lpTokenAddress_ == address(0)) {
             revert InvalidAddress();
         }
 
@@ -111,7 +106,9 @@ contract Meta4626 is
 
         vaultAddress = vaultAddress_;
 
-        lpTokenAddress = lpTokenAddress_;
+        lpTokenAddress = IMetaVault(vaultAddress).lpToken(
+            IMetaVault.TrancheId.Junior
+        );
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -155,7 +152,8 @@ contract Meta4626 is
 
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
-        return _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Down);
+        return
+            _convertToAssets(balanceOf(owner), MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {IERC4626-maxRedeem}
@@ -356,11 +354,11 @@ contract Meta4626 is
             _spendAllowance(owner, caller, shares);
         }
 
-        // Decrease total assets value of vault
-        _totalAssets = _totalAssets - assets;
-
         // Burn receipt tokens from owner
         _burn(owner, shares);
+
+        // Decrease total assets value of vault
+        _totalAssets = _totalAssets - assets;
 
         // get lp token contract
         IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
@@ -377,12 +375,15 @@ contract Meta4626 is
         // load weth
         IWETH weth = IWETH(WETH);
 
-        uint256 beforeBalance = weth.balanceOf(address(this));
-
         // withdraw weth from the pool and send it to `receiver`
-        IMetaVault(vaultAddress).redeem(IMetaVault.TrancheId.Junior, lpRedeemAmount);
-
-        assets = weth.balanceOf(address(this)) - beforeBalance;
+        IMetaVault(vaultAddress).redeem(
+            IMetaVault.TrancheId.Junior,
+            lpRedeemAmount
+        );
+        IMetaVault(vaultAddress).withdraw(
+            IMetaVault.TrancheId.Junior,
+            assets
+        );
 
         weth.transfer(receiver, assets);
 
