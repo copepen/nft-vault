@@ -647,23 +647,23 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
-        uint256 owedAmount = data.balance + _calcInterest(data);
-        if (data.terms.priceLiquidation) {
-            // price liquidation
-            uint256 collateral = _getCollateralAmount(
-                data.terms.collateralAddress,
-                data.terms.collateralId
-            );
-            if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
-                revert NotLiquidatible();
-            }
-        }
-
         // time based liquidation
         uint32 duration = data.terms.duration;
         uint256 loanEndTime = data.startedAt + duration;
+        uint256 owedAmount = data.balance + _calcInterest(data);
         if (loanEndTime > block.timestamp) {
-            revert NotLiquidatible();
+            if (data.terms.priceLiquidation) {
+                // price liquidation
+                uint256 collateral = _getCollateralAmount(
+                    data.terms.collateralAddress,
+                    data.terms.collateralId
+                );
+                if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
+                    revert NotLiquidatible();
+                }
+            } else {
+                revert NotLiquidatible();
+            }
         }
 
         // update loan state to Defaulted
