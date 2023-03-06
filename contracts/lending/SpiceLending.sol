@@ -613,6 +613,7 @@ contract SpiceLending is
 
         uint256 owedAmount = data.balance + _calcInterest(data);
         if (data.terms.priceLiquidation) {
+            // price liquidation
             uint256 collateral = _getCollateralAmount(
                 data.terms.collateralAddress,
                 data.terms.collateralId
@@ -620,12 +621,13 @@ contract SpiceLending is
             if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
                 revert NotLiquidatible();
             }
-        } else {
-            uint32 duration = data.terms.duration;
-            uint256 loanEndTime = data.startedAt + duration;
-            if (loanEndTime > block.timestamp) {
-                revert NotLiquidatible();
-            }
+        }
+
+        // time based liquidation
+        uint32 duration = data.terms.duration;
+        uint256 loanEndTime = data.startedAt + duration;
+        if (loanEndTime > block.timestamp) {
+            revert NotLiquidatible();
         }
 
         // update loan state to Defaulted
