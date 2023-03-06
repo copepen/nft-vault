@@ -76,7 +76,17 @@ interface ISpiceLending {
     /// @param _amount Amount to deopsit
     ///
     /// @return shares additional shares of vault
-    function makeDeposit(
+    function deposit(
+        uint256 _loanId, 
+        uint256 _amount
+    ) external returns (uint256 shares);
+
+    /// @notice Withdraw from vault NFT represents
+    /// @param _loanId Loan ID
+    /// @param _amount Amount to withdraw
+    ///
+    /// @return shares burnt shares of vault
+    function withdraw(
         uint256 _loanId, 
         uint256 _amount
     ) external returns (uint256 shares);

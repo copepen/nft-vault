@@ -12,7 +12,7 @@ async function main() {
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
   const lending = SpiceLending.attach(config[chainId].lending);
 
-  let tx = await lending.makeDeposit(loanId, payment);
+  let tx = await lending.deposit(loanId, payment);
 
   console.log("Deposit tx submitted: ", tx.hash);
   await tx.wait();
