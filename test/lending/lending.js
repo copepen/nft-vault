@@ -1121,6 +1121,31 @@ describe("Spice Lending", function () {
       );
     });
 
+    it("Liquidate NFT loan (price but expired)", async function () {
+      await increaseTime(6 * 24 * 3600);
+
+      await expect(
+        lending.connect(bob).liquidate(loanId1)
+      ).to.be.revertedWithCustomError(lending, "NotLiquidatible");
+
+      await increaseTime(6 * 24 * 3600);
+
+      const tx = await lending.connect(bob).liquidate(loanId1);
+
+      await expect(tx).to.emit(lending, "LoanLiquidated").withArgs(loanId1);
+
+      const loanData = await lending.getLoanData(loanId1);
+      expect(loanData.state).to.be.eq(3);
+
+      expect(await nft.ownerOf(1)).to.be.eq(alice.address);
+      await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+    });
+
     it("Liquidate NFT loan (time)", async function () {
       await increaseTime(12 * 24 * 3600);
 

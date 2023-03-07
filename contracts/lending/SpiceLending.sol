@@ -16,7 +16,6 @@ import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
 import "../interfaces/ISpiceLending.sol";
 import "../interfaces/INote.sol";
-import "hardhat/console.sol";
 
 interface ISpiceFiNFT4626 {
     function asset() external view returns (address);
