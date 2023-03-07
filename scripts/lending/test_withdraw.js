@@ -9,9 +9,9 @@ async function main() {
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
   const lending = SpiceLending.attach(config[chainId].lending);
 
-  const loanId = 4;
+  const loanId = 5;
 
-  const withdrawAmount = ethers.utils.parseEther("0.5");
+  const withdrawAmount = ethers.utils.parseEther("0.02");
   const tx = await lending.withdraw(loanId, withdrawAmount);
   console.log("Withdraw tx submitted: ", tx.hash);
   await tx.wait();

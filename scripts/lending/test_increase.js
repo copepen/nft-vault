@@ -15,7 +15,7 @@ async function main() {
     chainId,
   };
 
-  const loanId = 2;
+  const loanId = 5;
 
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
   const vault = SpiceFiNFT4626.attach(config[chainId].prologue);
@@ -23,10 +23,10 @@ async function main() {
     loanAmount: ethers.utils.parseEther("0.1").toString(),
     duration: (10 * 24 * 3600).toString(), // 10 days
     collateralAddress: vault.address,
-    collateralId: 550,
+    collateralId: 82,
     borrower: signer.address,
     currency: config[chainId].weth,
-    additionalLoanAmount: ethers.utils.parseEther("0.2").toString(),
+    additionalLoanAmount: ethers.utils.parseEther("0.01").toString(),
     additionalDuration: 0,
   };
   const types = {

@@ -10,7 +10,7 @@ const getLoanTerms = async (
   requestType,
   chainId = 1,
   loanId = -1,
-  test = true
+  test = false
 ) => {
   const requestBody = {
     signature,
