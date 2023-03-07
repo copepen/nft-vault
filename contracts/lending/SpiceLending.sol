@@ -386,7 +386,7 @@ contract SpiceLending is
 
         // check borrower & lender
         address lender = lenderNote.ownerOf(_loanId);
-        if (msg.sender != data.terms.borrower && msg.sender != lender) {
+        if (msg.sender != data.terms.borrower && msg.sender != lender && !hasRole(SIGNER_ROLE, msg.sender)) {
             revert InvalidMsgSender();
         }
         if (_terms.lender != lender) {
