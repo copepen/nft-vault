@@ -336,6 +336,27 @@ describe("Spice Lending", function () {
   });
 
   describe("Setters", function () {
+    describe("Set Liquidation Fee Ratio", function () {
+      it("Only admin call call", async function () {
+        await expect(
+          lending.connect(alice).setLiquidationFeeRatio(1500)
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+        );
+      });
+
+      it("Should not set bigger than DENOMINATOR", async function () {
+        await expect(
+          lending.connect(admin).setLiquidationFeeRatio(10001)
+        ).to.be.revertedWithCustomError(lending, "ParameterOutOfBounds");
+      });
+
+      it("Should set new loan ratio", async function () {
+        await lending.connect(admin).setLiquidationFeeRatio(1500);
+        expect(await lending.liquidationFeeRatio()).to.equal(1500);
+      });
+    });
+
     describe("Set Loan Ratio", function () {
       it("Only admin call call", async function () {
         await expect(
@@ -1100,6 +1121,31 @@ describe("Spice Lending", function () {
       );
     });
 
+    it("Liquidate NFT loan (price but expired)", async function () {
+      await increaseTime(6 * 24 * 3600);
+
+      await expect(
+        lending.connect(bob).liquidate(loanId1)
+      ).to.be.revertedWithCustomError(lending, "NotLiquidatible");
+
+      await increaseTime(6 * 24 * 3600);
+
+      const tx = await lending.connect(bob).liquidate(loanId1);
+
+      await expect(tx).to.emit(lending, "LoanLiquidated").withArgs(loanId1);
+
+      const loanData = await lending.getLoanData(loanId1);
+      expect(loanData.state).to.be.eq(3);
+
+      expect(await nft.ownerOf(1)).to.be.eq(alice.address);
+      await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+    });
+
     it("Liquidate NFT loan (time)", async function () {
       await increaseTime(12 * 24 * 3600);
 
@@ -1163,7 +1209,7 @@ describe("Spice Lending", function () {
     });
   });
 
-  describe("Make Deposit", function () {
+  describe("Deposit", function () {
     let loanId;
 
     beforeEach(async function () {
@@ -1173,7 +1219,7 @@ describe("Spice Lending", function () {
     it("When asset is not approved", async function () {
       await weth.connect(alice).approve(lending.address, 0);
       await expect(
-        lending.connect(alice).makeDeposit(loanId, ethers.utils.parseEther("1"))
+        lending.connect(alice).deposit(loanId, ethers.utils.parseEther("1"))
       ).to.be.revertedWith("SafeERC20: low-level call failed");
     });
 
@@ -1183,14 +1229,12 @@ describe("Spice Lending", function () {
         .approve(lending.address, ethers.constants.MaxUint256);
       const balance = await weth.balanceOf(alice.address);
       await expect(
-        lending.connect(alice).makeDeposit(loanId, balance.add(1))
+        lending.connect(alice).deposit(loanId, balance.add(1))
       ).to.be.revertedWith("SafeERC20: low-level call failed");
     });
 
     it("When deposit 0 amount", async function () {
-      const shares = await lending
-        .connect(alice)
-        .callStatic.makeDeposit(loanId, 0);
+      const shares = await lending.connect(alice).callStatic.deposit(loanId, 0);
       expect(shares).to.be.eq(0);
     });
 
@@ -1204,12 +1248,50 @@ describe("Spice Lending", function () {
       await weth.connect(whale).transfer(alice.address, amount);
       const shares = await lending
         .connect(alice)
-        .callStatic.makeDeposit(loanId, amount);
-      await lending.connect(alice).makeDeposit(loanId, amount);
+        .callStatic.deposit(loanId, amount);
+      await lending.connect(alice).deposit(loanId, amount);
 
       const afterShares = await nft.tokenShares(1);
       expect(shares).to.be.eq(amount);
       expect(afterShares).to.be.eq(beforeShares.add(shares));
+    });
+  });
+
+  describe("Withdraw", function () {
+    let loanId;
+
+    beforeEach(async function () {
+      loanId = await initiateTestLoan(alice, 1, false);
+    });
+
+    it("When caller is not borrower", async function () {
+      const amount = ethers.utils.parseEther("1");
+      await expect(
+        lending.connect(bob).withdraw(loanId, amount)
+      ).to.be.revertedWithCustomError(lending, "InvalidMsgSender");
+    });
+
+    it("When withdraw too much", async function () {
+      const amount = ethers.utils.parseEther("85");
+      await expect(
+        lending.connect(alice).withdraw(loanId, amount)
+      ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
+    });
+
+    it("Withdraw from NFT vault", async function () {
+      const beforeShares = await nft.tokenShares(1);
+      const beforeBalance = await weth.balanceOf(alice.address);
+      const amount = ethers.utils.parseEther("1");
+      const shares = await lending
+        .connect(alice)
+        .callStatic.withdraw(loanId, amount);
+      await lending.connect(alice).withdraw(loanId, amount);
+
+      const afterShares = await nft.tokenShares(1);
+      const afterBalance = await weth.balanceOf(alice.address);
+      expect(shares).to.be.eq(amount);
+      expect(beforeShares).to.be.eq(afterShares.add(shares));
+      expect(afterBalance).to.be.eq(beforeBalance.add(amount));
     });
   });
 });

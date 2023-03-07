@@ -440,8 +440,8 @@ contract SpiceLending is
         emit LoanUpdated(_loanId);
     }
 
-    /// @notice See {ISpiceLending-makeDeposit}
-    function makeDeposit(
+    /// @notice See {ISpiceLending-deposit}
+    function deposit(
         uint256 _loanId,
         uint256 _amount
     ) external nonReentrant returns (uint256 shares) {
@@ -460,6 +460,41 @@ contract SpiceLending is
         shares = ISpiceFiNFT4626(data.terms.collateralAddress).deposit(
             data.terms.collateralId,
             _amount
+        );
+    }
+
+    /// @notice See {ISpiceLending-withdraw}
+    function withdraw(
+        uint256 _loanId,
+        uint256 _amount
+    ) external nonReentrant returns (uint256 shares) {
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        if (msg.sender != data.terms.borrower) {
+            revert InvalidMsgSender();
+        }
+
+        uint256 collateral = _getCollateralAmount(
+            data.terms.collateralAddress,
+            data.terms.collateralId
+        );
+        uint256 interestToPay = _calcInterest(data);
+        uint256 payment = data.balance + interestToPay;
+
+        if (
+            _amount >
+            collateral -
+                data.terms.loanAmount -
+                ((payment * DENOMINATOR) / loanRatio)
+        ) {
+            revert LoanAmountExceeded();
+        }
+
+        // withdraw funds and transfer to borrower
+        shares = ISpiceFiNFT4626(data.terms.collateralAddress).withdraw(
+            data.terms.collateralId,
+            _amount,
+            msg.sender
         );
     }
 
@@ -611,19 +646,21 @@ contract SpiceLending is
             revert InvalidState(data.state);
         }
 
+        // time based liquidation
+        uint32 duration = data.terms.duration;
+        uint256 loanEndTime = data.startedAt + duration;
         uint256 owedAmount = data.balance + _calcInterest(data);
-        if (data.terms.priceLiquidation) {
-            uint256 collateral = _getCollateralAmount(
-                data.terms.collateralAddress,
-                data.terms.collateralId
-            );
-            if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
-                revert NotLiquidatible();
-            }
-        } else {
-            uint32 duration = data.terms.duration;
-            uint256 loanEndTime = data.startedAt + duration;
-            if (loanEndTime > block.timestamp) {
+        if (loanEndTime > block.timestamp) {
+            if (data.terms.priceLiquidation) {
+                // price liquidation
+                uint256 collateral = _getCollateralAmount(
+                    data.terms.collateralAddress,
+                    data.terms.collateralId
+                );
+                if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
+                    revert NotLiquidatible();
+                }
+            } else {
                 revert NotLiquidatible();
             }
         }

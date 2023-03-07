@@ -6,17 +6,16 @@ async function main() {
   const signer = (await ethers.getSigners())[0];
   const chainId = await signer.getChainId();
 
-  const loanId = 2;
-  const payment = ethers.utils.parseEther("0.2");
-
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
   const lending = SpiceLending.attach(config[chainId].lending);
 
-  let tx = await lending.deposit(loanId, payment);
+  const loanId = 4;
 
-  console.log("Deposit tx submitted: ", tx.hash);
+  const withdrawAmount = ethers.utils.parseEther("0.5");
+  const tx = await lending.withdraw(loanId, withdrawAmount);
+  console.log("Withdraw tx submitted: ", tx.hash);
   await tx.wait();
-  console.log("Deposit success!");
+  console.log("Withdraw success!");
 }
 
 main().catch((error) => {
