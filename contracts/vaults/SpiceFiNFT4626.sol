@@ -83,6 +83,7 @@ contract SpiceFiNFT4626 is
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
     using StringsUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /*************/
     /* Constants */
@@ -394,12 +395,12 @@ contract SpiceFiNFT4626 is
     }
 
     /// @notice See {ISpiceFiNFT4626-convertToShares}
-    function convertToShares(uint256 assets) external view returns (uint256) {
+    function convertToShares(uint256 assets) public view returns (uint256) {
         return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {ISpiceFiNFT4626-convertToAssets}
-    function convertToAssets(uint256 shares) external view returns (uint256) {
+    function convertToAssets(uint256 shares) public view returns (uint256) {
         return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
@@ -573,11 +574,7 @@ contract SpiceFiNFT4626 is
         // compute redemption amount
         assets = previewRedeem(shares);
 
-        // compute fee
-        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
-            assets;
-
-        _withdraw(msg.sender, tokenId, receiver, assets, shares, fees);
+        _withdraw(msg.sender, tokenId, receiver, assets, shares);
     }
 
     /// See {ISpiceFiNFT4626-withdraw}.
@@ -599,13 +596,7 @@ contract SpiceFiNFT4626 is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        // compute fee
-        uint256 fees = _convertToAssets(
-            shares - _convertToShares(assets, MathUpgradeable.Rounding.Up),
-            MathUpgradeable.Rounding.Down
-        );
-
-        _withdraw(msg.sender, tokenId, receiver, assets, shares, fees);
+        _withdraw(msg.sender, tokenId, receiver, assets, shares);
     }
 
     /*****************************/
@@ -658,9 +649,11 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         address receiver,
         uint256 assets,
-        uint256 shares,
-        uint256 fees
+        uint256 shares
     ) internal {
+        // compute fee
+        uint256 fees = convertToAssets(shares) - assets;
+
         if (!_revealed) {
             revert WithdrawBeforeReveal();
         }
@@ -679,14 +672,37 @@ contract SpiceFiNFT4626 is
         tokenShares[tokenId] -= shares;
 
         IERC20Upgradeable currency = IERC20Upgradeable(_asset);
+        uint256 balance = currency.balanceOf(address(this));
+        if (balance < fees + assets) {
+            // withdraw from vaults
+            _withdrawFromVaults(fees + assets - balance);
+        }
+
         if (fees > 0) {
             uint256 half = fees / 2;
-            currency.transfer(multisig, half);
-            currency.transfer(feeRecipient, fees - half);
+            currency.safeTransfer(multisig, half);
+            currency.safeTransfer(feeRecipient, fees - half);
         }
-        currency.transfer(receiver, assets);
+        currency.safeTransfer(receiver, assets);
 
         emit Withdraw(caller, tokenId, receiver, assets, shares);
+    }
+
+    function _withdrawFromVaults(uint256 amount) internal {
+        uint256 vaultCount = getRoleMemberCount(VAULT_ROLE);
+        for (uint256 i; amount > 0 && i != vaultCount; ++i) {
+            IERC4626Upgradeable vault = IERC4626Upgradeable(
+                getRoleMember(VAULT_ROLE, i)
+            );
+            uint256 withdrawAmount = MathUpgradeable.min(
+                amount,
+                vault.maxWithdraw(address(this))
+            );
+            if (withdrawAmount > 0) {
+                vault.withdraw(withdrawAmount, address(this), address(this));
+                amount -= withdrawAmount;
+            }
+        }
     }
 
     function _deposit(
