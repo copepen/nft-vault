@@ -529,6 +529,9 @@ describe("Spice Lending", function () {
     });
 
     it("Initiates a new loan and transfer tokens", async function () {
+      let loanIds = await lending.getActiveLoans(alice.address);
+      expect(loanIds.length).to.be.eq(0);
+
       await nft.connect(alice).setApprovalForAll(lending.address, true);
       await weth
         .connect(signer)
@@ -544,6 +547,10 @@ describe("Spice Lending", function () {
       await expect(tx)
         .to.emit(lending, "LoanStarted")
         .withArgs(loanId, alice.address);
+
+      loanIds = await lending.getActiveLoans(alice.address);
+      expect(loanIds.length).to.be.eq(1);
+      expect(loanIds[0]).to.be.eq(loanId);
 
       expect(await lenderNote.ownerOf(loanId)).to.be.eq(signer.address);
       expect(await borrowerNote.ownerOf(loanId)).to.be.eq(alice.address);
@@ -1056,6 +1063,9 @@ describe("Spice Lending", function () {
       await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
+
+      let loanIds = await lending.getActiveLoans(alice.address);
+      expect(loanIds.length).to.be.eq(0);
     });
   });
 
@@ -1144,12 +1154,15 @@ describe("Spice Lending", function () {
       await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
+
+      let loanIds = await lending.getActiveLoans(alice.address);
+      expect(loanIds.length).to.be.eq(0);
     });
 
     it("Liquidate NFT loan (time)", async function () {
       await increaseTime(12 * 24 * 3600);
 
-      const tx = await lending.connect(bob).liquidate(loanId2);
+      const tx = await lending.connect(alice).liquidate(loanId2);
 
       await expect(tx).to.emit(lending, "LoanLiquidated").withArgs(loanId2);
 
@@ -1163,6 +1176,9 @@ describe("Spice Lending", function () {
       await expect(borrowerNote.ownerOf(loanId2)).to.be.revertedWith(
         "ERC721: invalid token ID"
       );
+
+      let loanIds = await lending.getActiveLoans(bob.address);
+      expect(loanIds.length).to.be.eq(0);
     });
   });
 

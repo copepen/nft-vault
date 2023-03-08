@@ -77,7 +77,7 @@ interface ISpiceLending {
     ///
     /// @return shares additional shares of vault
     function deposit(
-        uint256 _loanId, 
+        uint256 _loanId,
         uint256 _amount
     ) external returns (uint256 shares);
 
@@ -87,7 +87,7 @@ interface ISpiceLending {
     ///
     /// @return shares burnt shares of vault
     function withdraw(
-        uint256 _loanId, 
+        uint256 _loanId,
         uint256 _amount
     ) external returns (uint256 shares);
 
@@ -110,14 +110,19 @@ interface ISpiceLending {
     /// @notice Return loan data for given loan id
     /// @param _loanId The loan ID
     /// @return data Loan data
-    function getLoanData(uint256 _loanId)
-        external
-        view
-        returns (LibLoan.LoanData memory);
+    function getLoanData(
+        uint256 _loanId
+    ) external view returns (LibLoan.LoanData memory);
 
     /// @notice Return next loan ID
     /// @return id The next loan ID
     function getNextLoanId() external view returns (uint256);
+
+    /// @notice Return list of active loan ids for borrower
+    /// @param borrower Borrower address
+    function getActiveLoans(
+        address borrower
+    ) external view returns (uint256[] memory);
 
     /// @notice Return amount needed to completely repay loan
     /// @param _loanId The loan ID
