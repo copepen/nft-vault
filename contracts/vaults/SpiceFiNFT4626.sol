@@ -678,11 +678,12 @@ contract SpiceFiNFT4626 is
         totalShares -= shares;
         tokenShares[tokenId] -= shares;
 
-        uint256 half = fees / 2;
-
         IERC20Upgradeable currency = IERC20Upgradeable(_asset);
-        currency.transfer(multisig, half);
-        currency.transfer(feeRecipient, fees - half);
+        if (fees > 0) {
+            uint256 half = fees / 2;
+            currency.transfer(multisig, half);
+            currency.transfer(feeRecipient, fees - half);
+        }
         currency.transfer(receiver, assets);
 
         emit Withdraw(caller, tokenId, receiver, assets, shares);

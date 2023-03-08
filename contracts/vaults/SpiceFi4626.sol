@@ -404,19 +404,22 @@ contract SpiceFi4626 is
     ) internal override nonReentrant {
         uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
             assets;
-        uint256 half = fees / 2;
 
         super._withdraw(caller, receiver, owner, assets, shares);
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20MetadataUpgradeable(asset()),
-            multisig,
-            half
-        );
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20MetadataUpgradeable(asset()),
-            feeRecipient,
-            fees - half
-        );
+
+        if (fees > 0) {
+            uint256 half = fees / 2;
+            SafeERC20Upgradeable.safeTransfer(
+                IERC20MetadataUpgradeable(asset()),
+                multisig,
+                half
+            );
+            SafeERC20Upgradeable.safeTransfer(
+                IERC20MetadataUpgradeable(asset()),
+                feeRecipient,
+                fees - half
+            );
+        }
     }
 
     /// @inheritdoc ERC4626Upgradeable

@@ -602,9 +602,11 @@ contract Vault is
 
         _asset.safeTransfer(receiver, assets);
 
-        uint256 half = fees / 2;
-        _asset.safeTransfer(multisig, half);
-        _asset.safeTransfer(feeRecipient, fees - half);
+        if (fees > 0) {
+            uint256 half = fees / 2;
+            _asset.safeTransfer(multisig, half);
+            _asset.safeTransfer(feeRecipient, fees - half);
+        }
 
         _totalAssets = _totalAssets - assets;
 
