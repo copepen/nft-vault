@@ -10,6 +10,7 @@ import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/IERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/structs/EnumerableSetUpgradeable.sol";
 import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
@@ -72,6 +73,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Collateral contract => Collateral Id => Loan Id
     mapping(address => mapping(uint256 => uint256)) public collateralToLoanId;
+
+    /// @notice Borrower => List of loan ids
+    mapping(address => EnumerableSetUpgradeable.UintSet) internal activeLoans;
 }
 
 /**
@@ -90,6 +94,7 @@ contract SpiceLending is
 {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using SafeERC20Upgradeable for IERC20Upgradeable;
+    using EnumerableSetUpgradeable for EnumerableSetUpgradeable.UintSet;
 
     /*************/
     /* Constants */
@@ -323,6 +328,8 @@ contract SpiceLending is
         loanIdTracker.increment();
         loanId = loanIdTracker.current();
 
+        activeLoans[msg.sender].add(loanId);
+
         // initiate new loan
         loans[loanId] = LibLoan.LoanData({
             state: LibLoan.LoanState.Active,
@@ -386,7 +393,11 @@ contract SpiceLending is
 
         // check borrower & lender
         address lender = lenderNote.ownerOf(_loanId);
-        if (msg.sender != data.terms.borrower && msg.sender != lender && !hasRole(SIGNER_ROLE, msg.sender)) {
+        if (
+            msg.sender != data.terms.borrower &&
+            msg.sender != lender &&
+            !hasRole(SIGNER_ROLE, msg.sender)
+        ) {
             revert InvalidMsgSender();
         }
         if (_terms.lender != lender) {
@@ -562,6 +573,8 @@ contract SpiceLending is
             lenderNote.burn(_loanId);
             borrowerNote.burn(_loanId);
 
+            activeLoans[borrower].remove(_loanId);
+
             collateralToLoanId[data.terms.collateralAddress][
                 data.terms.collateralId
             ] = 0;
@@ -625,6 +638,8 @@ contract SpiceLending is
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
 
+        activeLoans[borrower].remove(_loanId);
+
         collateralToLoanId[data.terms.collateralAddress][
             data.terms.collateralId
         ] = 0;
@@ -657,7 +672,9 @@ contract SpiceLending is
                     data.terms.collateralAddress,
                     data.terms.collateralId
                 );
-                if (owedAmount <= (collateral * liquidationRatio) / DENOMINATOR) {
+                if (
+                    owedAmount <= (collateral * liquidationRatio) / DENOMINATOR
+                ) {
                     revert NotLiquidatible();
                 }
             } else {
@@ -681,6 +698,8 @@ contract SpiceLending is
         // burn notes
         lenderNote.burn(_loanId);
         borrowerNote.burn(_loanId);
+
+        activeLoans[borrower].remove(_loanId);
 
         collateralToLoanId[data.terms.collateralAddress][
             data.terms.collateralId
@@ -709,6 +728,13 @@ contract SpiceLending is
     /// @notice See {ISpiceLending-getNextLoanId}
     function getNextLoanId() external view returns (uint256) {
         return loanIdTracker.current() + 1;
+    }
+
+    /// @notice See {ISpiceLending-getActiveLoans}
+    function getActiveLoans(
+        address borrower
+    ) external view returns (uint256[] memory) {
+        return activeLoans[borrower].values();
     }
 
     /// @notice See {ISpiceLending-repayAmount}
