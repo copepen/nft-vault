@@ -58,20 +58,12 @@ describe("SpiceFiNFT4626", function () {
   }
 
   before("Deploy", async function () {
-    [
-      admin,
-      alice,
-      bob,
-      carol,
-      strategist,
-      spiceAdmin,
-      signer,
-      treasury,
-    ] = await ethers.getSigners();
+    [admin, alice, bob, carol, strategist, spiceAdmin, signer, treasury] =
+      await ethers.getSigners();
 
     await alice.sendTransaction({
       to: constants.accounts.Dev,
-      value: ethers.utils.parseEther("10")
+      value: ethers.utils.parseEther("10"),
     });
 
     await impersonateAccount(constants.accounts.Whale);
@@ -576,24 +568,10 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWith("Pausable: paused");
       });
 
-      it("Only mint new NFT and deposit nothing", async function () {
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-
-        const beforeBalance = await weth.balanceOf(whale.address);
-
-        const tx = await spiceVault
-          .connect(whale)
-          ["deposit(uint256,uint256)"](0, 0);
-
-        expect(await spiceVault.ownerOf(1)).to.be.eq(whale.address);
-        expect(await weth.balanceOf(whale.address)).to.be.eq(
-          beforeBalance.sub(mintPrice)
-        );
-        await expect(tx)
-          .to.emit(spiceVault, "Deposit")
-          .withArgs(whale.address, 1, 0, 0);
+      it("Should not deposit 0 amounts", async function () {
+        await expect(
+          spiceVault.connect(whale)["deposit(uint256,uint256)"](0, 0)
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
       });
 
       it("Mint new NFT and deposit", async function () {
@@ -715,24 +693,10 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWith("Pausable: paused");
       });
 
-      it("Only mint new NFT and deposit nothing", async function () {
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-
-        const beforeBalance = await weth.balanceOf(whale.address);
-
-        const tx = await spiceVault
-          .connect(whale)
-          ["mint(uint256,uint256)"](0, 0);
-
-        expect(await spiceVault.ownerOf(1)).to.be.eq(whale.address);
-        expect(await weth.balanceOf(whale.address)).to.be.eq(
-          beforeBalance.sub(mintPrice)
-        );
-        await expect(tx)
-          .to.emit(spiceVault, "Deposit")
-          .withArgs(whale.address, 1, 0, 0);
+      it("Should not deposit 0 amounts", async function () {
+        await expect(
+          spiceVault.connect(whale)["deposit(uint256,uint256)"](0, 0)
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
       });
 
       it("Mint new NFT and deposit", async function () {
@@ -1122,6 +1086,454 @@ describe("SpiceFiNFT4626", function () {
         await expect(tx)
           .to.emit(spiceVault, "Withdraw")
           .withArgs(whale.address, 1, alice.address, assets, shares);
+      });
+    });
+
+    describe("DepositETH", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+
+        const amount = ethers.utils.parseEther("100");
+
+        await expect(
+          spiceVault.connect(alice).depositETH(0, { value: amount })
+        ).to.be.revertedWith("Pausable: paused");
+      });
+
+      it("Should not deposit 0 amounts", async function () {
+        await expect(
+          spiceVault.connect(alice).depositETH(0, { value: mintPrice })
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("Mint new NFT and deposit", async function () {
+        const amount = ethers.utils.parseEther("100");
+        const tx = await spiceVault
+          .connect(alice)
+          .depositETH(0, { value: amount.add(mintPrice) });
+
+        expect(await spiceVault.ownerOf(1)).to.be.eq(alice.address);
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(alice.address, 1, amount, amount);
+      });
+
+      it("Can't mint twice on same wallet", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(alice)
+          .depositETH(0, { value: amount.add(mintPrice) });
+
+        await expect(
+          spiceVault
+            .connect(alice)
+            .depositETH(0, { value: amount.add(mintPrice) })
+        ).to.be.revertedWithCustomError(spiceVault, "MoreThanOne");
+      });
+
+      it("Can't mint more than maxSupply", async function () {
+        const amount = ethers.utils.parseEther("10");
+
+        await spiceVault.connect(alice).depositETH(0, { value: amount });
+        await spiceVault.connect(bob).depositETH(0, { value: amount });
+        await spiceVault.connect(carol).depositETH(0, { value: amount });
+        await expect(
+          spiceVault.connect(whale).depositETH(0, { value: amount })
+        ).to.be.revertedWithCustomError(spiceVault, "OutOfSupply");
+      });
+
+      it("When not owning NFT", async function () {
+        const amount = ethers.utils.parseEther("10");
+
+        await spiceVault.connect(alice).depositETH(0, { value: amount });
+
+        await spiceVault
+          .connect(alice)
+          ["safeTransferFrom(address,address,uint256)"](
+            alice.address,
+            whale.address,
+            1
+          );
+
+        await expect(
+          spiceVault.connect(alice).depositETH(1, { value: amount })
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidTokenId");
+      });
+
+      it("Deposit using NFT", async function () {
+        const amount = ethers.utils.parseEther("10");
+
+        await spiceVault
+          .connect(alice)
+          .depositETH(0, { value: amount.add(mintPrice) });
+
+        const tx = await spiceVault
+          .connect(alice)
+          .depositETH(1, { value: amount });
+
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(alice.address, 1, amount, amount);
+      });
+    });
+
+    describe("MintETH", function () {
+      it("When paused", async function () {
+        await spiceVault.pause();
+
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+
+        await expect(
+          spiceVault
+            .connect(whale)
+            .mintETH(0, amount, { value: amount.add(mintPrice) })
+        ).to.be.revertedWith("Pausable: paused");
+      });
+
+      it("Should not deposit 0 amounts", async function () {
+        await expect(
+          spiceVault.connect(whale).mintETH(0, 0, { value: mintPrice })
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("Should not deposit less than mintPrice", async function () {
+        await expect(
+          spiceVault.connect(whale).mintETH(0, 1, { value: 0 })
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("Mint new NFT and deposit", async function () {
+        const amount = ethers.utils.parseEther("100");
+        const tx = await spiceVault
+          .connect(alice)
+          .mintETH(0, amount, { value: amount.add(mintPrice) });
+
+        expect(await spiceVault.ownerOf(1)).to.be.eq(alice.address);
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(alice.address, 1, amount, amount);
+      });
+
+      it("Deposit and refund", async function () {
+        const amount = ethers.utils.parseEther("100");
+        const tx = await spiceVault.connect(alice).mintETH(0, amount, {
+          value: amount.add(mintPrice).add(ethers.utils.parseEther("10")),
+        });
+
+        expect(await spiceVault.ownerOf(1)).to.be.eq(alice.address);
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(alice.address, 1, amount, amount);
+      });
+
+      it("Can't mint twice on same wallet", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(alice)
+          .mintETH(0, amount, { value: amount.add(mintPrice) });
+
+        await expect(
+          spiceVault
+            .connect(alice)
+            .mintETH(0, amount, { value: amount.add(mintPrice) })
+        ).to.be.revertedWithCustomError(spiceVault, "MoreThanOne");
+      });
+
+      it("When not owning NFT", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await spiceVault
+          .connect(alice)
+          .mintETH(0, amount, { value: amount.add(mintPrice) });
+
+        await spiceVault
+          .connect(alice)
+          ["safeTransferFrom(address,address,uint256)"](
+            alice.address,
+            whale.address,
+            1
+          );
+
+        await expect(
+          spiceVault.connect(alice).mintETH(1, amount, { value: amount })
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidTokenId");
+      });
+
+      it("Deposit using NFT", async function () {
+        const amount = ethers.utils.parseEther("10");
+        await spiceVault
+          .connect(alice)
+          .mintETH(0, amount, { value: amount.add(mintPrice) });
+
+        const tx = await spiceVault
+          .connect(alice)
+          .mintETH(1, amount, { value: amount });
+
+        await expect(tx)
+          .to.emit(spiceVault, "Deposit")
+          .withArgs(alice.address, 1, amount, amount);
+      });
+    });
+
+    describe("WithdrawETH", function () {
+      beforeEach(async function () {
+        const amount = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(alice)
+          .depositETH(0, { value: amount.add(mintPrice) });
+      });
+
+      it("When paused", async function () {
+        await spiceVault.pause();
+
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(1, assets, bob.address)
+        ).to.be.revertedWith("Pausable: paused");
+      });
+
+      it("When tokenId is 0", async function () {
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(0, assets, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("When assets is 0", async function () {
+        await expect(
+          spiceVault.connect(alice).withdrawETH(1, 0, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("When receiver is 0x0", async function () {
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault
+            .connect(alice)
+            .withdrawETH(1, assets, ethers.constants.AddressZero)
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidAddress");
+      });
+
+      it("When metadata not revealed", async function () {
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(1, assets, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "WithdrawBeforeReveal");
+      });
+
+      it("When withdraw is not enabled", async function () {
+        await spiceVault.setBaseURI("uri://");
+
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(1, assets, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "WithdrawDisabled");
+      });
+
+      it("When token does not exist", async function () {
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(2, assets, bob.address)
+        ).to.be.revertedWith("ERC721: invalid token ID");
+      });
+
+      it("When not owning token", async function () {
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        await spiceVault
+          .connect(alice)
+          ["safeTransferFrom(address,address,uint256)"](
+            alice.address,
+            whale.address,
+            1
+          );
+
+        const assets = ethers.utils.parseEther("10");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(1, assets, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidTokenId");
+      });
+
+      it("When share balance is not enough", async function () {
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).withdrawETH(1, assets, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
+      });
+
+      it("Split fees properly", async function () {
+        const amount = ethers.utils.parseEther("93");
+        const beforeBalance1 = await weth.balanceOf(
+          constants.accounts.Multisig
+        );
+        const beforeBalance2 = await weth.balanceOf(treasury.address);
+        const beforeBalance3 = await ethers.provider.getBalance(bob.address);
+        const fees = amount.mul(700).div(9300);
+        const fees1 = fees.div(2);
+        const fees2 = fees.sub(fees1);
+
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const shares = await spiceVault
+          .connect(alice)
+          .callStatic.withdrawETH(1, amount, bob.address);
+
+        const tx = await spiceVault
+          .connect(alice)
+          .withdrawETH(1, amount, bob.address);
+
+        expect(await weth.balanceOf(constants.accounts.Multisig)).to.be.eq(
+          beforeBalance1.add(fees1)
+        );
+        expect(await weth.balanceOf(treasury.address)).to.be.eq(
+          beforeBalance2.add(fees2)
+        );
+        expect(await ethers.provider.getBalance(bob.address)).to.be.eq(
+          beforeBalance3.add(amount)
+        );
+        await expect(tx)
+          .to.emit(spiceVault, "Withdraw")
+          .withArgs(alice.address, 1, bob.address, amount, shares);
+      });
+    });
+
+    describe("RedeemETH", function () {
+      beforeEach(async function () {
+        const amount = ethers.utils.parseEther("100");
+        await spiceVault
+          .connect(alice)
+          .depositETH(0, { value: amount.add(mintPrice) });
+      });
+
+      it("When paused", async function () {
+        await spiceVault.pause();
+
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).redeemETH(1, shares, bob.address)
+        ).to.be.revertedWith("Pausable: paused");
+      });
+
+      it("When tokenId is 0", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).redeemETH(0, shares, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("When assets is 0", async function () {
+        await expect(
+          spiceVault.connect(alice).redeemETH(1, 0, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "ParameterOutOfBounds");
+      });
+
+      it("When receiver is 0x0", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault
+            .connect(alice)
+            .redeemETH(1, shares, ethers.constants.AddressZero)
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidAddress");
+      });
+
+      it("When metadata not revealed", async function () {
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).redeemETH(1, shares, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "WithdrawBeforeReveal");
+      });
+
+      it("When withdraw is not enabled", async function () {
+        await spiceVault.setBaseURI("uri://");
+
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).redeemETH(1, shares, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "WithdrawDisabled");
+      });
+
+      it("When token does not exist", async function () {
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).redeemETH(2, shares, bob.address)
+        ).to.be.revertedWith("ERC721: invalid token ID");
+      });
+
+      it("When not owning token", async function () {
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+        await spiceVault
+          .connect(alice)
+          ["safeTransferFrom(address,address,uint256)"](
+            alice.address,
+            whale.address,
+            1
+          );
+
+        const shares = ethers.utils.parseEther("100");
+        await expect(
+          spiceVault.connect(alice).redeemETH(1, shares, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "InvalidTokenId");
+      });
+
+      it("When share balance is not enough", async function () {
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const shares = ethers.utils.parseEther("110");
+        await expect(
+          spiceVault.connect(alice).redeemETH(1, shares, bob.address)
+        ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
+      });
+
+      it("Split fees properly", async function () {
+        const shares = ethers.utils.parseEther("100");
+        const beforeBalance1 = await weth.balanceOf(
+          constants.accounts.Multisig
+        );
+        const beforeBalance2 = await weth.balanceOf(treasury.address);
+        const beforeBalance3 = await ethers.provider.getBalance(bob.address);
+
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const assets = await spiceVault
+          .connect(alice)
+          .callStatic.redeemETH(1, shares, alice.address);
+
+        const fees = assets.mul(700).div(9300);
+        const fees1 = fees.div(2);
+        const fees2 = fees.sub(fees1);
+
+        const tx = await spiceVault
+          .connect(alice)
+          .redeemETH(1, shares, bob.address);
+
+        expect(await weth.balanceOf(constants.accounts.Multisig)).to.be.eq(
+          beforeBalance1.add(fees1)
+        );
+        expect(await weth.balanceOf(treasury.address)).to.be.eq(
+          beforeBalance2.add(fees2)
+        );
+        expect(await ethers.provider.getBalance(bob.address)).to.be.eq(
+          beforeBalance3.add(assets)
+        );
+        await expect(tx)
+          .to.emit(spiceVault, "Withdraw")
+          .withArgs(alice.address, 1, bob.address, assets, shares);
       });
     });
   });

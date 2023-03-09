@@ -209,4 +209,33 @@ interface ISpiceFiNFT4626 {
         uint256 shares,
         address receiver
     ) external returns (uint256 assets);
+
+    /// @notice Deposit with eth
+    /// @param tokenId NFT token id
+    function depositETH(uint256 tokenId) external;
+
+    /// @notice Mint with eth
+    /// @param tokenId NFT token id
+    /// @param shares The amount of receipt tokens to mint
+    function mintETH(uint256 tokenId, uint256 shares) external;
+
+    /// @notice Withdraw eth from the pool
+    /// @param tokenId NFT token id
+    /// @param shares The amount of shares to redeem
+    /// @param receiver The account that will receive eth
+    function redeemETH(
+        uint256 tokenId,
+        uint256 shares,
+        address receiver
+    ) external returns (uint256 assets);
+
+    /// @notice Withdraw eth from the pool
+    /// @param tokenId NFT token id
+    /// @param assets The amount of eth being withdrawn
+    /// @param receiver The account that will receive eth
+    function withdrawETH(
+        uint256 tokenId,
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
 }

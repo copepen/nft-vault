@@ -1250,8 +1250,9 @@ describe("Spice Lending", function () {
     });
 
     it("When deposit 0 amount", async function () {
-      const shares = await lending.connect(alice).callStatic.deposit(loanId, 0);
-      expect(shares).to.be.eq(0);
+      await expect(
+        lending.connect(alice).callStatic.deposit(loanId, 0)
+      ).to.be.revertedWithCustomError(nft, "ParameterOutOfBounds");
     });
 
     it("Make additional deposit", async function () {
