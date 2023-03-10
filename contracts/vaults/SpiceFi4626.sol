@@ -5,11 +5,13 @@ import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgrad
 import "@openzeppelin/contracts/access/IAccessControl.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/SafeMathUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts/utils/Multicall.sol";
 
 import "../interfaces/IAggregatorVault.sol";
+import "../interfaces/IWETH.sol";
 
 /**
  * @title Storage for SpiceFi4626
@@ -50,6 +52,7 @@ contract SpiceFi4626 is
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /*************/
     /* Constants */
@@ -92,6 +95,12 @@ contract SpiceFi4626 is
 
     /// @notice Caller not enabled
     error CallerNotEnabled();
+
+    /// @notice Refund failed
+    error RefundFailed();
+
+    /// @notice Withdraw failed
+    error WithdrawFailed();
 
     /**********/
     /* Events */
@@ -152,7 +161,7 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        __ERC4626_init(IERC20MetadataUpgradeable(_asset));
+        __ERC4626_init(IERC20Upgradeable(_asset));
         __ERC20_init(_name, _symbol);
 
         dev = _dev;
@@ -309,9 +318,7 @@ contract SpiceFi4626 is
 
     /// @inheritdoc IERC4626Upgradeable
     function totalAssets() public view override returns (uint256) {
-        uint256 balance = IERC20MetadataUpgradeable(asset()).balanceOf(
-            address(this)
-        );
+        uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
 
         IERC4626Upgradeable vault;
         uint256 count = getRoleMemberCount(VAULT_ROLE);
@@ -343,9 +350,7 @@ contract SpiceFi4626 is
 
     /// @inheritdoc IERC4626Upgradeable
     function maxWithdraw(address owner) public view override returns (uint256) {
-        uint256 balance = IERC20MetadataUpgradeable(asset()).balanceOf(
-            address(this)
-        );
+        uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
         return
             paused()
                 ? 0
@@ -359,9 +364,7 @@ contract SpiceFi4626 is
 
     /// @inheritdoc IERC4626Upgradeable
     function maxRedeem(address owner) public view override returns (uint256) {
-        uint256 balance = IERC20MetadataUpgradeable(asset()).balanceOf(
-            address(this)
-        );
+        uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
         return
             paused()
                 ? 0
@@ -394,6 +397,171 @@ contract SpiceFi4626 is
             );
     }
 
+    /******************/
+    /* User Functions */
+    /******************/
+
+    /// @inheritdoc IERC4626Upgradeable
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) public override whenNotPaused nonReentrant returns (uint256 shares) {
+        shares = previewDeposit(assets);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        IERC20Upgradeable(asset()).transferFrom(
+            _msgSender(),
+            address(this),
+            assets
+        );
+
+        _deposit(_msgSender(), receiver, assets, shares);
+    }
+
+    /// @inheritdoc IERC4626Upgradeable
+    function mint(
+        uint256 shares,
+        address receiver
+    ) public override whenNotPaused nonReentrant returns (uint256 assets) {
+        assets = previewMint(shares);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        IERC20Upgradeable(asset()).transferFrom(
+            _msgSender(),
+            address(this),
+            assets
+        );
+
+        _deposit(_msgSender(), receiver, assets, shares);
+    }
+
+    /// @inheritdoc IERC4626Upgradeable
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public override whenNotPaused nonReentrant returns (uint256 shares) {
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+
+        shares = previewWithdraw(assets);
+
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        IERC20Upgradeable(asset()).safeTransfer(receiver, assets);
+    }
+
+    /// @inheritdoc IERC4626Upgradeable
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public override whenNotPaused nonReentrant returns (uint256 assets) {
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+
+        assets = previewRedeem(shares);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        IERC20Upgradeable(asset()).safeTransfer(receiver, assets);
+    }
+
+    function depositETH(
+        address receiver
+    ) public payable whenNotPaused nonReentrant returns (uint256 shares) {
+        uint256 assets = msg.value;
+        shares = previewDeposit(assets);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        IWETH(asset()).deposit{value: msg.value}();
+
+        _deposit(_msgSender(), receiver, assets, shares);
+    }
+
+    function mintETH(
+        uint256 shares,
+        address receiver
+    ) public payable whenNotPaused nonReentrant returns (uint256 assets) {
+        assets = previewMint(shares);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        if (msg.value < assets) {
+            revert ParameterOutOfBounds();
+        }
+
+        IWETH(asset()).deposit{value: assets}();
+
+        if (msg.value > assets) {
+            (bool success, ) = msg.sender.call{value: msg.value - assets}("");
+            if (!success) {
+                revert RefundFailed();
+            }
+        }
+
+        _deposit(_msgSender(), receiver, assets, shares);
+    }
+
+    function withdrawETH(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) public whenNotPaused nonReentrant returns (uint256 shares) {
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+
+        shares = previewWithdraw(assets);
+
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        IWETH(asset()).withdraw(assets);
+        (bool success, ) = receiver.call{value: assets}("");
+        if (!success) {
+            revert WithdrawFailed();
+        }
+    }
+
+    function redeemETH(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public whenNotPaused nonReentrant returns (uint256 assets) {
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+
+        assets = previewRedeem(shares);
+        _withdraw(_msgSender(), receiver, owner, assets, shares);
+
+        IWETH(asset()).withdraw(assets);
+        (bool success, ) = receiver.call{value: assets}("");
+        if (!success) {
+            revert WithdrawFailed();
+        }
+    }
+
     /// @inheritdoc ERC4626Upgradeable
     function _withdraw(
         address caller,
@@ -401,22 +569,46 @@ contract SpiceFi4626 is
         address owner,
         uint256 assets,
         uint256 shares
-    ) internal override nonReentrant {
-        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
-            assets;
-        uint256 half = fees / 2;
+    ) internal override {
+        uint256 fees = convertToAssets(shares) - assets;
 
-        super._withdraw(caller, receiver, owner, assets, shares);
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20MetadataUpgradeable(asset()),
-            multisig,
-            half
-        );
-        SafeERC20Upgradeable.safeTransfer(
-            IERC20MetadataUpgradeable(asset()),
-            feeRecipient,
-            fees - half
-        );
+        IERC20Upgradeable currency = IERC20Upgradeable(asset());
+        uint256 balance = currency.balanceOf(address(this));
+        if (balance < fees + assets) {
+            // withdraw from vaults
+            _withdrawFromVaults(fees + assets - balance);
+        }
+
+        if (caller != owner) {
+            _spendAllowance(owner, caller, shares);
+        }
+
+        _burn(owner, shares);
+
+        if (fees > 0) {
+            uint256 half = fees / 2;
+            currency.safeTransfer(multisig, half);
+            currency.safeTransfer(feeRecipient, fees - half);
+        }
+
+        emit Withdraw(caller, receiver, owner, assets, shares);
+    }
+
+    function _withdrawFromVaults(uint256 amount) internal {
+        uint256 vaultCount = getRoleMemberCount(VAULT_ROLE);
+        for (uint256 i; amount > 0 && i != vaultCount; ++i) {
+            IERC4626Upgradeable vault = IERC4626Upgradeable(
+                getRoleMember(VAULT_ROLE, i)
+            );
+            uint256 withdrawAmount = MathUpgradeable.min(
+                amount,
+                vault.maxWithdraw(address(this))
+            );
+            if (withdrawAmount > 0) {
+                vault.withdraw(withdrawAmount, address(this), address(this));
+                amount -= withdrawAmount;
+            }
+        }
     }
 
     /// @inheritdoc ERC4626Upgradeable
@@ -425,14 +617,14 @@ contract SpiceFi4626 is
         address receiver,
         uint256 assets,
         uint256 shares
-    ) internal override nonReentrant {
+    ) internal override {
         if (getRoleMemberCount(USER_ROLE) > 0 && !hasRole(USER_ROLE, caller)) {
             revert CallerNotEnabled();
         }
-        if (shares == 0) {
-            revert ParameterOutOfBounds();
-        }
-        super._deposit(caller, receiver, assets, shares);
+
+        _mint(receiver, shares);
+
+        emit Deposit(caller, receiver, assets, shares);
     }
 
     /// See {IAggregatorVault-deposit}
@@ -443,7 +635,7 @@ contract SpiceFi4626 is
     ) public nonReentrant onlyRole(STRATEGIST_ROLE) returns (uint256 shares) {
         _checkRole(VAULT_ROLE, vault);
         SafeERC20Upgradeable.safeIncreaseAllowance(
-            IERC20MetadataUpgradeable(asset()),
+            IERC20Upgradeable(asset()),
             vault,
             assets
         );
@@ -463,7 +655,7 @@ contract SpiceFi4626 is
         _checkRole(VAULT_ROLE, vault);
         uint256 assets_ = IERC4626Upgradeable(vault).previewMint(shares);
         SafeERC20Upgradeable.safeIncreaseAllowance(
-            IERC20MetadataUpgradeable(asset()),
+            IERC20Upgradeable(asset()),
             vault,
             assets_
         );
@@ -509,4 +701,10 @@ contract SpiceFi4626 is
             revert SlippageTooHigh();
         }
     }
+
+    /*************/
+    /* Fallbacks */
+    /*************/
+
+    receive() external payable {}
 }

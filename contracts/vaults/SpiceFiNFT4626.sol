@@ -13,6 +13,7 @@ import "@openzeppelin/contracts/utils/Multicall.sol";
 import "../interfaces/ISpiceFiNFT4626.sol";
 import "../interfaces/IAggregatorVault.sol";
 import "../interfaces/IERC4906.sol";
+import "../interfaces/IWETH.sol";
 
 /**
  * @title Storage for SpiceFiNFT4626
@@ -83,6 +84,7 @@ contract SpiceFiNFT4626 is
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
     using StringsUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /*************/
     /* Constants */
@@ -143,6 +145,12 @@ contract SpiceFiNFT4626 is
 
     /// @notice Caller not enabled
     error CallerNotEnabled();
+
+    /// @notice Refund failed
+    error RefundFailed();
+
+    /// @notice Withdraw failed
+    error WithdrawFailed();
 
     /**********/
     /* Events */
@@ -394,12 +402,12 @@ contract SpiceFiNFT4626 is
     }
 
     /// @notice See {ISpiceFiNFT4626-convertToShares}
-    function convertToShares(uint256 assets) external view returns (uint256) {
+    function convertToShares(uint256 assets) public view returns (uint256) {
         return _convertToShares(assets, MathUpgradeable.Rounding.Down);
     }
 
     /// @notice See {ISpiceFiNFT4626-convertToAssets}
-    function convertToAssets(uint256 shares) external view returns (uint256) {
+    function convertToAssets(uint256 shares) public view returns (uint256) {
         return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
@@ -523,13 +531,18 @@ contract SpiceFiNFT4626 is
     ) external whenNotPaused nonReentrant returns (uint256 shares) {
         // Compute number of shares to mint from current vault share price
         shares = previewDeposit(assets);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
 
-        if (assets > 0) {
-            IERC20Upgradeable(_asset).transferFrom(
-                msg.sender,
-                address(this),
-                assets
-            );
+        IERC20Upgradeable(_asset).transferFrom(
+            msg.sender,
+            address(this),
+            tokenId == 0 ? assets + mintPrice : assets
+        );
+
+        if (tokenId == 0) {
+            _transferMintFee();
         }
 
         _deposit(msg.sender, tokenId, assets, shares);
@@ -542,16 +555,21 @@ contract SpiceFiNFT4626 is
     ) external whenNotPaused nonReentrant returns (uint256 assets) {
         // Compute number of shares to mint from current vault share price
         assets = previewMint(shares);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        IERC20Upgradeable(_asset).transferFrom(
+            msg.sender,
+            address(this),
+            tokenId == 0 ? assets + mintPrice : assets
+        );
+
+        if (tokenId == 0) {
+            _transferMintFee();
+        }
 
         _deposit(msg.sender, tokenId, assets, shares);
-
-        if (assets > 0) {
-            IERC20Upgradeable(_asset).transferFrom(
-                msg.sender,
-                address(this),
-                assets
-            );
-        }
     }
 
     /// See {ISpiceFiNFT4626-redeem}.
@@ -573,11 +591,9 @@ contract SpiceFiNFT4626 is
         // compute redemption amount
         assets = previewRedeem(shares);
 
-        // compute fee
-        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
-            assets;
+        _withdraw(msg.sender, tokenId, receiver, assets, shares);
 
-        _withdraw(msg.sender, tokenId, receiver, assets, shares, fees);
+        IERC20Upgradeable(_asset).safeTransfer(receiver, assets);
     }
 
     /// See {ISpiceFiNFT4626-withdraw}.
@@ -599,13 +615,124 @@ contract SpiceFiNFT4626 is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        // compute fee
-        uint256 fees = _convertToAssets(
-            shares - _convertToShares(assets, MathUpgradeable.Rounding.Up),
-            MathUpgradeable.Rounding.Down
-        );
+        _withdraw(msg.sender, tokenId, receiver, assets, shares);
 
-        _withdraw(msg.sender, tokenId, receiver, assets, shares, fees);
+        IERC20Upgradeable(_asset).safeTransfer(receiver, assets);
+    }
+
+    /// See {ISpiceFiNFT4626-depositETH}.
+    function depositETH(
+        uint256 tokenId
+    ) external payable whenNotPaused nonReentrant returns (uint256 shares) {
+        uint256 assets = msg.value;
+        if (tokenId == 0 && assets <= mintPrice) {
+            revert ParameterOutOfBounds();
+        }
+
+        // Compute number of shares to mint from current vault share price
+        shares = previewDeposit(tokenId == 0 ? assets - mintPrice : assets);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        IWETH(_asset).deposit{value: msg.value}();
+
+        if (tokenId == 0) {
+            _transferMintFee();
+            assets -= mintPrice;
+        }
+
+        _deposit(msg.sender, tokenId, assets, shares);
+    }
+
+    /// See {ISpiceFiNFT4626-mintETH}.
+    function mintETH(
+        uint256 tokenId,
+        uint256 shares
+    ) external payable whenNotPaused nonReentrant returns (uint256 assets) {
+        // Compute number of shares to mint from current vault share price
+        assets = previewMint(shares);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        uint256 transferAmount = tokenId == 0 ? assets + mintPrice : assets;
+        if (msg.value < transferAmount) {
+            revert ParameterOutOfBounds();
+        }
+
+        IWETH(_asset).deposit{value: transferAmount}();
+
+        if (tokenId == 0) {
+            _transferMintFee();
+        }
+
+        if (msg.value > transferAmount) {
+            (bool success, ) = msg.sender.call{
+                value: msg.value - transferAmount
+            }("");
+            if (!success) {
+                revert RefundFailed();
+            }
+        }
+
+        _deposit(msg.sender, tokenId, assets, shares);
+    }
+
+    /// See {ISpiceFiNFT4626-redeemETH}.
+    function redeemETH(
+        uint256 tokenId,
+        uint256 shares,
+        address receiver
+    ) external whenNotPaused nonReentrant returns (uint256 assets) {
+        if (tokenId == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+
+        // compute redemption amount
+        assets = previewRedeem(shares);
+
+        _withdraw(msg.sender, tokenId, receiver, assets, shares);
+
+        IWETH(_asset).withdraw(assets);
+        (bool success, ) = receiver.call{value: assets}("");
+        if (!success) {
+            revert WithdrawFailed();
+        }
+    }
+
+    /// See {ISpiceFiNFT4626-withdrawETH}.
+    function withdrawETH(
+        uint256 tokenId,
+        uint256 assets,
+        address receiver
+    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+        if (tokenId == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+
+        // compute share amount
+        shares = previewWithdraw(assets);
+
+        _withdraw(msg.sender, tokenId, receiver, assets, shares);
+
+        IWETH(_asset).withdraw(assets);
+        (bool success, ) = receiver.call{value: assets}("");
+        if (!success) {
+            revert WithdrawFailed();
+        }
     }
 
     /*****************************/
@@ -647,10 +774,12 @@ contract SpiceFiNFT4626 is
             tokenId = ++_tokenIdPointer;
         }
 
-        address admin = getRoleMember(SPICE_ROLE, 0);
-        IERC20Upgradeable(_asset).transferFrom(msg.sender, admin, mintPrice);
-
         _mint(user, tokenId);
+    }
+
+    function _transferMintFee() internal {
+        address admin = getRoleMember(SPICE_ROLE, 0);
+        IERC20Upgradeable(_asset).safeTransfer(admin, mintPrice);
     }
 
     function _withdraw(
@@ -658,9 +787,11 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         address receiver,
         uint256 assets,
-        uint256 shares,
-        uint256 fees
+        uint256 shares
     ) internal {
+        // compute fee
+        uint256 fees = convertToAssets(shares) - assets;
+
         if (!_revealed) {
             revert WithdrawBeforeReveal();
         }
@@ -678,14 +809,37 @@ contract SpiceFiNFT4626 is
         totalShares -= shares;
         tokenShares[tokenId] -= shares;
 
-        uint256 half = fees / 2;
-
         IERC20Upgradeable currency = IERC20Upgradeable(_asset);
-        currency.transfer(multisig, half);
-        currency.transfer(feeRecipient, fees - half);
-        currency.transfer(receiver, assets);
+        uint256 balance = currency.balanceOf(address(this));
+        if (balance < fees + assets) {
+            // withdraw from vaults
+            _withdrawFromVaults(fees + assets - balance);
+        }
+
+        if (fees > 0) {
+            uint256 half = fees / 2;
+            currency.safeTransfer(multisig, half);
+            currency.safeTransfer(feeRecipient, fees - half);
+        }
 
         emit Withdraw(caller, tokenId, receiver, assets, shares);
+    }
+
+    function _withdrawFromVaults(uint256 amount) internal {
+        uint256 vaultCount = getRoleMemberCount(VAULT_ROLE);
+        for (uint256 i; amount > 0 && i != vaultCount; ++i) {
+            IERC4626Upgradeable vault = IERC4626Upgradeable(
+                getRoleMember(VAULT_ROLE, i)
+            );
+            uint256 withdrawAmount = MathUpgradeable.min(
+                amount,
+                vault.maxWithdraw(address(this))
+            );
+            if (withdrawAmount > 0) {
+                vault.withdraw(withdrawAmount, address(this), address(this));
+                amount -= withdrawAmount;
+            }
+        }
     }
 
     function _deposit(
@@ -788,4 +942,10 @@ contract SpiceFiNFT4626 is
     function owner() public view returns (address) {
         return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
     }
+
+    /*************/
+    /* Fallbacks */
+    /*************/
+
+    receive() external payable {}
 }

@@ -45,10 +45,9 @@ interface ISpiceFiNFT4626 {
     /// NOTE: This calculation MAY NOT reflect the “per-user” price-per-share, and instead should reflect the
     /// “average-user’s” price-per-share, meaning what the average user should expect to see when exchanging to and
     /// from.
-    function convertToShares(uint256 assets)
-        external
-        view
-        returns (uint256 shares);
+    function convertToShares(
+        uint256 assets
+    ) external view returns (uint256 shares);
 
     /// @notice Returns the amount of assets that the Vault would exchange for the amount of shares provided, in an ideal
     /// scenario where all the conditions are met.
@@ -61,10 +60,9 @@ interface ISpiceFiNFT4626 {
     /// NOTE: This calculation MAY NOT reflect the “per-user” price-per-share, and instead should reflect the
     /// “average-user’s” price-per-share, meaning what the average user should expect to see when exchanging to and
     /// from.
-    function convertToAssets(uint256 shares)
-        external
-        view
-        returns (uint256 assets);
+    function convertToAssets(
+        uint256 shares
+    ) external view returns (uint256 assets);
 
     /// @notice Returns the maximum amount of the underlying asset that can be deposited into the Vault for the receiver,
     /// through a deposit call.
@@ -72,10 +70,9 @@ interface ISpiceFiNFT4626 {
     /// - MUST return a limited value if receiver is subject to some deposit limit.
     /// - MUST return 2 ** 256 - 1 if there is no limit on the maximum amount of assets that may be deposited.
     /// - MUST NOT revert.
-    function maxDeposit(address receiver)
-        external
-        view
-        returns (uint256 maxAssets);
+    function maxDeposit(
+        address receiver
+    ) external view returns (uint256 maxAssets);
 
     /// @notice Allows an on-chain or off-chain user to simulate the effects of their deposit at the current block, given
     /// current on-chain conditions.
@@ -90,27 +87,26 @@ interface ISpiceFiNFT4626 {
     ///
     /// NOTE: any unfavorable discrepancy between convertToShares and previewDeposit SHOULD be considered slippage in
     /// share price or some other type of condition, meaning the depositor will lose assets by depositing.
-    function previewDeposit(uint256 assets)
-        external
-        view
-        returns (uint256 shares);
+    function previewDeposit(
+        uint256 assets
+    ) external view returns (uint256 shares);
 
     /// @notice Deposits weth
     /// @param tokenId NFT token id
     /// @param assets The amount of weth being deposited
     /// @return shares The amount of receipt tokens minted
-    function deposit(uint256 tokenId, uint256 assets)
-        external
-        returns (uint256 shares);
+    function deposit(
+        uint256 tokenId,
+        uint256 assets
+    ) external returns (uint256 shares);
 
     /// @notice Returns the maximum amount of the Vault shares that can be minted for the receiver, through a mint call.
     /// - MUST return a limited value if receiver is subject to some mint limit.
     /// - MUST return 2 ** 256 - 1 if there is no limit on the maximum amount of shares that may be minted.
     /// - MUST NOT revert.
-    function maxMint(address receiver)
-        external
-        view
-        returns (uint256 maxShares);
+    function maxMint(
+        address receiver
+    ) external view returns (uint256 maxShares);
 
     /// @notice Allows an on-chain or off-chain user to simulate the effects of their mint at the current block, given
     /// current on-chain conditions.
@@ -131,19 +127,19 @@ interface ISpiceFiNFT4626 {
     /// @param tokenId NFT token id
     /// @param shares The amount of receipt tokens to mint
     /// @return assets The amount of weth deposited
-    function mint(uint256 tokenId, uint256 shares)
-        external
-        returns (uint256 assets);
+    function mint(
+        uint256 tokenId,
+        uint256 shares
+    ) external returns (uint256 assets);
 
     /// @notice Returns the maximum amount of the underlying asset that can be withdrawn from the owner balance in the
     /// Vault, through a withdraw call.
     ///
     /// - MUST return a limited value if owner is subject to some withdrawal limit or timelock.
     /// - MUST NOT revert.
-    function maxWithdraw(address owner)
-        external
-        view
-        returns (uint256 maxAssets);
+    function maxWithdraw(
+        address owner
+    ) external view returns (uint256 maxAssets);
 
     /// @notice Allows an on-chain or off-chain user to simulate the effects of their withdrawal at the current block,
     /// given current on-chain conditions.
@@ -159,10 +155,9 @@ interface ISpiceFiNFT4626 {
     ///
     /// NOTE: any unfavorable discrepancy between convertToShares and previewWithdraw SHOULD be considered slippage in
     /// share price or some other type of condition, meaning the depositor will lose assets by depositing.
-    function previewWithdraw(uint256 assets)
-        external
-        view
-        returns (uint256 shares);
+    function previewWithdraw(
+        uint256 assets
+    ) external view returns (uint256 shares);
 
     /// @notice Withdraw weth from the pool
     /// @param tokenId NFT token id
@@ -195,10 +190,9 @@ interface ISpiceFiNFT4626 {
     ///
     /// NOTE: any unfavorable discrepancy between convertToAssets and previewRedeem SHOULD be considered slippage in
     /// share price or some other type of condition, meaning the depositor will lose assets by redeeming.
-    function previewRedeem(uint256 shares)
-        external
-        view
-        returns (uint256 assets);
+    function previewRedeem(
+        uint256 shares
+    ) external view returns (uint256 assets);
 
     /// @notice Withdraw weth from the pool
     /// @param tokenId NFT token id
@@ -209,4 +203,38 @@ interface ISpiceFiNFT4626 {
         uint256 shares,
         address receiver
     ) external returns (uint256 assets);
+
+    /// @notice Deposit with eth
+    /// @param tokenId NFT token id
+    function depositETH(
+        uint256 tokenId
+    ) external payable returns (uint256 shares);
+
+    /// @notice Mint with eth
+    /// @param tokenId NFT token id
+    /// @param shares The amount of receipt tokens to mint
+    function mintETH(
+        uint256 tokenId,
+        uint256 shares
+    ) external payable returns (uint256 assets);
+
+    /// @notice Withdraw eth from the pool
+    /// @param tokenId NFT token id
+    /// @param shares The amount of shares to redeem
+    /// @param receiver The account that will receive eth
+    function redeemETH(
+        uint256 tokenId,
+        uint256 shares,
+        address receiver
+    ) external returns (uint256 assets);
+
+    /// @notice Withdraw eth from the pool
+    /// @param tokenId NFT token id
+    /// @param assets The amount of eth being withdrawn
+    /// @param receiver The account that will receive eth
+    function withdrawETH(
+        uint256 tokenId,
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
 }
