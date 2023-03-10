@@ -57,6 +57,14 @@ describe("SpiceFiNFT4626", function () {
     expect(await contract.hasRole(role, user)).to.equal(check);
   }
 
+  async function depositToVaults(vaults, amounts) {
+    for (let i = 0; i < vaults.length; i++) {
+      await spiceVault
+        .connect(strategist)
+        ["deposit(address,uint256,uint256)"](vaults[i], amounts[i], 0);
+    }
+  }
+
   before("Deploy", async function () {
     [admin, alice, bob, carol, strategist, spiceAdmin, signer, treasury] =
       await ethers.getSigners();
@@ -892,6 +900,31 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
       });
 
+      it("When vault balance is not enough", async function () {
+        await depositToVaults(
+          [vault.address, bend.address],
+          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+        );
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
+        const beforeBendDeposit = await bend.maxWithdraw(spiceVault.address);
+        expect(beforeBendDeposit).to.be.gt(0);
+
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const assets = ethers.utils.parseEther("46.5");
+        await spiceVault
+          .connect(whale)
+          ["withdraw(uint256,uint256,address)"](1, assets, alice.address);
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
+        );
+      });
+
       it("Split fees properly", async function () {
         const amount = ethers.utils.parseEther("93");
         const beforeBalance1 = await weth.balanceOf(
@@ -1045,6 +1078,31 @@ describe("SpiceFiNFT4626", function () {
             .connect(whale)
             ["redeem(uint256,uint256,address)"](1, shares, alice.address)
         ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
+      });
+
+      it("When vault balance is not enough", async function () {
+        await depositToVaults(
+          [vault.address, bend.address],
+          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+        );
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
+        const beforeBendDeposit = await bend.maxWithdraw(spiceVault.address);
+        expect(beforeBendDeposit).to.be.gt(0);
+
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const shares = ethers.utils.parseEther("50");
+        await spiceVault
+          .connect(whale)
+          ["redeem(uint256,uint256,address)"](1, shares, alice.address);
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
+        );
       });
 
       it("Split fees properly", async function () {
@@ -1366,6 +1424,29 @@ describe("SpiceFiNFT4626", function () {
         ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
       });
 
+      it("When vault balance is not enough", async function () {
+        await depositToVaults(
+          [vault.address, bend.address],
+          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+        );
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
+        const beforeBendDeposit = await bend.maxWithdraw(spiceVault.address);
+        expect(beforeBendDeposit).to.be.gt(0);
+
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const assets = ethers.utils.parseEther("46.5");
+        await spiceVault.connect(alice).withdrawETH(1, assets, bob.address);
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
+        );
+      });
+
       it("Split fees properly", async function () {
         const amount = ethers.utils.parseEther("93");
         const beforeBalance1 = await weth.balanceOf(
@@ -1493,6 +1574,29 @@ describe("SpiceFiNFT4626", function () {
         await expect(
           spiceVault.connect(alice).redeemETH(1, shares, bob.address)
         ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
+      });
+
+      it("When vault balance is not enough", async function () {
+        await depositToVaults(
+          [vault.address, bend.address],
+          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+        );
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
+        const beforeBendDeposit = await bend.maxWithdraw(spiceVault.address);
+        expect(beforeBendDeposit).to.be.gt(0);
+
+        await spiceVault.setBaseURI("uri://");
+        await spiceVault.setWithdrawable(true);
+
+        const shares = ethers.utils.parseEther("50");
+        await spiceVault.connect(alice).redeemETH(1, shares, alice.address);
+
+        expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
+        );
       });
 
       it("Split fees properly", async function () {
