@@ -913,14 +913,15 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const assets = ethers.utils.parseEther("50");
+        const assets = ethers.utils.parseEther("46.5");
         await spiceVault
           .connect(whale)
           ["withdraw(uint256,uint256,address)"](1, assets, alice.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
-        expect(await bend.maxWithdraw(spiceVault.address)).to.be.lt(
-          beforeBendDeposit
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
         );
       });
 
@@ -1098,8 +1099,9 @@ describe("SpiceFiNFT4626", function () {
           ["redeem(uint256,uint256,address)"](1, shares, alice.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
-        expect(await bend.maxWithdraw(spiceVault.address)).to.be.lt(
-          beforeBendDeposit
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
         );
       });
 
@@ -1435,12 +1437,13 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const assets = ethers.utils.parseEther("50");
+        const assets = ethers.utils.parseEther("46.5");
         await spiceVault.connect(alice).withdrawETH(1, assets, bob.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
-        expect(await bend.maxWithdraw(spiceVault.address)).to.be.lt(
-          beforeBendDeposit
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
         );
       });
 
@@ -1590,8 +1593,9 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.connect(alice).redeemETH(1, shares, alice.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
-        expect(await bend.maxWithdraw(spiceVault.address)).to.be.lt(
-          beforeBendDeposit
+        expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
+          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          ethers.utils.parseEther("0.00001")
         );
       });
 
