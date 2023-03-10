@@ -1182,10 +1182,6 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.pause();
 
         const amount = ethers.utils.parseEther("100");
-        await weth
-          .connect(whale)
-          .approve(spiceVault.address, ethers.constants.MaxUint256);
-
         await expect(
           spiceVault
             .connect(whale)
