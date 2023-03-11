@@ -7,6 +7,7 @@ async function main() {
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
   const vault = await upgrades.upgradeBeacon(beacon.address, SpiceFi4626, {
     unsafeAllow: ["delegatecall"],
+    timeout: 0
   });
   await vault.deployed();
 
