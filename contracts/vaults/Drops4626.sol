@@ -427,15 +427,8 @@ contract Drops4626 is
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
 
-        uint256 exchangeRate = _getExchangeRate();
-        uint256 redeemAmount = shares.mulDiv(
-                ONE_WAD,
-                exchangeRate,
-                MathUpgradeable.Rounding.Down
-            );
-
         // trade ctokens for eth
-        cEther.redeem(redeemAmount);
+        cEther.redeemUnderlying(previewRedeem(shares));
 
         assets = address(this).balance;
 
