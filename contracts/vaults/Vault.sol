@@ -133,7 +133,7 @@ contract Vault is
     /*************/
 
     /// @notice Implementation version
-    string public constant IMPLEMENTATION_VERSION = "1.1";
+    string public constant IMPLEMENTATION_VERSION = "2.0";
 
     /************************/
     /* Access Control Roles */
@@ -458,6 +458,9 @@ contract Vault is
 
         // Compute number of shares to mint from current vault share price
         shares = previewDeposit(assets);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
 
         _deposit(msg.sender, assets, shares, receiver);
 

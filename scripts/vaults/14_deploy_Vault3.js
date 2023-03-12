@@ -3,12 +3,13 @@ const hre = require("hardhat");
 async function main() {
   const { ethers, upgrades, deployments } = hre;
 
-  const beacon = await deployments.get("Vault");
   const Vault = await ethers.getContractFactory("Vault");
-  const vault = await upgrades.upgradeBeacon(beacon.address, Vault);
-  await vault.deployed();
+  const beacon = await upgrades.deployBeacon(Vault);
+  await beacon.deployed();
 
-  console.log("Vault successfully upgraded!");
+  await deployments.save("Vault3", beacon);
+
+  console.log(`Vault3 Beacon deployed to ${beacon.address}`);
 
   const implAddr = await beacon.implementation();
 

@@ -202,7 +202,7 @@ describe("Vault", function () {
     });
 
     it("Should set the correct implementation version", async function () {
-      expect(await vault.IMPLEMENTATION_VERSION()).to.equal("1.1");
+      expect(await vault.IMPLEMENTATION_VERSION()).to.equal("2.0");
     });
 
     it("Should initialize once", async function () {
