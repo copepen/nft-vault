@@ -3,8 +3,9 @@ const hre = require("hardhat");
 async function main() {
   const { ethers, upgrades, deployments } = hre;
 
-  const beacon = await deployments.get("Vault");
+  const beacon = await deployments.get("Vault3");
   const Vault = await ethers.getContractFactory("Vault");
+  // await upgrades.forceImport("0xd7650014dBdB486154c1E86F73CC750cc280b6E3", Vault);
   const vault = await upgrades.upgradeBeacon(beacon.address, Vault);
   await vault.deployed();
 
