@@ -270,7 +270,7 @@ contract Drops4626 is
 
         shares = previewWithdraw(assets);
 
-        _withdraw(msg.sender, receiver, owner, shares);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /***********/
@@ -338,7 +338,9 @@ contract Drops4626 is
             revert ParameterOutOfBounds();
         }
 
-        assets = _withdraw(msg.sender, receiver, owner, shares);
+        assets = previewRedeem(shares);
+
+        _withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /*****************************/
@@ -412,8 +414,9 @@ contract Drops4626 is
         address caller,
         address receiver,
         address owner,
+        uint256 assets,
         uint256 shares
-    ) internal returns (uint256 assets) {
+    ) internal {
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
         }
@@ -421,16 +424,14 @@ contract Drops4626 is
         // Burn receipt tokens from owner
         _burn(owner, shares);
 
-        // load weth
-        IWETH weth = IWETH(WETH);
-
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
 
         // trade ctokens for eth
-        cEther.redeemUnderlying(previewRedeem(shares));
+        cEther.redeemUnderlying(assets);
 
-        assets = address(this).balance;
+        // load weth
+        IWETH weth = IWETH(WETH);
 
         // trade eth from weth
         weth.deposit{value: assets}();

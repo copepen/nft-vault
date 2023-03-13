@@ -107,7 +107,6 @@ async function main() {
     metaVaultName,
     metaVaultSymbol,
     constants.contracts.MetaPool,
-    constants.tokens.mWETH,
   ]);
 
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");

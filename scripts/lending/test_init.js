@@ -19,7 +19,7 @@ async function main() {
   const vault = SpiceFiNFT4626.attach(config[chainId].prologue);
   const terms = {
     loanAmount: ethers.utils.parseEther("0.01").toString(),
-    duration: 360,
+    duration: 14 * 86400,
     collateralAddress: vault.address,
     collateralId: 82,
     borrower: signer.address,
