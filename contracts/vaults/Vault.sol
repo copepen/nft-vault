@@ -384,6 +384,39 @@ contract Vault is
             );
     }
 
+    /// @notice Get all note tokens
+    /// @return noteTokens list of note tokens
+    function getNoteTokens() external view returns (address[] memory) {
+        return _noteTokens.values();
+    }
+
+    /// @notice Get note adapter for note token
+    /// @param noteToken Note token contract address
+    /// @return noteAdapter Note adapter contract address
+    function getNoteAdapter(address noteToken) external view returns (address) {
+        return address(_noteAdapters[noteToken]);
+    }
+
+    /// @notice Get Note info
+    /// @param nft NFT contract address
+    /// @param nftId NFT token ID
+    /// @param note Note info
+    function getNote(
+        address nft,
+        uint256 nftId
+    ) external view returns (Note memory note) {
+        note = _notes[nft][nftId];
+    }
+
+    /// @notice Get list of pending loan ids for noteToken
+    /// @param noteToken Note token contract
+    /// @return loans List of pending loan ids
+    function getPendingLoans(
+        address noteToken
+    ) external view returns (uint256[] memory) {
+        return _pendingLoans[noteToken].values();
+    }
+
     /// @notice Get loan info
     /// @param noteToken Note token contract address
     /// @param loanId Loan ID
