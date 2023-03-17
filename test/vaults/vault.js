@@ -2,13 +2,24 @@ const { expect } = require("chai");
 const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
 const { impersonateAccount, setBalance } = require("../helpers/account");
-const { signTestHashAndSignature } = require("../helpers/sign");
+const { signTestHashAndSignature, signLoanTerms } = require("../helpers/sign");
 const constants = require("../constants");
 
 describe("Vault", function () {
   let vault;
+  let lending;
+  let lenderNote, borrowerNote;
+  let nft;
   let token;
-  let admin, alice, bob, carol, dave, treasury, marketplace1, marketplace2;
+  let admin,
+    alice,
+    bob,
+    carol,
+    dave,
+    signer,
+    treasury,
+    marketplace1,
+    marketplace2;
   let snapshotId;
   let dev;
 
@@ -18,7 +29,8 @@ describe("Vault", function () {
     liquidatorRole,
     bidderRole,
     whitelistRole,
-    marketplaceRole;
+    marketplaceRole,
+    signerRole;
 
   const vaultName = "Spice Vault Test Token";
   const vaultSymbol = "svTT";
@@ -42,8 +54,17 @@ describe("Vault", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, carol, dave, treasury, marketplace1, marketplace2] =
-      await ethers.getSigners();
+    [
+      admin,
+      alice,
+      bob,
+      carol,
+      dave,
+      signer,
+      treasury,
+      marketplace1,
+      marketplace2,
+    ] = await ethers.getSigners();
 
     await impersonateAccount(constants.accounts.Dev);
     await setBalance(
@@ -64,7 +85,7 @@ describe("Vault", function () {
     );
 
     const Vault = await ethers.getContractFactory("Vault");
-    const beacon = await upgrades.deployBeacon(Vault);
+    let beacon = await upgrades.deployBeacon(Vault);
 
     await expect(
       upgrades.deployBeaconProxy(beacon, Vault, [
@@ -163,6 +184,59 @@ describe("Vault", function () {
 
     await vault.connect(dev).grantRole(defaultAdminRole, admin.address);
     await vault.connect(dev).setWithdrawalFees(700);
+
+    const Note = await ethers.getContractFactory("Note");
+
+    lenderNote = await Note.deploy("Spice Lender Note", "Spice Lender Note");
+    await lenderNote.deployed();
+
+    borrowerNote = await Note.deploy(
+      "Spice Borrower Note",
+      "Spice Borrower Note"
+    );
+    await borrowerNote.deployed();
+
+    const SpiceLending = await ethers.getContractFactory("SpiceLending");
+    beacon = await upgrades.deployBeacon(SpiceLending);
+
+    lending = await upgrades.deployBeaconProxy(beacon, SpiceLending, [
+      signer.address,
+      lenderNote.address,
+      borrowerNote.address,
+      500,
+      8000,
+      1000,
+      6000,
+      treasury.address,
+    ]);
+
+    await lenderNote.initialize(lending.address, true);
+    await borrowerNote.initialize(lending.address, false);
+
+    signerRole = await lending.SIGNER_ROLE();
+
+    const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
+    beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
+      unsafeAllow: ["delegatecall"],
+    });
+
+    nft = await upgrades.deployBeaconProxy(beacon, SpiceFiNFT4626, [
+      "Spice0",
+      "s0",
+      token.address,
+      ethers.utils.parseEther("0.08"),
+      555,
+      [],
+      admin.address,
+      constants.accounts.Dev,
+      constants.accounts.Multisig,
+      treasury.address,
+    ]);
+
+    const SpiceNoteAdapter = await ethers.getContractFactory("SpiceNoteAdapter");
+    const adapter = await SpiceNoteAdapter.deploy(lending.address);
+
+    await vault.connect(admin).setNoteAdapter(lenderNote.address, adapter.address);
   });
 
   beforeEach(async () => {
@@ -1027,5 +1101,55 @@ describe("Vault", function () {
       const magicValue = await vault.isValidSignature(hash, signature);
       expect(magicValue).to.be.eq("0x1626ba7e");
     });
+  });
+
+  it("Vault as a lender", async function () {
+    const assets = ethers.utils.parseEther("100");
+    await token.connect(alice).approve(vault.address, assets);
+    await vault.connect(alice).deposit(assets, alice.address);
+
+    await vault.connect(admin).grantRole(marketplaceRole, lending.address);
+    await vault
+      .connect(admin)
+      .approveAsset(lending.address, ethers.constants.MaxUint256);
+
+    await token.connect(alice).approve(nft.address, ethers.constants.MaxUint256);
+    const amount = ethers.utils.parseEther("100");
+    await nft.connect(alice)["deposit(uint256,uint256)"](0, amount);
+    await nft.connect(alice).setApprovalForAll(lending.address, true);
+
+    const terms = {
+      lender: vault.address,
+      loanAmount: ethers.utils.parseEther("10"),
+      interestRate: 550,
+      duration: 12 * 24 * 3600, // 12 days
+      collateralAddress: nft.address,
+      collateralId: 1,
+      borrower: alice.address,
+      expiration: Math.floor(Date.now() / 1000) + 5 * 60,
+      currency: token.address,
+      priceLiquidation: false,
+    };
+    const signature = await signLoanTerms(bob, lending.address, terms);
+    await lending.connect(admin).grantRole(signerRole, bob.address);
+    await vault.connect(admin).grantRole(defaultAdminRole, bob.address);
+    const loanId = await lending
+      .connect(alice)
+      .callStatic.initiateLoan(terms, signature);
+    await lending
+      .connect(alice)
+      .initiateLoan(terms, signature);
+
+    const pendingLoans = await vault.getPendingLoans(lenderNote.address);
+    expect(pendingLoans.length).to.be.eq(1);
+    expect(pendingLoans[0]).to.be.eq(loanId);
+    const loan = await vault.getLoan(lenderNote.address, loanId);
+    expect(loan.status).to.be.eq(1);
+    expect(loan.maturity).to.be.lt(terms.expiration + terms.duration);
+    expect(loan.duration).to.be.eq(terms.duration);
+    expect(loan.collateralToken).to.be.eq(terms.collateralAddress);
+    expect(loan.collateralTokenId).to.be.eq(terms.collateralId);
+    expect(loan.principal).to.be.eq(terms.loanAmount);
+    expect(loan.repayment).to.be.gt(terms.loanAmount);
   });
 });

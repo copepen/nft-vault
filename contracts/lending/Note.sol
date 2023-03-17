@@ -93,7 +93,7 @@ contract Note is ERC721, AccessControlEnumerable, INote {
     /// @param tokenId The note ID to mint
     function mint(address to, uint256 tokenId) external returns (uint256) {
         if (!hasRole(ADMIN_ROLE, _msgSender())) revert MissingRole();
-        _mint(to, tokenId);
+        _safeMint(to, tokenId);
 
         return tokenId;
     }
