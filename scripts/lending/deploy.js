@@ -5,6 +5,7 @@ async function main() {
   const { ethers, upgrades, deployments } = hre;
 
   const accounts = await ethers.getSigners();
+  console.log(accounts[0].address);
 
   const lenderNoteArgs = ["Spice Lender Note", "SLN"];
   const borrowerNoteArgs = ["Spice Borrower Note", "SBN"];

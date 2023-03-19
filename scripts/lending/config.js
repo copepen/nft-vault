@@ -1,8 +1,8 @@
 const config = {
   1: {
-    prologue: "",
-    lending: "",
-    weth: "",
+    prologue: "0x6110d61DD1133b0f845f1025d6678Cd22A11a2fe",
+    lending: "0x5d28a7AF78635d4f4C0BF5C404241A941A7EbD0A",
+    weth: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
   },
   5: {
     prologue: "0xc118f4bF7f156F3B2027394f2129f32C03FbB1D4",
