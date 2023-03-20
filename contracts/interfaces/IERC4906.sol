@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-pragma solidity 0.8.17;
+pragma solidity ^0.8.17;
 
 /// @title EIP-721 Metadata Update Extension
 interface IERC4906 {
