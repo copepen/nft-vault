@@ -1115,7 +1115,7 @@ describe("Vault", function () {
 
     await token.connect(alice).approve(nft.address, ethers.constants.MaxUint256);
     const amount = ethers.utils.parseEther("100");
-    await nft.connect(alice)["deposit(uint256,uint256)"](0, amount);
+    await nft.connect(alice)["deposit(uint256,uint256)"](0, amount.add(ethers.utils.parseEther("0.08")));
     await nft.connect(alice).setApprovalForAll(lending.address, true);
 
     const terms = {

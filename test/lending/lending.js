@@ -22,6 +22,8 @@ describe("Spice Lending", function () {
 
   let defaultAdminRole, spiceRole, signerRole, spiceNftRole;
 
+  const mintPrice = ethers.utils.parseEther("0.08");
+
   async function deployNFT() {
     const TestERC721 = await ethers.getContractFactory("TestERC721");
     const nft = await TestERC721.deploy("TestNFT", "NFT", "baseuri");
@@ -236,7 +238,7 @@ describe("Spice Lending", function () {
       "Spice0",
       "s0",
       weth.address,
-      ethers.utils.parseEther("0.08"),
+      mintPrice,
       555,
       [],
       admin.address,
@@ -249,7 +251,7 @@ describe("Spice Lending", function () {
       "Spice0",
       "s0",
       weth.address,
-      ethers.utils.parseEther("0.08"),
+      mintPrice,
       555,
       [],
       admin.address,
@@ -275,15 +277,15 @@ describe("Spice Lending", function () {
     const amount = ethers.utils.parseEther("100");
     await weth
       .connect(whale)
-      .transfer(alice.address, amount.add(ethers.utils.parseEther("0.08")));
+      .transfer(alice.address, amount.add(mintPrice));
     await weth.connect(alice).approve(nft.address, ethers.constants.MaxUint256);
-    await nft.connect(alice)["deposit(uint256,uint256)"](0, amount);
+    await nft.connect(alice)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
 
     await weth
       .connect(whale)
-      .transfer(bob.address, amount.add(ethers.utils.parseEther("0.08")));
+      .transfer(bob.address, amount.add(mintPrice));
     await weth.connect(bob).approve(nft.address, ethers.constants.MaxUint256);
-    await nft.connect(bob)["deposit(uint256,uint256)"](0, amount);
+    await nft.connect(bob)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
 
     await nft.connect(dev).setBaseURI("uri://");
     await nft.connect(dev).setWithdrawable(true);
@@ -608,7 +610,7 @@ describe("Spice Lending", function () {
       const amount = ethers.utils.parseEther("100");
       await weth
         .connect(whale)
-        .transfer(alice.address, amount.add(ethers.utils.parseEther("0.08")));
+        .transfer(alice.address, amount.add(mintPrice));
       await weth
         .connect(alice)
         .approve(nft1.address, ethers.constants.MaxUint256);
