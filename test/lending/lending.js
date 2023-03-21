@@ -193,19 +193,6 @@ describe("Spice Lending", function () {
         500,
         8000,
         1000,
-        10001,
-        treasury.address,
-      ])
-    ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
-
-    await expect(
-      upgrades.deployBeaconProxy(beacon, SpiceLending, [
-        signer.address,
-        lenderNote.address,
-        borrowerNote.address,
-        500,
-        8000,
-        1000,
         6000,
         ethers.constants.AddressZero,
       ])
@@ -364,12 +351,6 @@ describe("Spice Lending", function () {
         ).to.be.revertedWith(
           `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
         );
-      });
-
-      it("Should not set bigger than DENOMINATOR", async function () {
-        await expect(
-          lending.connect(admin).setLoanRatio(10001)
-        ).to.be.revertedWithCustomError(lending, "ParameterOutOfBounds");
       });
 
       it("Should set new loan ratio", async function () {

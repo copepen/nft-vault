@@ -196,9 +196,6 @@ contract SpiceLending is
         if (_liquidationFeeRatio > DENOMINATOR) {
             revert ParameterOutOfBounds();
         }
-        if (_loanRatio > DENOMINATOR) {
-            revert ParameterOutOfBounds();
-        }
         if (_feeRecipient == address(0)) {
             revert InvalidAddress();
         }
@@ -282,9 +279,6 @@ contract SpiceLending is
     function setLoanRatio(
         uint256 _loanRatio
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_loanRatio > DENOMINATOR) {
-            revert ParameterOutOfBounds();
-        }
         loanRatio = _loanRatio;
 
         emit LoanRatioUpdated(_loanRatio);
