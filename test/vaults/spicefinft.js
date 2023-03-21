@@ -488,7 +488,7 @@ describe("SpiceFiNFT4626", function () {
         await weth
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
-        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
         expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(
           assets.mul(9300).div(10000)
@@ -511,7 +511,7 @@ describe("SpiceFiNFT4626", function () {
         await weth
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
-        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
         expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(
           assets.mul(9300).div(10000)
@@ -592,7 +592,7 @@ describe("SpiceFiNFT4626", function () {
 
         const tx = await spiceVault
           .connect(whale)
-          ["deposit(uint256,uint256)"](0, amount);
+          ["deposit(uint256,uint256)"](0, amount.add(mintPrice));
 
         expect(await spiceVault.ownerOf(1)).to.be.eq(whale.address);
         expect(await weth.balanceOf(whale.address)).to.be.eq(
@@ -670,7 +670,7 @@ describe("SpiceFiNFT4626", function () {
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
 
-        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
 
         const beforeBalance = await weth.balanceOf(whale.address);
 
@@ -792,7 +792,7 @@ describe("SpiceFiNFT4626", function () {
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
 
-        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
       });
 
       it("When paused", async function () {
@@ -973,7 +973,7 @@ describe("SpiceFiNFT4626", function () {
           .connect(whale)
           .approve(spiceVault.address, ethers.constants.MaxUint256);
 
-        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
       });
 
       it("When paused", async function () {
@@ -1648,7 +1648,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
         });
 
         it("Only strategist can call", async function () {
@@ -1720,7 +1720,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
         });
 
         it("Only strategist can call", async function () {
@@ -1792,7 +1792,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
           await spiceVault
             .connect(strategist)
@@ -1866,7 +1866,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
           await spiceVault
             .connect(strategist)
@@ -1942,7 +1942,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
         });
 
         it("Only strategist can call", async function () {
@@ -2014,7 +2014,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
         });
 
         it("Only strategist can call", async function () {
@@ -2086,7 +2086,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
           await spiceVault
             .connect(strategist)
@@ -2160,7 +2160,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
           await spiceVault
             .connect(strategist)
@@ -2236,7 +2236,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
         });
 
         it("Only strategist can call", async function () {
@@ -2311,7 +2311,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
         });
 
         it("Only strategist can call", async function () {
@@ -2386,7 +2386,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
           await spiceVault
             .connect(strategist)
@@ -2460,7 +2460,7 @@ describe("SpiceFiNFT4626", function () {
             .approve(spiceVault.address, ethers.constants.MaxUint256);
           await spiceVault
             .connect(whale)
-            ["deposit(uint256,uint256)"](0, assets);
+            ["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
           await spiceVault
             .connect(strategist)

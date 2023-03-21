@@ -529,8 +529,12 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 assets
     ) external whenNotPaused nonReentrant returns (uint256 shares) {
+        if (tokenId == 0 && assets <= mintPrice) {
+            revert ParameterOutOfBounds();
+        }
+
         // Compute number of shares to mint from current vault share price
-        shares = previewDeposit(assets);
+        shares = previewDeposit(tokenId == 0 ? assets - mintPrice : assets);
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -538,11 +542,12 @@ contract SpiceFiNFT4626 is
         IERC20Upgradeable(_asset).transferFrom(
             msg.sender,
             address(this),
-            tokenId == 0 ? assets + mintPrice : assets
+            assets
         );
 
         if (tokenId == 0) {
             _transferMintFee();
+            assets -= mintPrice;
         }
 
         _deposit(msg.sender, tokenId, assets, shares);
