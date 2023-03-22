@@ -489,7 +489,7 @@ contract SpiceLending is
         if (
             _amount >
             collateral -
-                data.terms.loanAmount -
+                data.balance -
                 ((payment * DENOMINATOR) / loanRatio)
         ) {
             revert LoanAmountExceeded();
