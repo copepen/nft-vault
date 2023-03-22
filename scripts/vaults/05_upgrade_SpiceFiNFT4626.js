@@ -1,8 +1,8 @@
 const hre = require("hardhat");
 
 async function main() {
-  // const { ethers, upgrades } = hre;
-// 
+  const { ethers, upgrades } = hre;
+
   // const beacon = await deployments.get("SpiceFiNFT4626");
   // const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
   // const vault = await upgrades.upgradeBeacon(beacon.address, SpiceFiNFT4626, {
@@ -16,7 +16,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0xEDb66190A2283dfc182e7c3f48EfcB204ab4D7D2",
+        address: '0x1CbeB970912f7F5a5252D3DEAE09dd56b7b664C4',
         contract: "contracts/vaults/SpiceFiNFT4626.sol:SpiceFiNFT4626",
         constructorArguments: [],
       });

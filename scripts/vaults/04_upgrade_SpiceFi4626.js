@@ -11,7 +11,7 @@ async function main() {
   });
   await vault.deployed();
 
-  console.log("SpiceFi4626 successfully upgraded!");
+  console.log(`SpiceFi4626 successfully upgraded to ${vault.address}!`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
