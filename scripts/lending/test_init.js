@@ -97,6 +97,7 @@ async function main() {
     loanterms,
     res.data.signature
   );
+  console.log(`Initiating new loan`);
   const tx = await lending.initiateLoan(loanterms, res.data.signature);
   await tx.wait();
   console.log(`New loan initiated with loan ID ${loanId}`);

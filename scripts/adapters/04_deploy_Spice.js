@@ -3,9 +3,9 @@ const hre = require("hardhat");
 async function main() {
   const { ethers } = hre;
 
-  // GOERLI ADDRESS: 0x37f8bBE2A9fc816AF6b6843eA0E2DA86289b81DE
+  // GOERLI ADDRESS: 0xb0F1Cd55CA8897306aEb53f671dD87125f5dBF0d
   const args = [
-    "0x37f8bBE2A9fc816AF6b6843eA0E2DA86289b81DE", // TODO: Spice Lending contract
+    "0xb0F1Cd55CA8897306aEb53f671dD87125f5dBF0d", // TODO: Spice Lending contract
   ];
   // const SpiceNoteAdapterFactory = await ethers.getContractFactory(
     // "SpiceNoteAdapter"
@@ -18,7 +18,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0xD3CC63532a29B7721bf4df57B051d1B4806d120B",
+        address: "0x3512d3a78a885CAcA73e68bAB4381C12049FE36F",
         contract: "contracts/integrations/Spice/SpiceNoteAdapter.sol:SpiceNoteAdapter",
         constructorArguments: args,
       });

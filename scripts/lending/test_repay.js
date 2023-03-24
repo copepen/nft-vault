@@ -9,7 +9,7 @@ async function main() {
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
   const lending = SpiceLending.attach(config[chainId].lending);
 
-  const loanId = 2;
+  const loanId = 1;
 
   const tx = await lending.repay(loanId);
   console.log("Repay tx submitted: ", tx.hash);

@@ -15,18 +15,18 @@ async function main() {
     chainId,
   };
 
-  const loanId = 5;
+  const loanId = 2;
 
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
   const vault = SpiceFiNFT4626.attach(config[chainId].prologue);
   const terms = {
-    loanAmount: ethers.utils.parseEther("0.1").toString(),
+    loanAmount: ethers.utils.parseEther("0.7").toString(),
     duration: (10 * 24 * 3600).toString(), // 10 days
     collateralAddress: vault.address,
     collateralId: 82,
     borrower: signer.address,
     currency: config[chainId].weth,
-    additionalLoanAmount: ethers.utils.parseEther("0.01").toString(),
+    additionalLoanAmount: ethers.utils.parseEther("0.4").toString(),
     additionalDuration: 0,
   };
   const types = {
@@ -59,6 +59,10 @@ async function main() {
       data.balance.add(data.interestAccrued).add(terms.additionalLoanAmount)
     )
   ) {
+    console.log(loanterms.loanAmount);
+    console.log(data.balance);
+    console.log(data.interestAccrued);
+    console.log(terms.additionalLoanAmount);
     console.log("'loanAmount' is invalid");
     return;
   }
