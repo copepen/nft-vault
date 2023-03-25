@@ -12,7 +12,7 @@ async function main() {
   let vault;
   let bend;
   let drops;
-  // let para;
+  let para;
   let meta;
   let spiceVault;
   let spiceNFTVault;
@@ -27,8 +27,8 @@ async function main() {
   const bendVaultSymbol = "spiceETH";
   const dropsVaultName = "Spice CEther";
   const dropsVaultSymbol = "SCEther";
-  // const paraVaultName = "Spice pWETH";
-  // const paraVaultSymbol = "spWETH";
+  const paraVaultName = "Spice pWETH";
+  const paraVaultSymbol = "spWETH";
   const metaVaultName = "Spice mWETH";
   const metaVaultSymbol = "smWETH";
 
@@ -90,15 +90,15 @@ async function main() {
     constants.tokens.DropsETH,
   ]);
 
-  // const Para4626 = await ethers.getContractFactory("Para4626");
-  // beacon = await upgrades.deployBeacon(Para4626);
-// 
-  // para = await upgrades.deployBeaconProxy(beacon, Para4626, [
-    // paraVaultName,
-    // paraVaultSymbol,
-    // constants.contracts.ParaPool,
-    // constants.tokens.pWETH,
-  // ]);
+  const Para4626 = await ethers.getContractFactory("Para4626");
+  beacon = await upgrades.deployBeacon(Para4626);
+
+  para = await upgrades.deployBeaconProxy(beacon, Para4626, [
+    paraVaultName,
+    paraVaultSymbol,
+    constants.contracts.ParaPool,
+    constants.tokens.pWETH,
+  ]);
 
   const Meta4626 = await ethers.getContractFactory("Meta4626");
   beacon = await upgrades.deployBeacon(Meta4626);
@@ -147,7 +147,7 @@ async function main() {
     "spice-nftfi": vault.address,
     bend: bend.address,
     drops: drops.address,
-    // para: para.address,
+    para: para.address,
     meta: meta.address,
     spiceVault: spiceVault.address,
     spiceNFTVault: spiceNFTVault.address,
@@ -176,14 +176,14 @@ async function main() {
   // await spiceVault.grantRole(vaultRole, vault.address);
   await spiceVault.grantRole(vaultRole, bend.address);
   await spiceVault.grantRole(vaultRole, drops.address);
-  // await spiceVault.grantRole(vaultRole, para.address);
+  await spiceVault.grantRole(vaultRole, para.address);
   await spiceVault.grantRole(vaultRole, meta.address);
   await spiceVault.grantRole(userRole, whale.address);
   await checkRole(spiceVault, strategist.address, strategistRole, true);
   // await checkRole(spiceVault, vault.address, vaultRole, true);
   await checkRole(spiceVault, bend.address, vaultRole, true);
   await checkRole(spiceVault, drops.address, vaultRole, true);
-  // await checkRole(spiceVault, para.address, vaultRole, true);
+  await checkRole(spiceVault, para.address, vaultRole, true);
   await checkRole(spiceVault, meta.address, vaultRole, true);
   await checkRole(spiceVault, whale.address, userRole, true);
 
@@ -202,13 +202,13 @@ async function main() {
   await spiceNFTVault.grantRole(vaultRoleNFT, vault.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, bend.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, drops.address);
-  // await spiceNFTVault.grantRole(vaultRoleNFT, para.address);
+  await spiceNFTVault.grantRole(vaultRoleNFT, para.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, meta.address);
   await checkRole(spiceNFTVault, strategist.address, strategistRoleNFT, true);
   await checkRole(spiceNFTVault, vault.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, bend.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, drops.address, vaultRoleNFT, true);
-  // await checkRole(spiceNFTVault, para.address, vaultRoleNFT, true);
+  await checkRole(spiceNFTVault, para.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, meta.address, vaultRoleNFT, true);
 
   await spiceNFTVault.grantRole(spiceRoleNFT, spiceAdmin.address);
@@ -223,7 +223,7 @@ async function main() {
     //console.log(receipt.events?.filter((x) => {return x.event == "Transfer"}));
     await spiceVault
       .connect(whale)
-      ["depositETH(uint256,address)"](amount, whale.address);
+      ["deposit(uint256,address)"](amount, whale.address);
   }
   await depositfunds();
   console.log(weth.address);
@@ -245,7 +245,7 @@ async function main() {
     //console.log(receipt.events?.filter((x) => {return x.event == "Transfer"}));
     await spiceNFTVault
       .connect(whale)
-      ["depositETH(uint256,uint256)"](0, amount);
+      ["deposit(uint256,uint256)"](0, amount);
   }
   await depositfundsNFT();
   console.log(weth.address);
