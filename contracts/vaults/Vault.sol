@@ -443,7 +443,7 @@ contract Vault is
 
             // For each loan ID
             uint256 numLoans = _pendingLoans[noteToken].length();
-            for (uint256 j; j != numLoans; ) {
+            for (uint256 j; j != numLoans; ++j) {
                 // Get loan ID
                 uint256 loanId = _pendingLoans[noteToken].at(j);
 
