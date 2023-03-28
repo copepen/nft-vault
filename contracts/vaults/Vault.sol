@@ -32,6 +32,7 @@ abstract contract VaultStorageV1 {
     enum LoanStatus {
         Uninitialized,
         Active,
+        Expired,
         Liquidated
     }
 
@@ -98,6 +99,10 @@ abstract contract VaultStorageV1 {
 
     /// @dev Mapping of note token contract to list of loan IDs
     mapping(address => EnumerableSetUpgradeable.UintSet) internal _pendingLoans;
+
+    /// @dev Mapping of note token contract to loan ID to note token ID
+    mapping(address => mapping(uint256 => uint256))
+        internal _loanToNoteTokenIds;
 }
 
 /**
@@ -425,7 +430,28 @@ contract Vault is
         address noteToken,
         uint256 loanId
     ) external view returns (Loan memory loan) {
+        uint256 noteTokenId = _loanToNoteTokenIds[noteToken][loanId];
+
+        // Lookup note adapter
+        INoteAdapter noteAdapter = _noteAdapters[noteToken];
+
+        // Get loan info
+        INoteAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(
+            noteTokenId
+        );
+
         loan = _loans[noteToken][loanId];
+
+        if (noteAdapter.isLiquidated(loanId)) {
+            loan.status = LoanStatus.Liquidated;
+        } else if (noteAdapter.isExpired(loanId)) {
+            loan.status = LoanStatus.Expired;
+        }
+
+        loan.maturity = loanInfo.maturity;
+        loan.duration = loanInfo.duration;
+        loan.principal = loanInfo.principal;
+        loan.repayment = loanInfo.repayment;
     }
 
     /// @notice Calculate total assets using current loans info
@@ -450,25 +476,32 @@ contract Vault is
                 // Lookup loan state
                 Loan memory loan = _loans[noteToken][loanId];
 
+                uint256 noteTokenId = _loanToNoteTokenIds[noteToken][loanId];
+
+                // Get loan info
+                INoteAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(
+                    noteTokenId
+                );
+
                 if (
                     noteAdapter.isRepaid(loanId) &&
                     loan.status != LoanStatus.Liquidated
                 ) {
                     continue;
                 } else if (loan.status == LoanStatus.Liquidated) {
-                    newTotalAssets += loan.repayment;
+                    newTotalAssets += loanInfo.repayment;
                 } else {
                     // price loan when active
-                    uint256 repayment = loan.repayment;
-                    uint256 interest = repayment - loan.principal;
-                    uint256 maturity = loan.maturity;
+                    uint256 repayment = loanInfo.repayment;
+                    uint256 interest = repayment - loanInfo.principal;
+                    uint256 maturity = loanInfo.maturity;
                     uint256 timeRemaining = maturity > block.timestamp
                         ? maturity - block.timestamp
                         : 0;
                     newTotalAssets +=
                         repayment -
                         (interest * timeRemaining) /
-                        loan.duration;
+                        loanInfo.duration;
                 }
             }
         }
@@ -660,6 +693,8 @@ contract Vault is
         INoteAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(
             noteTokenId
         );
+
+        _loanToNoteTokenIds[noteToken][loanInfo.loanId] = noteTokenId;
 
         // Store loan state
         Loan storage loan = _loans[noteToken][loanInfo.loanId];
