@@ -119,14 +119,14 @@ abstract contract VaultStorage is VaultStorageV1 {
  */
 contract Vault is
     IVault,
-    VaultStorage,
     Initializable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
     AccessControlEnumerableUpgradeable,
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
-    IERC721Receiver
+    IERC721Receiver,
+    VaultStorage
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using MathUpgradeable for uint256;
