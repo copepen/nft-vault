@@ -85,18 +85,21 @@ contract SpiceNoteAdapter is INoteAdapter {
         // Lookup loan data
         LibLoan.LoanData memory data = _lending.getLoanData(noteTokenId);
 
-        uint256 fullInterest = (data.terms.loanAmount *
+        uint256 loanEndTime = data.startedAt + data.terms.duration;
+        uint256 timeElapsed = loanEndTime - data.updatedAt;
+        uint256 newInterest = (data.balance *
             data.terms.interestRate *
-            data.terms.duration) /
+            timeElapsed) /
             10000 /
             365 days;
+        uint256 fullInterest = data.interestAccrued + newInterest;
 
         // Arrange into LoanInfo structure
         LoanInfo memory loanInfo = LoanInfo({
             loanId: noteTokenId,
             borrower: data.terms.borrower,
-            principal: data.terms.loanAmount,
-            repayment: data.terms.loanAmount + fullInterest,
+            principal: data.balance,
+            repayment: data.balance + fullInterest,
             maturity: uint64(data.startedAt) + data.terms.duration,
             duration: data.terms.duration,
             currencyToken: data.terms.currency,
