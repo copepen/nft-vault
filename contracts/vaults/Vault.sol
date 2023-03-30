@@ -859,6 +859,19 @@ contract Vault is
         _asset.approve(spender, amount);
     }
 
+    /// @notice Transfer NFT out of vault
+    /// @param nft NFT contract address
+    /// @param nftId NFT token ID
+    function transferNFT(
+        address nft,
+        uint256 nftId
+    ) external onlyRole(LIQUIDATOR_ROLE) {
+        IERC721Upgradeable token = IERC721Upgradeable(nft);
+        require(token.ownerOf(nftId) == address(this));
+
+        token.safeTransferFrom(address(this), msg.sender, nftId);
+    }
+
     /// @notice Liquidate loan and transfer collateral token to liquidator
     /// @param noteToken Note token contract
     /// @param loanId Loan ID
