@@ -32,7 +32,17 @@ interface ISpiceFiNFT4626 {
         uint256 assets
     ) external returns (uint256 shares);
 
+    function depositETH(
+        uint256 tokenId
+    ) external payable returns (uint256 shares);
+
     function withdraw(
+        uint256 tokenId,
+        uint256 assets,
+        address receiver
+    ) external returns (uint256 shares);
+
+    function withdrawETH(
         uint256 tokenId,
         uint256 assets,
         address receiver
@@ -468,6 +478,18 @@ contract SpiceLending is
         );
     }
 
+    /// @notice See {ISpiceLending-depositETH}
+    function depositETH(
+        uint256 _loanId
+    ) external payable nonReentrant returns (uint256 shares) {
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        // deposit funds on behalf of borrower
+        shares = ISpiceFiNFT4626(data.terms.collateralAddress).depositETH{
+            value: msg.value
+        }(data.terms.collateralId);
+    }
+
     /// @notice See {ISpiceLending-withdraw}
     function withdraw(
         uint256 _loanId,
@@ -488,15 +510,46 @@ contract SpiceLending is
 
         if (
             _amount >
-            collateral -
-                data.balance -
-                ((payment * DENOMINATOR) / loanRatio)
+            collateral - data.balance - ((payment * DENOMINATOR) / loanRatio)
         ) {
             revert LoanAmountExceeded();
         }
 
         // withdraw funds and transfer to borrower
         shares = ISpiceFiNFT4626(data.terms.collateralAddress).withdraw(
+            data.terms.collateralId,
+            _amount,
+            msg.sender
+        );
+    }
+
+    /// @notice See {ISpiceLending-withdrawETH}
+    function withdrawETH(
+        uint256 _loanId,
+        uint256 _amount
+    ) external nonReentrant returns (uint256 shares) {
+        LibLoan.LoanData storage data = loans[_loanId];
+
+        if (msg.sender != data.terms.borrower) {
+            revert InvalidMsgSender();
+        }
+
+        uint256 collateral = _getCollateralAmount(
+            data.terms.collateralAddress,
+            data.terms.collateralId
+        );
+        uint256 interestToPay = _calcInterest(data);
+        uint256 payment = data.balance + interestToPay;
+
+        if (
+            _amount >
+            collateral - data.balance - ((payment * DENOMINATOR) / loanRatio)
+        ) {
+            revert LoanAmountExceeded();
+        }
+
+        // withdraw funds and transfer to borrower
+        shares = ISpiceFiNFT4626(data.terms.collateralAddress).withdrawETH(
             data.terms.collateralId,
             _amount,
             msg.sender

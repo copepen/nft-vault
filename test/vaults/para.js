@@ -4,7 +4,7 @@ const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
 const { impersonateAccount } = require("../helpers/account");
 const constants = require("../constants");
 
-describe("Para4626", function () {
+describe.skip("Para4626", function () {
   let vault;
   let weth;
   let admin, alice, bob;

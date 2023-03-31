@@ -262,17 +262,17 @@ describe("Spice Lending", function () {
     await vault.connect(dev).grantRole(defaultAdminRole, alice.address);
 
     const amount = ethers.utils.parseEther("100");
-    await weth
-      .connect(whale)
-      .transfer(alice.address, amount.add(mintPrice));
+    await weth.connect(whale).transfer(alice.address, amount.add(mintPrice));
     await weth.connect(alice).approve(nft.address, ethers.constants.MaxUint256);
-    await nft.connect(alice)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
+    await nft
+      .connect(alice)
+      ["deposit(uint256,uint256)"](0, amount.add(mintPrice));
 
-    await weth
-      .connect(whale)
-      .transfer(bob.address, amount.add(mintPrice));
+    await weth.connect(whale).transfer(bob.address, amount.add(mintPrice));
     await weth.connect(bob).approve(nft.address, ethers.constants.MaxUint256);
-    await nft.connect(bob)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
+    await nft
+      .connect(bob)
+      ["deposit(uint256,uint256)"](0, amount.add(mintPrice));
 
     await nft.connect(dev).setBaseURI("uri://");
     await nft.connect(dev).setWithdrawable(true);
@@ -589,9 +589,7 @@ describe("Spice Lending", function () {
         .transfer(alice.address, ethers.utils.parseEther("100"));
 
       const amount = ethers.utils.parseEther("100");
-      await weth
-        .connect(whale)
-        .transfer(alice.address, amount.add(mintPrice));
+      await weth.connect(whale).transfer(alice.address, amount.add(mintPrice));
       await weth
         .connect(alice)
         .approve(nft1.address, ethers.constants.MaxUint256);
@@ -1257,6 +1255,35 @@ describe("Spice Lending", function () {
     });
   });
 
+  describe("DepositETH", function () {
+    let loanId;
+
+    beforeEach(async function () {
+      loanId = await initiateTestLoan(alice, 1, false);
+    });
+
+    it("When deposit 0 amount", async function () {
+      await expect(
+        lending.connect(alice).callStatic.depositETH(loanId, {
+          value: 0,
+        })
+      ).to.be.revertedWithCustomError(nft, "ParameterOutOfBounds");
+    });
+
+    it("Make additional deposit", async function () {
+      const beforeShares = await nft.tokenShares(1);
+      const amount = ethers.utils.parseEther("1");
+      const shares = await lending
+        .connect(alice)
+        .callStatic.depositETH(loanId, { value: amount });
+      await lending.connect(alice).depositETH(loanId, { value: amount });
+
+      const afterShares = await nft.tokenShares(1);
+      expect(shares).to.be.eq(amount);
+      expect(afterShares).to.be.eq(beforeShares.add(shares));
+    });
+  });
+
   describe("Withdraw", function () {
     let loanId;
 
@@ -1292,6 +1319,44 @@ describe("Spice Lending", function () {
       expect(shares).to.be.eq(amount);
       expect(beforeShares).to.be.eq(afterShares.add(shares));
       expect(afterBalance).to.be.eq(beforeBalance.add(amount));
+    });
+  });
+
+  describe("WithdrawETH", function () {
+    let loanId;
+
+    beforeEach(async function () {
+      loanId = await initiateTestLoan(alice, 1, false);
+    });
+
+    it("When caller is not borrower", async function () {
+      const amount = ethers.utils.parseEther("1");
+      await expect(
+        lending.connect(bob).withdrawETH(loanId, amount)
+      ).to.be.revertedWithCustomError(lending, "InvalidMsgSender");
+    });
+
+    it("When withdraw too much", async function () {
+      const amount = ethers.utils.parseEther("85");
+      await expect(
+        lending.connect(alice).withdrawETH(loanId, amount)
+      ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
+    });
+
+    it("Withdraw from NFT vault", async function () {
+      const beforeShares = await nft.tokenShares(1);
+      const beforeBalance = await ethers.provider.getBalance(alice.address);
+      const amount = ethers.utils.parseEther("1");
+      const shares = await lending
+        .connect(alice)
+        .callStatic.withdrawETH(loanId, amount);
+      await lending.connect(alice).withdrawETH(loanId, amount);
+
+      const afterShares = await nft.tokenShares(1);
+      const afterBalance = await ethers.provider.getBalance(alice.address);
+      expect(shares).to.be.eq(amount);
+      expect(beforeShares).to.be.eq(afterShares.add(shares));
+      expect(afterBalance).to.be.closeTo(beforeBalance.add(amount), ethers.utils.parseEther("0.01"));
     });
   });
 });

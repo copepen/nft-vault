@@ -81,12 +81,30 @@ interface ISpiceLending {
         uint256 _amount
     ) external returns (uint256 shares);
 
+    /// @notice Deposit into vault NFT represents
+    /// @param _loanId Loan ID
+    ///
+    /// @return shares additional shares of vault
+    function depositETH(
+        uint256 _loanId
+    ) external payable returns (uint256 shares);
+
     /// @notice Withdraw from vault NFT represents
     /// @param _loanId Loan ID
     /// @param _amount Amount to withdraw
     ///
     /// @return shares burnt shares of vault
     function withdraw(
+        uint256 _loanId,
+        uint256 _amount
+    ) external returns (uint256 shares);
+
+    /// @notice Withdraw from vault NFT represents
+    /// @param _loanId Loan ID
+    /// @param _amount Amount to withdraw
+    ///
+    /// @return shares burnt shares of vault
+    function withdrawETH(
         uint256 _loanId,
         uint256 _amount
     ) external returns (uint256 shares);
