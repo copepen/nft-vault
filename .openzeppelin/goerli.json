@@ -8838,7 +8838,7 @@
             "label": "_noteTokens",
             "offset": 0,
             "slot": "6",
-            "type": "t_struct(AddressSet)4011_storage",
+            "type": "t_struct(AddressSet)6588_storage",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:88"
           },
@@ -8846,7 +8846,7 @@
             "label": "_noteAdapters",
             "offset": 0,
             "slot": "8",
-            "type": "t_mapping(t_address,t_contract(INoteAdapter)5187)",
+            "type": "t_mapping(t_address,t_contract(INoteAdapter)14185)",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:91"
           },
@@ -8854,7 +8854,7 @@
             "label": "_notes",
             "offset": 0,
             "slot": "9",
-            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)5254_storage))",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)27133_storage))",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:94"
           },
@@ -8862,7 +8862,7 @@
             "label": "_loans",
             "offset": 0,
             "slot": "10",
-            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)5247_storage))",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)27126_storage))",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:97"
           },
@@ -8870,7 +8870,7 @@
             "label": "_pendingLoans",
             "offset": 0,
             "slot": "11",
-            "type": "t_mapping(t_address,t_struct(UintSet)4168_storage)",
+            "type": "t_mapping(t_address,t_struct(UintSet)6745_storage)",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:100"
           },
@@ -8975,7 +8975,7 @@
             "label": "_roleMembers",
             "offset": 0,
             "slot": "213",
-            "type": "t_mapping(t_bytes32,t_struct(AddressSet)4011_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)6588_storage)",
             "contract": "AccessControlEnumerableUpgradeable",
             "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
           },
@@ -9053,15 +9053,15 @@
             "label": "contract IERC20Upgradeable",
             "numberOfBytes": "20"
           },
-          "t_contract(IERC721)4428": {
+          "t_contract(IERC721)9673": {
             "label": "contract IERC721",
             "numberOfBytes": "20"
           },
-          "t_contract(INoteAdapter)5187": {
+          "t_contract(INoteAdapter)14185": {
             "label": "contract INoteAdapter",
             "numberOfBytes": "20"
           },
-          "t_enum(LoanStatus)5230": {
+          "t_enum(LoanStatus)27109": {
             "label": "enum VaultStorageV1.LoanStatus",
             "members": [
               "Uninitialized",
@@ -9074,7 +9074,7 @@
             "label": "mapping(address => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_contract(INoteAdapter)5187)": {
+          "t_mapping(t_address,t_contract(INoteAdapter)14185)": {
             "label": "mapping(address => contract INoteAdapter)",
             "numberOfBytes": "32"
           },
@@ -9082,15 +9082,15 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)5247_storage))": {
+          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)27126_storage))": {
             "label": "mapping(address => mapping(uint256 => struct VaultStorageV1.Loan))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)5254_storage))": {
+          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)27133_storage))": {
             "label": "mapping(address => mapping(uint256 => struct VaultStorageV1.Note))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(UintSet)4168_storage)": {
+          "t_mapping(t_address,t_struct(UintSet)6745_storage)": {
             "label": "mapping(address => struct EnumerableSetUpgradeable.UintSet)",
             "numberOfBytes": "32"
           },
@@ -9098,7 +9098,7 @@
             "label": "mapping(address => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_bytes32,t_struct(AddressSet)4011_storage)": {
+          "t_mapping(t_bytes32,t_struct(AddressSet)6588_storage)": {
             "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
             "numberOfBytes": "32"
           },
@@ -9110,11 +9110,11 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(Loan)5247_storage)": {
+          "t_mapping(t_uint256,t_struct(Loan)27126_storage)": {
             "label": "mapping(uint256 => struct VaultStorageV1.Loan)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(Note)5254_storage)": {
+          "t_mapping(t_uint256,t_struct(Note)27133_storage)": {
             "label": "mapping(uint256 => struct VaultStorageV1.Note)",
             "numberOfBytes": "32"
           },
@@ -9122,24 +9122,24 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(AddressSet)4011_storage": {
+          "t_struct(AddressSet)6588_storage": {
             "label": "struct EnumerableSetUpgradeable.AddressSet",
             "members": [
               {
                 "label": "_inner",
-                "type": "t_struct(Set)3696_storage",
+                "type": "t_struct(Set)6273_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Loan)5247_storage": {
+          "t_struct(Loan)27126_storage": {
             "label": "struct VaultStorageV1.Loan",
             "members": [
               {
                 "label": "status",
-                "type": "t_enum(LoanStatus)5230",
+                "type": "t_enum(LoanStatus)27109",
                 "offset": 0,
                 "slot": "0"
               },
@@ -9157,7 +9157,7 @@
               },
               {
                 "label": "collateralToken",
-                "type": "t_contract(IERC721)4428",
+                "type": "t_contract(IERC721)9673",
                 "offset": 0,
                 "slot": "1"
               },
@@ -9182,7 +9182,7 @@
             ],
             "numberOfBytes": "160"
           },
-          "t_struct(Note)5254_storage": {
+          "t_struct(Note)27133_storage": {
             "label": "struct VaultStorageV1.Note",
             "members": [
               {
@@ -9224,7 +9224,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Set)3696_storage": {
+          "t_struct(Set)6273_storage": {
             "label": "struct EnumerableSetUpgradeable.Set",
             "members": [
               {
@@ -9242,12 +9242,12 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(UintSet)4168_storage": {
+          "t_struct(UintSet)6745_storage": {
             "label": "struct EnumerableSetUpgradeable.UintSet",
             "members": [
               {
                 "label": "_inner",
-                "type": "t_struct(Set)3696_storage",
+                "type": "t_struct(Set)6273_storage",
                 "offset": 0,
                 "slot": "0"
               }
