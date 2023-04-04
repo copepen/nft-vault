@@ -18,6 +18,7 @@ import "prb-math/contracts/PRBMathUD60x18.sol";
 
 import "../interfaces/IVault.sol";
 import "../interfaces/INoteAdapter.sol";
+import "../interfaces/IWETH.sol";
 
 /**
  * @title Storage for Vault
@@ -188,6 +189,12 @@ contract Vault is
     /// @notice Call failed
     error CallFailed();
 
+    /// @notice Refund failed
+    error RefundFailed();
+
+    /// @notice Withdraw failed
+    error WithdrawFailed();
+
     /**********/
     /* Events */
     /**********/
@@ -318,7 +325,7 @@ contract Vault is
     }
 
     /// @notice See {IERC4626-asset}.
-    function asset() external view returns (address) {
+    function asset() public view returns (address) {
         return address(_asset);
     }
 
@@ -528,10 +535,10 @@ contract Vault is
             revert ParameterOutOfBounds();
         }
 
-        _deposit(msg.sender, assets, shares, receiver);
-
         // Transfer cash from user to vault
         _asset.safeTransferFrom(msg.sender, address(this), assets);
+
+        _deposit(msg.sender, assets, shares, receiver);
     }
 
     /// See {IERC4626-mint}.
@@ -547,10 +554,10 @@ contract Vault is
         // Compute number of shares to mint from current vault share price
         assets = previewMint(shares);
 
-        _deposit(msg.sender, assets, shares, receiver);
-
         // Transfer cash from user to vault
         _asset.safeTransferFrom(msg.sender, address(this), assets);
+
+        _deposit(msg.sender, assets, shares, receiver);
     }
 
     /// See {IERC4626-redeem}.
@@ -573,7 +580,9 @@ contract Vault is
         uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
             assets;
 
-        _withdraw(msg.sender, receiver, owner, assets, shares, fees);
+        _withdraw(msg.sender, owner, assets, shares, fees);
+
+        _asset.safeTransfer(receiver, assets);
     }
 
     /// See {IERC4626-withdraw}.
@@ -598,7 +607,118 @@ contract Vault is
             MathUpgradeable.Rounding.Down
         );
 
-        _withdraw(msg.sender, receiver, owner, assets, shares, fees);
+        _withdraw(msg.sender, owner, assets, shares, fees);
+
+        _asset.safeTransfer(receiver, assets);
+    }
+
+    /// See {IVault-depositETH}.
+    function depositETH(
+        address receiver
+    ) external payable whenNotPaused nonReentrant returns (uint256 shares) {
+        uint256 assets = msg.value;
+
+        // Validate amount
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        // Compute number of shares to mint from current vault share price
+        shares = previewDeposit(assets);
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        IWETH(asset()).deposit{value: msg.value}();
+
+        _deposit(msg.sender, assets, shares, receiver);
+    }
+
+    /// See {IVault-mintETH}.
+    function mintETH(
+        uint256 shares,
+        address receiver
+    ) external payable whenNotPaused nonReentrant returns (uint256 assets) {
+        assets = previewMint(shares);
+        // Validate amount
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        if (msg.value < assets) {
+            revert ParameterOutOfBounds();
+        }
+
+        IWETH(asset()).deposit{value: assets}();
+
+        if (msg.value > assets) {
+            (bool success, ) = msg.sender.call{value: msg.value - assets}("");
+            if (!success) {
+                revert RefundFailed();
+            }
+        }
+
+        _deposit(msg.sender, assets, shares, receiver);
+    }
+
+    /// See {IVault-redeemETH}.
+    function redeemETH(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) external whenNotPaused nonReentrant returns (uint256 assets) {
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+        if (shares == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        // compute redemption amount
+        assets = previewRedeem(shares);
+
+        // compute fee
+        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
+            assets;
+
+        _withdraw(msg.sender, owner, assets, shares, fees);
+
+        IWETH(asset()).withdraw(assets);
+        (bool success, ) = receiver.call{value: assets}("");
+        if (!success) {
+            revert WithdrawFailed();
+        }
+    }
+
+    /// See {IVault-withdrawETH}.
+    function withdrawETH(
+        uint256 assets,
+        address receiver,
+        address owner
+    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
+        if (assets == 0) {
+            revert ParameterOutOfBounds();
+        }
+
+        // compute share amount
+        shares = previewWithdraw(assets);
+
+        // compute fee
+        uint256 fees = _convertToAssets(
+            shares - _convertToShares(assets, MathUpgradeable.Rounding.Up),
+            MathUpgradeable.Rounding.Down
+        );
+
+        _withdraw(msg.sender, owner, assets, shares, fees);
+
+        IWETH(asset()).withdraw(assets);
+        (bool success, ) = receiver.call{value: assets}("");
+        if (!success) {
+            revert WithdrawFailed();
+        }
     }
 
     /*****************************/
@@ -654,7 +774,6 @@ contract Vault is
     /// @dev Withdraw/redeem common workflow.
     function _withdraw(
         address caller,
-        address receiver,
         address owner,
         uint256 assets,
         uint256 shares,
@@ -668,8 +787,6 @@ contract Vault is
             revert InsufficientBalance();
 
         _burn(owner, shares);
-
-        _asset.safeTransfer(receiver, assets);
 
         if (fees > 0) {
             uint256 half = fees / 2;
