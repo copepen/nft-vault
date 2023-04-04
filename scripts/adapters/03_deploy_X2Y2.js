@@ -11,8 +11,8 @@ async function main() {
   );
   const adapter = await X2Y2NoteAdapterFactory.deploy(...args);
   await adapter.deployed();
-
-  console.log(`NFTfi Note Adapter deployed to ${adapter.address}`);
+  await deployments.save("X2Y2NoteAdapter", adapter);
+  console.log(`X2Y2 Note Adapter deployed to ${adapter.address}`);
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
