@@ -11,3 +11,4 @@ artifacts
 .openzeppelin/unknown-*
 
 .vscode
+.DS_Store
