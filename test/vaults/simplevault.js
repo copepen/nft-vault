@@ -388,6 +388,7 @@ describe("SimpleVault", function () {
     describe("Deposit", function () {
       it("When user is not whitelisted", async function () {
         await vault.connect(admin).grantRole(whitelistRole, bob.address);
+        await token.connect(alice).approve(vault.address, ethers.constants.MaxUint256);
         await expect(
           vault
             .connect(alice)
@@ -526,6 +527,7 @@ describe("SimpleVault", function () {
     describe("Mint", function () {
       it("When user is not whitelisted", async function () {
         await vault.connect(admin).grantRole(whitelistRole, bob.address);
+        await token.connect(alice).approve(vault.address, ethers.constants.MaxUint256);
         await expect(
           vault
             .connect(alice)

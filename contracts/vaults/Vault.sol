@@ -1109,4 +1109,10 @@ contract Vault is
 
         return this.onERC721Received.selector;
     }
+
+    /*************/
+    /* Fallbacks */
+    /*************/
+
+    receive() external payable {}
 }
