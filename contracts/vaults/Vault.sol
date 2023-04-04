@@ -340,7 +340,7 @@ contract Vault is
     }
 
     /// @notice See {IERC4626-convertToAssets}
-    function convertToAssets(uint256 shares) external view returns (uint256) {
+    function convertToAssets(uint256 shares) public view returns (uint256) {
         return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
     }
 
@@ -576,11 +576,7 @@ contract Vault is
         // compute redemption amount
         assets = previewRedeem(shares);
 
-        // compute fee
-        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
-            assets;
-
-        _withdraw(msg.sender, owner, assets, shares, fees);
+        _withdraw(msg.sender, owner, assets, shares);
 
         _asset.safeTransfer(receiver, assets);
     }
@@ -601,13 +597,7 @@ contract Vault is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        // compute fee
-        uint256 fees = _convertToAssets(
-            shares - _convertToShares(assets, MathUpgradeable.Rounding.Up),
-            MathUpgradeable.Rounding.Down
-        );
-
-        _withdraw(msg.sender, owner, assets, shares, fees);
+        _withdraw(msg.sender, owner, assets, shares);
 
         _asset.safeTransfer(receiver, assets);
     }
@@ -677,11 +667,7 @@ contract Vault is
         // compute redemption amount
         assets = previewRedeem(shares);
 
-        // compute fee
-        uint256 fees = _convertToAssets(shares, MathUpgradeable.Rounding.Down) -
-            assets;
-
-        _withdraw(msg.sender, owner, assets, shares, fees);
+        _withdraw(msg.sender, owner, assets, shares);
 
         IWETH(asset()).withdraw(assets);
         (bool success, ) = receiver.call{value: assets}("");
@@ -706,13 +692,7 @@ contract Vault is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        // compute fee
-        uint256 fees = _convertToAssets(
-            shares - _convertToShares(assets, MathUpgradeable.Rounding.Up),
-            MathUpgradeable.Rounding.Down
-        );
-
-        _withdraw(msg.sender, owner, assets, shares, fees);
+        _withdraw(msg.sender, owner, assets, shares);
 
         IWETH(asset()).withdraw(assets);
         (bool success, ) = receiver.call{value: assets}("");
@@ -776,9 +756,10 @@ contract Vault is
         address caller,
         address owner,
         uint256 assets,
-        uint256 shares,
-        uint256 fees
+        uint256 shares
     ) internal {
+        uint256 fees = convertToAssets(shares) - assets;
+
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
         }
