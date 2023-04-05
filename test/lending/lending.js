@@ -1331,7 +1331,7 @@ describe("Spice Lending", function () {
     });
 
     it("When withdraw too much", async function () {
-      const amount = ethers.utils.parseEther("85");
+      const amount = ethers.utils.parseEther("96");
       await expect(
         lending.connect(alice).withdrawETH(loanId, amount)
       ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
