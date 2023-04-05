@@ -8,9 +8,9 @@ async function main() {
   const beacon = await upgrades.deployBeacon(Vault);
   await beacon.deployed();
 
-  await deployments.save("VaultBeacon", beacon);
+  await deployments.save("Vault3", beacon);
 
-  console.log(`Vault Beacon deployed to ${beacon.address}`);
+  console.log(`Vault Beacon 3 deployed to ${beacon.address}`);
 
   const spiceFactory = await deployments.get("SpiceFiFactory");
   const VaultFactory = await hre.ethers.getContractFactory("VaultFactory");
@@ -25,9 +25,9 @@ async function main() {
 
   await factory.deployed();
 
-  await deployments.save("VaultFactory", factory);
+  await deployments.save("VaultFactory3", factory);
 
-  console.log(`VaultFactory deployed to ${factory.address}`);
+  console.log(`VaultFactory3 deployed to ${factory.address}`);
 
   const WETH =
     hre.network.name === "mainnet"
@@ -36,7 +36,7 @@ async function main() {
   const vault = await factory.callStatic.createVault(WETH, []);
   await factory.createVault(WETH, []);
 
-  console.log(`Vault deployed to ${vault}`);
+  console.log(`Vault3 deployed to ${vault}`);
 
   const implAddr = await beacon.implementation();
 

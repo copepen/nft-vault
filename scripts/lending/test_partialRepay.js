@@ -6,7 +6,7 @@ async function main() {
   const signer = (await ethers.getSigners())[0];
   const chainId = await signer.getChainId();
 
-  const loanId = 1;
+  const loanId = 13;
   const payment = ethers.utils.parseEther("0.02");
 
   const SpiceLending = await ethers.getContractFactory("SpiceLending");

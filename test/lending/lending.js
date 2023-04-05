@@ -14,7 +14,7 @@ describe("Spice Lending", function () {
   let vault;
   let lending;
   let lenderNote, borrowerNote;
-  let nft, nft1, nft2;
+  let nft, nft1;
   let weth;
   let admin, alice, bob, treasury, signer, spiceAdmin;
   let whale, dev;
@@ -23,13 +23,6 @@ describe("Spice Lending", function () {
   let defaultAdminRole, spiceRole, signerRole, spiceNftRole;
 
   const mintPrice = ethers.utils.parseEther("0.08");
-
-  async function deployNFT() {
-    const TestERC721 = await ethers.getContractFactory("TestERC721");
-    const nft = await TestERC721.deploy("TestNFT", "NFT", "baseuri");
-
-    return nft;
-  }
 
   async function checkRole(contract, user, role, check) {
     expect(await contract.hasRole(role, user)).to.equal(check);
@@ -73,8 +66,6 @@ describe("Spice Lending", function () {
     );
     dev = await ethers.getSigner(constants.accounts.Dev);
 
-    nft2 = await deployNFT();
-
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
     await weth
@@ -117,7 +108,7 @@ describe("Spice Lending", function () {
         500,
         8000,
         1000,
-        6000,
+        15000,
         treasury.address,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
@@ -130,7 +121,7 @@ describe("Spice Lending", function () {
         500,
         8000,
         1000,
-        6000,
+        15000,
         treasury.address,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
@@ -143,7 +134,7 @@ describe("Spice Lending", function () {
         500,
         8000,
         1000,
-        6000,
+        15000,
         treasury.address,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
@@ -156,7 +147,7 @@ describe("Spice Lending", function () {
         10001,
         8000,
         1000,
-        6000,
+        15000,
         treasury.address,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
@@ -169,7 +160,7 @@ describe("Spice Lending", function () {
         500,
         10001,
         1000,
-        6000,
+        15000,
         treasury.address,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
@@ -182,7 +173,7 @@ describe("Spice Lending", function () {
         500,
         8000,
         10001,
-        6000,
+        15000,
         treasury.address,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "ParameterOutOfBounds");
@@ -195,7 +186,7 @@ describe("Spice Lending", function () {
         500,
         8000,
         1000,
-        6000,
+        15000,
         ethers.constants.AddressZero,
       ])
     ).to.be.revertedWithCustomError(SpiceLending, "InvalidAddress");
@@ -207,7 +198,7 @@ describe("Spice Lending", function () {
       500,
       8000,
       1000,
-      6000,
+      15000,
       treasury.address,
     ]);
 
@@ -305,7 +296,7 @@ describe("Spice Lending", function () {
     });
 
     it("Should set the correct loan ratio", async function () {
-      expect(await lending.loanRatio()).to.equal(6000);
+      expect(await lending.loanRatio()).to.equal(15000);
     });
 
     it("Should initialize once", async function () {
@@ -441,7 +432,7 @@ describe("Spice Lending", function () {
     });
 
     it("When loan amount exceeds limit", async function () {
-      loanTerms.loanAmount = ethers.utils.parseEther("60").add(1);
+      loanTerms.loanAmount = ethers.utils.parseEther("150").add(1);
       const signature = await signLoanTerms(signer, lending.address, loanTerms);
       await expect(
         lending.connect(alice).initiateLoan(loanTerms, signature)
@@ -629,7 +620,7 @@ describe("Spice Lending", function () {
 
     it("When loan amount exceeds limit", async function () {
       const collateral = await nft.tokenShares(1);
-      terms.loanAmount = collateral.mul(6000).div(10000).add(1);
+      terms.loanAmount = collateral.mul(15000).div(10000).add(1);
       const signature = await signLoanTerms(signer, lending.address, terms);
       await expect(
         lending.connect(alice).updateLoan(loanId, terms, signature)
@@ -1299,10 +1290,13 @@ describe("Spice Lending", function () {
     });
 
     it("When withdraw too much", async function () {
-      const amount = ethers.utils.parseEther("85");
+      let amount = ethers.utils.parseEther("94");
       await expect(
         lending.connect(alice).withdraw(loanId, amount)
       ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
+
+      amount = ethers.utils.parseEther("93");
+      lending.connect(alice).withdraw(loanId, amount);
     });
 
     it("Withdraw from NFT vault", async function () {
