@@ -18,7 +18,7 @@ async function main() {
   const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
   const vault = SpiceFiNFT4626.attach(config[chainId].prologue);
   const terms = {
-    loanAmount: ethers.utils.parseEther("0.23").toString(),
+    loanAmount: ethers.utils.parseEther("0.0899").toString(),
     duration: 14 * 86400,
     collateralAddress: vault.address,
     collateralId: 82,
@@ -55,6 +55,8 @@ async function main() {
     return;
   }
   if (loanterms.loanAmount != terms.loanAmount) {
+    console.log(loanterms.loanAmount);
+    console.log(terms.loanAmount);
     console.log("'loanAmount' changed");
     return;
   }
