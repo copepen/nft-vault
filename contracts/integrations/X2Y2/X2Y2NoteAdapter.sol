@@ -7,20 +7,15 @@ import "../../interfaces/INoteAdapter.sol";
 /* X2Y2 Interfaces (subset) */
 /*******************************/
 
-interface IXY3 {
-    struct LoanDetail {
-        uint256 borrowAmount;
-        uint256 repayAmount;
-        uint256 nftTokenId;
-        address borrowAsset;
-        uint32 loanDuration;
-        uint16 adminShare;
-        uint64 loanStart;
-        address nftAsset;
-        address borrower;
-        bool isCollection;
-    }
+interface IAddressProvider {
+    function getXY3() external view returns (address);
 
+    function getLenderNote() external view returns (address);
+
+    function getBorrowerNote() external view returns (address);
+}
+
+interface IXY3 {
     enum StatusType {
         NOT_EXISTS,
         NEW,
@@ -32,11 +27,22 @@ interface IXY3 {
         StatusType status;
     }
 
-    function ticketToken() external view returns (address);
-
     function loanDetails(
-        uint32 _loanId
-    ) external view returns (LoanDetail memory);
+        uint32
+    )
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            address,
+            uint32,
+            uint16,
+            uint64,
+            address,
+            bool
+        );
 
     function getLoanState(
         uint32 _loanId
@@ -71,18 +77,22 @@ contract X2Y2NoteAdapter is INoteAdapter {
     /* Properties */
     /**************/
 
+    IAddressProvider private immutable _addressProvider;
     IXY3 private immutable _xy3;
-    IXy3Nft private immutable _noteToken;
+    IXy3Nft private immutable _lenderNote;
+    IERC721 private immutable _borrowerNote;
 
     /***************/
     /* Constructor */
     /***************/
 
     /// @notice X2Y2NoteAdapter constructor
-    /// @param xy3 XY3 contract
-    constructor(IXY3 xy3) {
-        _xy3 = xy3;
-        _noteToken = IXy3Nft(_xy3.ticketToken());
+    /// @param addressProvider X2Y2 Address Provider
+    constructor(IAddressProvider addressProvider) {
+        _addressProvider = addressProvider;
+        _xy3 = IXY3(_addressProvider.getXY3());
+        _lenderNote = IXy3Nft(_addressProvider.getLenderNote());
+        _borrowerNote = IERC721(_addressProvider.getBorrowerNote());
     }
 
     /******************/
@@ -96,7 +106,7 @@ contract X2Y2NoteAdapter is INoteAdapter {
 
     /// @inheritdoc INoteAdapter
     function noteToken() external view returns (IERC721) {
-        return IERC721(address(_noteToken));
+        return IERC721(address(_lenderNote));
     }
 
     /// @inheritdoc INoteAdapter
@@ -105,18 +115,18 @@ contract X2Y2NoteAdapter is INoteAdapter {
         address currencyToken
     ) external view returns (bool) {
         // Lookup loan id and loan minter
-        IXy3Nft.Ticket memory ticket = _noteToken.tickets(noteTokenId);
+        IXy3Nft.Ticket memory ticket = _lenderNote.tickets(noteTokenId);
 
         // Validate loan minter
         if (ticket.minter != address(_xy3)) return false;
 
         // Lookup loan detail
-        IXY3.LoanDetail memory loanDetail = _xy3.loanDetails(
+        (, , , address borrowAsset, , , , , ) = _xy3.loanDetails(
             uint32(ticket.loanId)
         );
 
         // Validate loan currency token matches
-        if (loanDetail.borrowAsset != currencyToken) return false;
+        if (borrowAsset != currencyToken) return false;
 
         return true;
     }
@@ -126,28 +136,39 @@ contract X2Y2NoteAdapter is INoteAdapter {
         uint256 noteTokenId
     ) external view returns (LoanInfo memory) {
         // Lookup loan id
-        IXy3Nft.Ticket memory ticket = _noteToken.tickets(noteTokenId);
+        IXy3Nft.Ticket memory ticket = _lenderNote.tickets(noteTokenId);
 
         // Lookup loan detail
-        IXY3.LoanDetail memory loanDetail = _xy3.loanDetails(
-            uint32(ticket.loanId)
-        );
+        (
+            uint256 borrowAmount,
+            uint256 repayAmount,
+            uint256 nftTokenId,
+            address borrowAsset,
+            uint32 loanDuration,
+            uint16 adminShare,
+            uint64 loanStart,
+            address nftAsset,
+
+        ) = _xy3.loanDetails(uint32(ticket.loanId));
 
         // Calculate admin fee
-        uint256 adminFee = ((loanDetail.repayAmount - loanDetail.borrowAmount) *
-            uint256(loanDetail.adminShare)) / 10000;
+        {
+            uint256 adminFee = ((repayAmount - borrowAmount) *
+                uint256(adminShare)) / 10000;
+            repayAmount -= adminFee;
+        }
 
         // Arrange into LoanInfo structure
         LoanInfo memory loanInfo = LoanInfo({
             loanId: ticket.loanId,
-            borrower: loanDetail.borrower,
-            principal: loanDetail.borrowAmount,
-            repayment: loanDetail.repayAmount - adminFee,
-            maturity: loanDetail.loanStart + loanDetail.loanDuration,
-            duration: loanDetail.loanDuration,
-            currencyToken: loanDetail.borrowAsset,
-            collateralToken: loanDetail.nftAsset,
-            collateralTokenId: loanDetail.nftTokenId
+            borrower: _borrowerNote.ownerOf(noteTokenId),
+            principal: borrowAmount,
+            repayment: repayAmount,
+            maturity: loanStart + loanDuration,
+            duration: loanDuration,
+            currencyToken: borrowAsset,
+            collateralToken: nftAsset,
+            collateralTokenId: nftTokenId
         });
 
         return loanInfo;
@@ -158,17 +179,17 @@ contract X2Y2NoteAdapter is INoteAdapter {
         uint256 noteTokenId
     ) external view returns (AssetInfo[] memory) {
         // Lookup loan id
-        IXy3Nft.Ticket memory ticket = _noteToken.tickets(noteTokenId);
+        IXy3Nft.Ticket memory ticket = _lenderNote.tickets(noteTokenId);
 
         // Lookup loan detail
-        IXY3.LoanDetail memory loanDetail = _xy3.loanDetails(
+        (, , uint256 nftTokenId, , , , , address nftAsset, ) = _xy3.loanDetails(
             uint32(ticket.loanId)
         );
 
         // Collect collateral assets
         AssetInfo[] memory collateralAssets = new AssetInfo[](1);
-        collateralAssets[0].token = loanDetail.nftAsset;
-        collateralAssets[0].tokenId = loanDetail.nftTokenId;
+        collateralAssets[0].token = nftAsset;
+        collateralAssets[0].tokenId = nftTokenId;
 
         return collateralAssets;
     }
@@ -214,10 +235,11 @@ contract X2Y2NoteAdapter is INoteAdapter {
         IXY3.LoanState memory loanState = _xy3.getLoanState(uint32(loanId));
 
         // Lookup loan detail
-        IXY3.LoanDetail memory loanDetail = _xy3.loanDetails(uint32(loanId));
+        (, , , , uint32 loanDuration, , uint64 loanStart, , ) = _xy3
+            .loanDetails(uint32(loanId));
 
         return
             loanState.status == IXY3.StatusType.NEW &&
-            block.timestamp > loanDetail.loanStart + loanDetail.loanDuration;
+            block.timestamp > loanStart + loanDuration;
     }
 }
