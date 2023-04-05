@@ -13,7 +13,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: '0x2136547312e13bd09Ee94321C5145C0661Cd0a48',
+        address: "0xFE4bF631B64b080b825436831e5294926DF785AB",
         contract: "contracts/lending/SpiceLending.sol:SpiceLending",
         constructorArguments: [],
       });
