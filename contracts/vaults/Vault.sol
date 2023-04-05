@@ -748,12 +748,13 @@ contract Vault is
         // Mint receipt tokens to receiver
         _mint(receiver, shares);
 
-        emit Deposit(msg.sender, receiver, assets, shares);
+        emit Deposit(caller, receiver, assets, shares);
     }
 
     /// @dev Withdraw/redeem common workflow.
     function _withdraw(
         address caller,
+        address receiver,
         address owner,
         uint256 assets,
         uint256 shares
@@ -777,7 +778,7 @@ contract Vault is
 
         _totalAssets = _totalAssets - assets;
 
-        emit Withdraw(msg.sender, msg.sender, owner, assets, shares);
+        emit Withdraw(caller, receiver, owner, assets, shares);
     }
 
     /// @dev Store loan info when new note token is received
