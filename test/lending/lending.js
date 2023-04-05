@@ -24,13 +24,6 @@ describe("Spice Lending", function () {
 
   const mintPrice = ethers.utils.parseEther("0.08");
 
-  async function deployNFT() {
-    const TestERC721 = await ethers.getContractFactory("TestERC721");
-    const nft = await TestERC721.deploy("TestNFT", "NFT", "baseuri");
-
-    return nft;
-  }
-
   async function checkRole(contract, user, role, check) {
     expect(await contract.hasRole(role, user)).to.equal(check);
   }
