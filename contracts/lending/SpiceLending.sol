@@ -487,10 +487,8 @@ contract SpiceLending is
         uint256 payment = data.balance + interestToPay;
 
         if (
-            _amount >
-            collateral -
-                data.balance -
-                ((payment * DENOMINATOR) / loanRatio)
+            _amount + ((payment * DENOMINATOR) / loanRatio) >
+            collateral - data.balance
         ) {
             revert LoanAmountExceeded();
         }
