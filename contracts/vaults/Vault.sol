@@ -576,7 +576,7 @@ contract Vault is
         // compute redemption amount
         assets = previewRedeem(shares);
 
-        _withdraw(msg.sender, owner, assets, shares);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
 
         _asset.safeTransfer(receiver, assets);
     }
@@ -597,7 +597,7 @@ contract Vault is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        _withdraw(msg.sender, owner, assets, shares);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
 
         _asset.safeTransfer(receiver, assets);
     }
@@ -667,7 +667,7 @@ contract Vault is
         // compute redemption amount
         assets = previewRedeem(shares);
 
-        _withdraw(msg.sender, owner, assets, shares);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
 
         IWETH(asset()).withdraw(assets);
         (bool success, ) = receiver.call{value: assets}("");
@@ -692,7 +692,7 @@ contract Vault is
         // compute share amount
         shares = previewWithdraw(assets);
 
-        _withdraw(msg.sender, owner, assets, shares);
+        _withdraw(msg.sender, receiver, owner, assets, shares);
 
         IWETH(asset()).withdraw(assets);
         (bool success, ) = receiver.call{value: assets}("");
