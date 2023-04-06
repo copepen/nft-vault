@@ -23,7 +23,13 @@ abstract contract Para4626Storage {
 
     /// @notice BToken address
     address public lpTokenAddress;
+}
 
+/**
+ * @title Storage v2 for Para4626
+ * @author Spice Finance Inc
+ */
+abstract contract Para4626StorageV2 {
     /// @notice TimeLock address
     address public timelock;
 
@@ -49,7 +55,8 @@ contract Para4626 is
     Initializable,
     ERC20Upgradeable,
     ReentrancyGuardUpgradeable,
-    AccessControlEnumerableUpgradeable
+    AccessControlEnumerableUpgradeable,
+    Para4626StorageV2
 {
     using MathUpgradeable for uint256;
 
@@ -199,6 +206,21 @@ contract Para4626 is
     /// @notice See {IERC4626-previewRedeem}
     function previewRedeem(uint256 shares) public view returns (uint256) {
         return _convertToAssets(shares, MathUpgradeable.Rounding.Down);
+    }
+
+    /***********/
+    /* Setters */
+    /***********/
+
+    /// @notice Set timelock contract address
+    /// @param _timelock TimeLock address
+    function setTimeLock(
+        address _timelock
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_timelock == address(0)) {
+            revert InvalidAddress();
+        }
+        timelock = _timelock;
     }
 
     /******************/
