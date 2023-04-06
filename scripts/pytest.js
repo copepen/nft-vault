@@ -174,14 +174,14 @@ async function main() {
 
   await spiceVault.grantRole(strategistRole, strategist.address);
   await spiceVault.grantRole(strategistRole, admin.address);
-  // await spiceVault.grantRole(vaultRole, vault.address);
+  await spiceVault.grantRole(vaultRole, vault.address);
   await spiceVault.grantRole(vaultRole, bend.address);
   await spiceVault.grantRole(vaultRole, drops.address);
   await spiceVault.grantRole(vaultRole, para.address);
   // await spiceVault.grantRole(vaultRole, meta.address);
   await spiceVault.grantRole(userRole, whale.address);
   await checkRole(spiceVault, strategist.address, strategistRole, true);
-  // await checkRole(spiceVault, vault.address, vaultRole, true);
+  await checkRole(spiceVault, vault.address, vaultRole, true);
   await checkRole(spiceVault, bend.address, vaultRole, true);
   await checkRole(spiceVault, drops.address, vaultRole, true);
   await checkRole(spiceVault, para.address, vaultRole, true);
