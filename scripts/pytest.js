@@ -98,6 +98,7 @@ async function main() {
     paraVaultSymbol,
     constants.contracts.ParaPool,
     constants.tokens.pWETH,
+    "0x59B72FdB45B3182c8502cC297167FE4f821f332d"
   ]);
 
   // const Meta4626 = await ethers.getContractFactory("Meta4626");
@@ -213,6 +214,13 @@ async function main() {
 
   await spiceNFTVault.grantRole(spiceRoleNFT, spiceAdmin.address);
   await checkRole(spiceNFTVault, spiceAdmin.address, spiceRoleNFT, true);
+
+  // set up para space wrappr
+  whitelistRolePara = await para.WHITELIST_ROLE();
+  await para.grantRole(whitelistRolePara, spiceVault.address);
+  await para.grantRole(whitelistRolePara, spiceNFTVault.address);
+  await checkRole(para, spiceVault.address, whitelistRolePara, true);
+  await checkRole(para, spiceNFTVault.address, whitelistRolePara, true);
 
   // deposit initial funds into spice vault
   async function depositfunds() {
