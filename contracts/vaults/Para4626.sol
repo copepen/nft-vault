@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/IPoolCore.sol";
+import "../interfaces/ITimeLock.sol";
 
 /**
  * @title Storage for Para4626
@@ -22,6 +23,21 @@ abstract contract Para4626Storage {
 
     /// @notice BToken address
     address public lpTokenAddress;
+
+    /// @notice TimeLock address
+    address public timelock;
+
+    /// @notice Indicates if there's pending withdrawl
+    bool internal dirty;
+
+    /// @notice Last totalAssets before initiating withdrawl
+    uint256 internal lastTotalAssets;
+
+    /// @notice Beneficiary address
+    address internal beneficiary;
+
+    /// @notice Claim amount
+    uint256 internal claimAmount;
 }
 
 /**
@@ -43,6 +59,9 @@ contract Para4626 is
 
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+
+    /// @notice Whitelist role
+    bytes32 public constant WHITELIST_ROLE = keccak256("WHITELIST_ROLE");
 
     /**********/
     /* Events */
@@ -82,16 +101,21 @@ contract Para4626 is
     /// @param symbol_ Receipt token symbol
     /// @param poolAddress_ LendPool address
     /// @param lpTokenAddress_ BToken address
+    /// @param timelock_ TimeLock address
     function initialize(
         string calldata name_,
         string calldata symbol_,
         address poolAddress_,
-        address lpTokenAddress_
+        address lpTokenAddress_,
+        address timelock_
     ) external initializer {
         if (poolAddress_ == address(0)) {
             revert InvalidAddress();
         }
         if (lpTokenAddress_ == address(0)) {
+            revert InvalidAddress();
+        }
+        if (timelock_ == address(0)) {
             revert InvalidAddress();
         }
 
@@ -102,6 +126,8 @@ contract Para4626 is
         poolAddress = poolAddress_;
 
         lpTokenAddress = lpTokenAddress_;
+
+        timelock = timelock_;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -120,6 +146,7 @@ contract Para4626 is
 
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() public view returns (uint256) {
+        if (dirty) return lastTotalAssets;
         return IERC20Upgradeable(lpTokenAddress).balanceOf(address(this));
     }
 
@@ -185,7 +212,7 @@ contract Para4626 is
     function deposit(
         uint256 assets,
         address receiver
-    ) external nonReentrant returns (uint256 shares) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -205,7 +232,7 @@ contract Para4626 is
     function mint(
         uint256 shares,
         address receiver
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -227,7 +254,7 @@ contract Para4626 is
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 shares) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 shares) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -249,7 +276,7 @@ contract Para4626 is
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 assets) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -260,6 +287,22 @@ contract Para4626 is
         assets = previewRedeem(shares);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    /// @notice Claim WETH from Paraspace
+    /// @param agreementIds Agreement IDs to claim
+    function claim(
+        uint256[] memory agreementIds
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        ITimeLock(timelock).claim(agreementIds);
+        dirty = false;
+        // load weth
+        IWETH weth = IWETH(WETH);
+        // transfer to beneficiary
+        weth.transfer(beneficiary, claimAmount);
+        // resset beneficiary and claimAmount
+        delete beneficiary;
+        delete claimAmount;
     }
 
     /*****************************/
@@ -332,6 +375,9 @@ contract Para4626 is
             _spendAllowance(owner, caller, shares);
         }
 
+        lastTotalAssets = totalAssets();
+        dirty = true;
+
         // Burn receipt tokens from owner
         _burn(owner, shares);
 
@@ -341,7 +387,10 @@ contract Para4626 is
         pWETH.approve(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`
-        IPoolCore(poolAddress).withdraw(WETH, assets, receiver);
+        IPoolCore(poolAddress).withdraw(WETH, assets, address(this));
+
+        claimAmount = assets;
+        beneficiary = receiver;
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }

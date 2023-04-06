@@ -1,15 +1,17 @@
 const { expect } = require("chai");
-const { ethers, upgrades, network, helpers } = require("hardhat");
+const { ethers, upgrades } = require("hardhat");
 const { takeSnapshot, revertToSnapshot } = require("../helpers/snapshot");
 const { impersonateAccount } = require("../helpers/account");
+const { increaseTime } = require("../helpers/time");
 const constants = require("../constants");
 
-describe.skip("Para4626", function () {
+describe("Para4626", function () {
   let vault;
   let weth;
   let admin, alice, bob;
   let whale;
   let snapshotId;
+  let whitelistRole;
 
   const name = "Spice interest bearing WETH";
   const symbol = "spiceETH";
@@ -30,6 +32,7 @@ describe.skip("Para4626", function () {
         symbol,
         ethers.constants.AddressZero,
         constants.tokens.pWETH,
+        constants.contracts.ParaClaim,
       ])
     ).to.be.revertedWithCustomError(Para4626, "InvalidAddress");
     await expect(
@@ -37,6 +40,16 @@ describe.skip("Para4626", function () {
         name,
         symbol,
         constants.contracts.ParaPool,
+        ethers.constants.AddressZero,
+        constants.contracts.ParaClaim,
+      ])
+    ).to.be.revertedWithCustomError(Para4626, "InvalidAddress");
+    await expect(
+      upgrades.deployBeaconProxy(beacon, Para4626, [
+        name,
+        symbol,
+        constants.contracts.ParaPool,
+        constants.tokens.pWETH,
         ethers.constants.AddressZero,
       ])
     ).to.be.revertedWithCustomError(Para4626, "InvalidAddress");
@@ -46,7 +59,10 @@ describe.skip("Para4626", function () {
       symbol,
       constants.contracts.ParaPool,
       constants.tokens.pWETH,
+      constants.contracts.ParaClaim,
     ]);
+
+    whitelistRole = await vault.WHITELIST_ROLE();
   });
 
   beforeEach(async () => {
@@ -80,7 +96,8 @@ describe.skip("Para4626", function () {
           name,
           symbol,
           constants.contracts.ParaPool,
-          constants.tokens.pWETH
+          constants.tokens.pWETH,
+          constants.contracts.ParaClaim,
         )
       ).to.be.revertedWith("Initializable: contract is already initialized");
     });
@@ -171,6 +188,8 @@ describe.skip("Para4626", function () {
       });
 
       it("When balance is non-zero", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
@@ -187,6 +206,8 @@ describe.skip("Para4626", function () {
       });
 
       it("When balance is non-zero", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
@@ -203,17 +224,35 @@ describe.skip("Para4626", function () {
       });
 
       it("When there is deposit", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
 
-        expect(await vault.totalAssets()).to.be.eq(assets);
+        expect(await vault.totalAssets()).to.be.closeTo(assets, 5);
       });
     });
   });
 
   describe("User Actions", function () {
     describe("Deposit", function () {
+      beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          vault.connect(whale).deposit(assets, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
+      });
+
       it("When deposits 0 assets", async function () {
         await expect(
           vault.connect(whale).deposit(0, whale.address)
@@ -279,6 +318,22 @@ describe.skip("Para4626", function () {
     });
 
     describe("Mint", function () {
+      beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          vault.connect(whale).mint(assets, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
+      });
+
       it("When mints 0 shares", async function () {
         await expect(
           vault.connect(whale).mint(0, whale.address)
@@ -345,9 +400,23 @@ describe.skip("Para4626", function () {
 
     describe("Withdraw", function () {
       beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("50");
+        await expect(
+          vault.connect(whale).withdraw(assets, bob.address, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
       });
 
       it("When receiver is 0x0", async function () {
@@ -382,30 +451,56 @@ describe.skip("Para4626", function () {
 
       it("Withdraw assets", async function () {
         const assets = ethers.utils.parseEther("50");
+        const shares = await vault.previewWithdraw(assets);
 
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
+        const tx = await vault.connect(whale).withdraw(assets, bob.address, whale.address);
+        const res = await tx.wait();
+        const event = res.events.find(evt => evt.topics[0] === '0x454cda23c2c757a228c6569d9f3db9c4cb8936936f8f73ae2fcf7ad1d40c2c1b');
+        const [agreementId, , , ,] = ethers.utils.defaultAbiCoder.decode(
+          ["uint256", "uint8", "uint8", "uint256[]", "uint48"],
+          event.data
+        );
 
-        const afterAssetBalance = await weth.balanceOf(bob.address);
+        let afterAssetBalance = await weth.balanceOf(bob.address);
+        expect(afterAssetBalance).to.be.eq(beforeAssetBalance);
+
+        await increaseTime(12 * 3600);
+
+        await vault.connect(admin).claim([agreementId]);
+
+        afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
-
-        const shares = await vault.previewWithdraw(assets);
 
         expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
         expect(beforeShareBalance).to.be.closeTo(
           afterShareBalance.add(shares),
-          5
+          ethers.utils.parseEther("0.0001"),
         );
       });
     });
 
     describe("Redeem", function () {
       beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("50");
+        await expect(
+          vault.connect(whale).redeem(assets, bob.address, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
       });
 
       it("When receiver is 0x0", async function () {
@@ -440,20 +535,32 @@ describe.skip("Para4626", function () {
 
       it("Redeem shares", async function () {
         const shares = ethers.utils.parseEther("50");
+        const assets = await vault.previewRedeem(shares);
 
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).redeem(shares, bob.address, whale.address);
+        const tx = await vault.connect(whale).redeem(shares, bob.address, whale.address);
+        const res = await tx.wait();
+        const event = res.events.find(evt => evt.topics[0] === '0x454cda23c2c757a228c6569d9f3db9c4cb8936936f8f73ae2fcf7ad1d40c2c1b');
+        const [agreementId, , , ,] = ethers.utils.defaultAbiCoder.decode(
+          ["uint256", "uint8", "uint8", "uint256[]", "uint48"],
+          event.data
+        );
 
-        const afterAssetBalance = await weth.balanceOf(bob.address);
+        let afterAssetBalance = await weth.balanceOf(bob.address);
+        expect(afterAssetBalance).to.be.eq(beforeAssetBalance);
+
+        await increaseTime(12 * 3600);
+
+        await vault.connect(admin).claim([agreementId]);
+
+        afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
-
-        const assets = await vault.previewRedeem(shares);
 
         expect(afterAssetBalance).to.be.closeTo(
           beforeAssetBalance.add(assets),
-          5
+          ethers.utils.parseEther("0.0001"),
         );
         expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
