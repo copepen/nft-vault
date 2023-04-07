@@ -447,6 +447,8 @@ contract Vault is
             noteTokenId
         );
 
+        loan.status = _loans[noteToken][loanId].status;
+
         if (noteAdapter.isLiquidated(loanId)) {
             loan.status = LoanStatus.Liquidated;
         } else if (noteAdapter.isExpired(loanId)) {
