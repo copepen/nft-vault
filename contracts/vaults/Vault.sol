@@ -49,7 +49,7 @@ abstract contract VaultStorageV1 {
         LoanStatus status;
         uint64 maturity;
         uint64 duration;
-        IERC721 collateralToken;
+        address collateralToken;
         uint256 collateralTokenId;
         uint256 principal;
         uint256 repayment;
@@ -447,14 +447,14 @@ contract Vault is
             noteTokenId
         );
 
-        loan = _loans[noteToken][loanId];
-
         if (noteAdapter.isLiquidated(loanId)) {
             loan.status = LoanStatus.Liquidated;
         } else if (noteAdapter.isExpired(loanId)) {
             loan.status = LoanStatus.Expired;
         }
 
+        loan.collateralToken = loanInfo.collateralToken;
+        loan.collateralTokenId = loanInfo.collateralTokenId;
         loan.maturity = loanInfo.maturity;
         loan.duration = loanInfo.duration;
         loan.principal = loanInfo.principal;
@@ -800,7 +800,7 @@ contract Vault is
         loan.status = LoanStatus.Active;
         loan.maturity = loanInfo.maturity;
         loan.duration = loanInfo.duration;
-        loan.collateralToken = IERC721(loanInfo.collateralToken);
+        loan.collateralToken = loanInfo.collateralToken;
         loan.collateralTokenId = loanInfo.collateralTokenId;
         loan.principal = loanInfo.principal;
         loan.repayment = loanInfo.repayment;
@@ -1005,7 +1005,7 @@ contract Vault is
         if (!success) revert CallFailed();
 
         // transfer collateral nft to liquidator
-        loan.collateralToken.safeTransferFrom(
+        IERC721(loan.collateralToken).safeTransferFrom(
             address(this),
             msg.sender,
             loan.collateralTokenId
