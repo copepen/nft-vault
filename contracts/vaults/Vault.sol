@@ -1048,6 +1048,20 @@ contract Vault is
         delete _notes[nft][nftId];
     }
 
+    /// @notice Called when note token is received
+    /// @param noteToken Note token address
+    /// @param noteTokenId Note token ID
+    function noteTokenReceived(
+        address noteToken,
+        uint256 noteTokenId
+    ) external {
+        require(IERC721(noteToken).ownerOf(noteTokenId) == address(this));
+
+        if (_noteAdapters[noteToken] != INoteAdapter(address(0))) {
+            _onNoteReceived(noteToken, noteTokenId);
+        }
+    }
+
     /************/
     /* ERC-1271 */
     /************/
