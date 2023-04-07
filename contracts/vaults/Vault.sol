@@ -49,7 +49,7 @@ abstract contract VaultStorageV1 {
         LoanStatus status;
         uint64 maturity;
         uint64 duration;
-        IERC721 collateralToken;
+        address collateralToken;
         uint256 collateralTokenId;
         uint256 principal;
         uint256 repayment;
@@ -447,14 +447,14 @@ contract Vault is
             noteTokenId
         );
 
-        loan = _loans[noteToken][loanId];
-
         if (noteAdapter.isLiquidated(loanId)) {
             loan.status = LoanStatus.Liquidated;
         } else if (noteAdapter.isExpired(loanId)) {
             loan.status = LoanStatus.Expired;
         }
 
+        loan.collateralToken = loanInfo.collateralToken;
+        loan.collateralTokenId = loanInfo.collateralTokenId;
         loan.maturity = loanInfo.maturity;
         loan.duration = loanInfo.duration;
         loan.principal = loanInfo.principal;
@@ -800,7 +800,7 @@ contract Vault is
         loan.status = LoanStatus.Active;
         loan.maturity = loanInfo.maturity;
         loan.duration = loanInfo.duration;
-        loan.collateralToken = IERC721(loanInfo.collateralToken);
+        loan.collateralToken = loanInfo.collateralToken;
         loan.collateralTokenId = loanInfo.collateralTokenId;
         loan.principal = loanInfo.principal;
         loan.repayment = loanInfo.repayment;
@@ -1005,7 +1005,7 @@ contract Vault is
         if (!success) revert CallFailed();
 
         // transfer collateral nft to liquidator
-        loan.collateralToken.safeTransferFrom(
+        IERC721(loan.collateralToken).safeTransferFrom(
             address(this),
             msg.sender,
             loan.collateralTokenId
@@ -1046,6 +1046,20 @@ contract Vault is
         _pendingLoans[note.noteToken].remove(note.loanId);
         delete _loans[note.noteToken][note.loanId];
         delete _notes[nft][nftId];
+    }
+
+    /// @notice Called when note token is received
+    /// @param noteToken Note token address
+    /// @param noteTokenId Note token ID
+    function noteTokenReceived(
+        address noteToken,
+        uint256 noteTokenId
+    ) external {
+        require(IERC721(noteToken).ownerOf(noteTokenId) == address(this));
+
+        if (_noteAdapters[noteToken] != INoteAdapter(address(0))) {
+            _onNoteReceived(noteToken, noteTokenId);
+        }
     }
 
     /************/
