@@ -11884,7 +11884,7 @@
             "label": "_notes",
             "offset": 0,
             "slot": "360",
-            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)11513_storage))",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)10639_storage))",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:96"
           },
@@ -11892,7 +11892,7 @@
             "label": "_loans",
             "offset": 0,
             "slot": "361",
-            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)11506_storage))",
+            "type": "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)10632_storage))",
             "contract": "VaultStorageV1",
             "src": "contracts/vaults/Vault.sol:99"
           },
@@ -11954,7 +11954,7 @@
             "label": "contract INoteAdapter",
             "numberOfBytes": "20"
           },
-          "t_enum(LoanStatus)11489": {
+          "t_enum(LoanStatus)10615": {
             "label": "enum VaultStorageV1.LoanStatus",
             "members": [
               "Uninitialized",
@@ -11976,11 +11976,11 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)11506_storage))": {
+          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Loan)10632_storage))": {
             "label": "mapping(address => mapping(uint256 => struct VaultStorageV1.Loan))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)11513_storage))": {
+          "t_mapping(t_address,t_mapping(t_uint256,t_struct(Note)10639_storage))": {
             "label": "mapping(address => mapping(uint256 => struct VaultStorageV1.Note))",
             "numberOfBytes": "32"
           },
@@ -12008,11 +12008,11 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(Loan)11506_storage)": {
+          "t_mapping(t_uint256,t_struct(Loan)10632_storage)": {
             "label": "mapping(uint256 => struct VaultStorageV1.Loan)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(Note)11513_storage)": {
+          "t_mapping(t_uint256,t_struct(Note)10639_storage)": {
             "label": "mapping(uint256 => struct VaultStorageV1.Note)",
             "numberOfBytes": "32"
           },
@@ -12036,12 +12036,12 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Loan)11506_storage": {
+          "t_struct(Loan)10632_storage": {
             "label": "struct VaultStorageV1.Loan",
             "members": [
               {
                 "label": "status",
-                "type": "t_enum(LoanStatus)11489",
+                "type": "t_enum(LoanStatus)10615",
                 "offset": 0,
                 "slot": "0"
               },
@@ -12084,7 +12084,7 @@
             ],
             "numberOfBytes": "160"
           },
-          "t_struct(Note)11513_storage": {
+          "t_struct(Note)10639_storage": {
             "label": "struct VaultStorageV1.Note",
             "members": [
               {
