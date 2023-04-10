@@ -485,21 +485,22 @@ contract Vault is
                 // Lookup loan state
                 Loan memory loan = _loans[noteToken][loanId];
 
-                uint256 noteTokenId = _loanToNoteTokenIds[noteToken][loanId];
-
-                // Get loan info
-                INoteAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(
-                    noteTokenId
-                );
-
                 if (
                     noteAdapter.isRepaid(loanId) &&
                     loan.status != LoanStatus.Liquidated
                 ) {
                     continue;
-                } else if (loan.status == LoanStatus.Liquidated) {
-                    newTotalAssets += loanInfo.repayment;
+                }
+
+                uint256 noteTokenId = _loanToNoteTokenIds[noteToken][loanId];
+
+                if (noteAdapter.isLiquidated(loanId)) {
+                    newTotalAssets += loan.repayment;
                 } else {
+                    // Get loan info
+                    INoteAdapter.LoanInfo memory loanInfo = noteAdapter
+                        .getLoanInfo(noteTokenId);
+
                     // price loan when active
                     uint256 repayment = loanInfo.repayment;
                     uint256 interest = repayment - loanInfo.principal;
