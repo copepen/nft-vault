@@ -217,7 +217,9 @@ contract X2Y2NoteAdapter is INoteAdapter {
         IXY3.LoanState memory loanState = _xy3.getLoanState(uint32(loanId));
 
         // No way to differentiate a repaid loan from a liquidated loan from just loanId
-        return loanState.status == IXY3.StatusType.RESOLVED;
+        return
+            loanState.status == IXY3.StatusType.NOT_EXISTS ||
+            loanState.status == IXY3.StatusType.RESOLVED;
     }
 
     /// @inheritdoc INoteAdapter
@@ -226,7 +228,9 @@ contract X2Y2NoteAdapter is INoteAdapter {
         IXY3.LoanState memory loanState = _xy3.getLoanState(uint32(loanId));
 
         // No way to differentiate a repaid loan from a liquidated loan from just loanId
-        return loanState.status == IXY3.StatusType.RESOLVED;
+        return
+            loanState.status == IXY3.StatusType.NOT_EXISTS ||
+            loanState.status == IXY3.StatusType.RESOLVED;
     }
 
     /// @inheritdoc INoteAdapter
