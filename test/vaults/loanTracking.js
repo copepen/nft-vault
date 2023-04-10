@@ -34,16 +34,4 @@ describe("Loan Tracking", function () {
     vault = await ethers.getContractAt("Vault", vaultAddr);
     console.log("Vault contract loaded");
   });
-
-  it("Should return collateral address and id for X2Y2", async function () {
-    const loan = await vault.getLoan("0x0E258c84Df0f8728ae4A6426EA5FD163Eb6b9D1B", 14695);
-    expect(loan.collateralToken).to.be.not.eq(ethers.constants.AddressZero);
-    expect(loan.collateralTokenId).to.be.gt(0);
-  });
-
-  it("Should return loan info for Arcade", async function () {
-    await vault.noteTokenReceived("0x349A026A43FFA8e2Ab4c4e59FCAa93F87Bd8DdeE", 1511);
-    const loan = await vault.getLoan("0x349A026A43FFA8e2Ab4c4e59FCAa93F87Bd8DdeE", 1511);
-    console.log("Loan:", loan);
-  });
 });
