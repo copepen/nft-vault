@@ -195,6 +195,9 @@ contract Vault is
     /// @notice Withdraw failed
     error WithdrawFailed();
 
+    /// @notice Loan already tracked
+    error LoanAlreadyTracked();
+
     /**********/
     /* Events */
     /**********/
@@ -800,6 +803,9 @@ contract Vault is
 
         // Store loan state
         Loan storage loan = _loans[noteToken][loanInfo.loanId];
+        if (loan.status != LoanStatus.Uninitialized) {
+            revert LoanAlreadyTracked();
+        }
         loan.status = LoanStatus.Active;
         loan.maturity = loanInfo.maturity;
         loan.duration = loanInfo.duration;
