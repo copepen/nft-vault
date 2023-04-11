@@ -4,7 +4,7 @@ const hre = require("hardhat");
 async function main() {
   const { ethers, upgrades, deployments } = hre;
 
-  // const beacon = await deployments.get("VaultBeacon");
+  // const beacon = await deployments.get("Vault3");
   // const Vault = await ethers.getContractFactory("Vault");
   // const vault = await upgrades.upgradeBeacon(beacon.address, Vault);
   // await vault.deployed();
@@ -14,7 +14,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0xA53F094EF1978f60EF2cca51adfFE139beE97bcA",
+        address: "0x271FdB0f74ab2945BD50b9f0689e8A6a344154c9",
         contract: "contracts/vaults/Vault.sol:Vault",
         constructorArguments: [],
       });
