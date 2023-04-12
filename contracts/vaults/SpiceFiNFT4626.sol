@@ -539,7 +539,7 @@ contract SpiceFiNFT4626 is
             revert ParameterOutOfBounds();
         }
 
-        IERC20Upgradeable(_asset).transferFrom(
+        IERC20Upgradeable(_asset).safeTransferFrom(
             msg.sender,
             address(this),
             assets
@@ -564,7 +564,7 @@ contract SpiceFiNFT4626 is
             revert ParameterOutOfBounds();
         }
 
-        IERC20Upgradeable(_asset).transferFrom(
+        IERC20Upgradeable(_asset).safeTransferFrom(
             msg.sender,
             address(this),
             tokenId == 0 ? assets + mintPrice : assets

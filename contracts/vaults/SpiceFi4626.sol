@@ -411,7 +411,7 @@ contract SpiceFi4626 is
             revert ParameterOutOfBounds();
         }
 
-        IERC20Upgradeable(asset()).transferFrom(
+        IERC20Upgradeable(asset()).safeTransferFrom(
             _msgSender(),
             address(this),
             assets
@@ -430,7 +430,7 @@ contract SpiceFi4626 is
             revert ParameterOutOfBounds();
         }
 
-        IERC20Upgradeable(asset()).transferFrom(
+        IERC20Upgradeable(asset()).safeTransferFrom(
             _msgSender(),
             address(this),
             assets

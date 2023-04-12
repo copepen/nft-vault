@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -62,6 +62,7 @@ contract Bend4626 is
     MoreBend4626Storage
 {
     using MathUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /*************/
     /* Constants */
@@ -403,13 +404,13 @@ contract Bend4626 is
         address receiver
     ) internal {
         // load weth
-        IWETH weth = IWETH(WETH);
+        IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
         // receive weth from msg.sender
-        weth.transferFrom(msg.sender, address(this), assets);
+        weth.safeTransferFrom(msg.sender, address(this), assets);
 
         // approve weth deposit into underlying marketplace
-        weth.approve(poolAddress, assets);
+        weth.safeApprove(poolAddress, assets);
 
         // deposit into underlying marketplace
         IBendLendPool(poolAddress).deposit(WETH, assets, address(this), 0);

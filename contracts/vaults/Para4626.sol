@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -59,6 +59,7 @@ contract Para4626 is
     Para4626StorageV2
 {
     using MathUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /*************/
     /* Constants */
@@ -318,10 +319,12 @@ contract Para4626 is
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         ITimeLock(timelock).claim(agreementIds);
         dirty = false;
+
         // load weth
-        IWETH weth = IWETH(WETH);
+        IERC20Upgradeable weth = IERC20Upgradeable(WETH);
+
         // transfer to beneficiary
-        weth.transfer(beneficiary, claimAmount);
+        weth.safeTransfer(beneficiary, claimAmount);
         // resset beneficiary and claimAmount
         delete beneficiary;
         delete claimAmount;
@@ -368,13 +371,13 @@ contract Para4626 is
         address receiver
     ) internal {
         // load weth
-        IWETH weth = IWETH(WETH);
+        IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
         // receive weth from msg.sender
-        weth.transferFrom(msg.sender, address(this), assets);
+        weth.safeTransferFrom(msg.sender, address(this), assets);
 
         // approve weth deposit into underlying marketplace
-        weth.approve(poolAddress, assets);
+        weth.safeApprove(poolAddress, assets);
 
         // deposit into underlying marketplace
         IPoolCore(poolAddress).supply(WETH, assets, address(this), 0);

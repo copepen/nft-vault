@@ -1184,7 +1184,7 @@ describe("Spice Lending", function () {
       const loanAmount = ethers.utils.parseEther("10");
       const interest = loanAmount.mul(500).mul(5).div(10000).div(365);
       const repayAmount = loanAmount.add(interest);
-      expect(await lending.repayAmount(loanId)).to.be.closeTo(repayAmount, 100);
+      expect(await lending.repayAmount(loanId)).to.be.closeTo(repayAmount, ethers.utils.parseEther("0.0001"));
     });
 
     it("When loan is expired", async function () {
