@@ -7096,7 +7096,7 @@
             "label": "_roleMembers",
             "offset": 0,
             "slot": "151",
-            "type": "t_mapping(t_bytes32,t_struct(AddressSet)3791_storage)",
+            "type": "t_mapping(t_bytes32,t_struct(AddressSet)6588_storage)",
             "contract": "AccessControlEnumerableUpgradeable",
             "src": "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol:22"
           },
@@ -7168,7 +7168,7 @@
             "label": "loanIdTracker",
             "offset": 0,
             "slot": "353",
-            "type": "t_struct(Counter)1790_storage",
+            "type": "t_struct(Counter)4275_storage",
             "contract": "SpiceLendingStorage",
             "src": "contracts/lending/SpiceLending.sol:48"
           },
@@ -7176,7 +7176,7 @@
             "label": "loans",
             "offset": 0,
             "slot": "354",
-            "type": "t_mapping(t_uint256,t_struct(LoanData)7194_storage)",
+            "type": "t_mapping(t_uint256,t_struct(LoanData)17499_storage)",
             "contract": "SpiceLendingStorage",
             "src": "contracts/lending/SpiceLending.sol:51"
           },
@@ -7184,7 +7184,7 @@
             "label": "lenderNote",
             "offset": 0,
             "slot": "355",
-            "type": "t_contract(INote)4900",
+            "type": "t_contract(INote)14070",
             "contract": "SpiceLendingStorage",
             "src": "contracts/lending/SpiceLending.sol:54"
           },
@@ -7192,7 +7192,7 @@
             "label": "borrowerNote",
             "offset": 0,
             "slot": "356",
-            "type": "t_contract(INote)4900",
+            "type": "t_contract(INote)14070",
             "contract": "SpiceLendingStorage",
             "src": "contracts/lending/SpiceLending.sol:57"
           },
@@ -7248,7 +7248,7 @@
             "label": "activeLoans",
             "offset": 0,
             "slot": "363",
-            "type": "t_mapping(t_address,t_struct(UintSet)3948_storage)",
+            "type": "t_mapping(t_address,t_struct(UintSet)6745_storage)",
             "contract": "SpiceLendingStorage",
             "src": "contracts/lending/SpiceLending.sol:78"
           }
@@ -7278,11 +7278,11 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(INote)4900": {
+          "t_contract(INote)14070": {
             "label": "contract INote",
             "numberOfBytes": "20"
           },
-          "t_enum(LoanState)7158": {
+          "t_enum(LoanState)17463": {
             "label": "enum LibLoan.LoanState",
             "members": [
               "NOT_IN_USE",
@@ -7300,7 +7300,7 @@
             "label": "mapping(address => mapping(uint256 => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(UintSet)3948_storage)": {
+          "t_mapping(t_address,t_struct(UintSet)6745_storage)": {
             "label": "mapping(address => struct EnumerableSetUpgradeable.UintSet)",
             "numberOfBytes": "32"
           },
@@ -7308,7 +7308,7 @@
             "label": "mapping(bytes32 => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_bytes32,t_struct(AddressSet)3791_storage)": {
+          "t_mapping(t_bytes32,t_struct(AddressSet)6588_storage)": {
             "label": "mapping(bytes32 => struct EnumerableSetUpgradeable.AddressSet)",
             "numberOfBytes": "32"
           },
@@ -7320,7 +7320,7 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_uint256,t_struct(LoanData)7194_storage)": {
+          "t_mapping(t_uint256,t_struct(LoanData)17499_storage)": {
             "label": "mapping(uint256 => struct LibLoan.LoanData)",
             "numberOfBytes": "32"
           },
@@ -7328,19 +7328,19 @@
             "label": "mapping(uint256 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_struct(AddressSet)3791_storage": {
+          "t_struct(AddressSet)6588_storage": {
             "label": "struct EnumerableSetUpgradeable.AddressSet",
             "members": [
               {
                 "label": "_inner",
-                "type": "t_struct(Set)3476_storage",
+                "type": "t_struct(Set)6273_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Counter)1790_storage": {
+          "t_struct(Counter)4275_storage": {
             "label": "struct CountersUpgradeable.Counter",
             "members": [
               {
@@ -7352,18 +7352,18 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(LoanData)7194_storage": {
+          "t_struct(LoanData)17499_storage": {
             "label": "struct LibLoan.LoanData",
             "members": [
               {
                 "label": "state",
-                "type": "t_enum(LoanState)7158",
+                "type": "t_enum(LoanState)17463",
                 "offset": 0,
                 "slot": "0"
               },
               {
                 "label": "terms",
-                "type": "t_struct(LoanTerms)7179_storage",
+                "type": "t_struct(LoanTerms)17484_storage",
                 "offset": 0,
                 "slot": "1"
               },
@@ -7394,7 +7394,7 @@
             ],
             "numberOfBytes": "416"
           },
-          "t_struct(LoanTerms)7179_storage": {
+          "t_struct(LoanTerms)17484_storage": {
             "label": "struct LibLoan.LoanTerms",
             "members": [
               {
@@ -7478,7 +7478,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Set)3476_storage": {
+          "t_struct(Set)6273_storage": {
             "label": "struct EnumerableSetUpgradeable.Set",
             "members": [
               {
@@ -7496,12 +7496,12 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(UintSet)3948_storage": {
+          "t_struct(UintSet)6745_storage": {
             "label": "struct EnumerableSetUpgradeable.UintSet",
             "members": [
               {
                 "label": "_inner",
-                "type": "t_struct(Set)3476_storage",
+                "type": "t_struct(Set)6273_storage",
                 "offset": 0,
                 "slot": "0"
               }
