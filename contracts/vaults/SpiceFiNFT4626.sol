@@ -67,6 +67,15 @@ abstract contract SpiceFiNFT4626Storage {
 }
 
 /**
+ * @title Storage for SpiceFiNFT4626
+ * @author Spice Finance Inc
+ */
+abstract contract SpiceFiNFT4626StorageV2 {
+    uint256 public lastTotalAssets;
+    uint256 public lastTotalShares;
+}
+
+/**
  * @title SpiceFiNFT4626
  * @author Spice Finance Inc
  */
@@ -79,7 +88,8 @@ contract SpiceFiNFT4626 is
     AccessControlEnumerableUpgradeable,
     ReentrancyGuardUpgradeable,
     Multicall,
-    IERC4906
+    IERC4906,
+    SpiceFiNFT4626StorageV2
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
@@ -171,6 +181,16 @@ contract SpiceFiNFT4626 is
     /// @notice Emitted when fee recipient is updated
     /// @param feeRecipient New fee recipient address
     event FeeRecipientUpdated(address feeRecipient);
+
+    /*************/
+    /* Modifiers */
+    /*************/
+
+    modifier takeFees() {
+        _takeFees();
+
+        _;
+    }
 
     /***************/
     /* Constructor */
@@ -424,21 +444,12 @@ contract SpiceFiNFT4626 is
     /// @notice See {ISpiceFiNFT4626-maxWithdraw}
     function maxWithdraw(address) public view override returns (uint256) {
         uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        return paused() ? 0 : balance.mulDiv(10_000 - withdrawalFees, 10_000);
+        return paused() ? 0 : balance;
     }
 
     /// @notice See {ISpiceFiNFT4626-maxRedeem}
     function maxRedeem(address) public view override returns (uint256) {
-        uint256 balance = IERC20MetadataUpgradeable(asset()).balanceOf(
-            address(this)
-        );
-        return
-            paused()
-                ? 0
-                : _convertToShares(
-                    balance.mulDiv(10_000 - withdrawalFees, 10_000),
-                    MathUpgradeable.Rounding.Down
-                );
+        return paused() ? 0 : totalShares;
     }
 
     /// @notice See {ISpiceFiNFT4626-previewDeposit}
@@ -455,22 +466,30 @@ contract SpiceFiNFT4626 is
     function previewWithdraw(
         uint256 assets
     ) public view override returns (uint256) {
+        (uint256 _totalAssets, uint256 interestEarned) = _interestEarned();
         return
-            _convertToShares(
-                assets.mulDiv(10_000, 10_000 - withdrawalFees),
-                MathUpgradeable.Rounding.Up
-            );
+            (assets == 0 || totalShares == 0)
+                ? assets
+                : assets.mulDiv(
+                    totalShares,
+                    _totalAssets - interestEarned,
+                    MathUpgradeable.Rounding.Up
+                );
     }
 
     /// @notice See {ISpiceFiNFT4626-previewRedeem}
     function previewRedeem(
         uint256 shares
     ) public view override returns (uint256) {
+        (uint256 _totalAssets, uint256 interestEarned) = _interestEarned();
         return
-            _convertToAssets(
-                shares.mulDiv(10_000 - withdrawalFees, 10_000),
-                MathUpgradeable.Rounding.Down
-            );
+            totalShares == 0
+                ? shares
+                : shares.mulDiv(
+                    _totalAssets - interestEarned,
+                    totalShares,
+                    MathUpgradeable.Rounding.Down
+                );
     }
 
     /**
@@ -582,7 +601,7 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 shares,
         address receiver
-    ) external whenNotPaused nonReentrant returns (uint256 assets) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 assets) {
         if (tokenId == 0) {
             revert ParameterOutOfBounds();
         }
@@ -594,7 +613,7 @@ contract SpiceFiNFT4626 is
         }
 
         // compute redemption amount
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, MathUpgradeable.Rounding.Down);
 
         _withdraw(msg.sender, tokenId, receiver, assets, shares);
 
@@ -606,7 +625,7 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 assets,
         address receiver
-    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 shares) {
         if (tokenId == 0) {
             revert ParameterOutOfBounds();
         }
@@ -618,7 +637,7 @@ contract SpiceFiNFT4626 is
         }
 
         // compute share amount
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, MathUpgradeable.Rounding.Up);
 
         _withdraw(msg.sender, tokenId, receiver, assets, shares);
 
@@ -689,7 +708,7 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 shares,
         address receiver
-    ) external whenNotPaused nonReentrant returns (uint256 assets) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 assets) {
         if (tokenId == 0) {
             revert ParameterOutOfBounds();
         }
@@ -701,7 +720,7 @@ contract SpiceFiNFT4626 is
         }
 
         // compute redemption amount
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, MathUpgradeable.Rounding.Down);
 
         _withdraw(msg.sender, tokenId, receiver, assets, shares);
 
@@ -717,7 +736,7 @@ contract SpiceFiNFT4626 is
         uint256 tokenId,
         uint256 assets,
         address receiver
-    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 shares) {
         if (tokenId == 0) {
             revert ParameterOutOfBounds();
         }
@@ -729,7 +748,7 @@ contract SpiceFiNFT4626 is
         }
 
         // compute share amount
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, MathUpgradeable.Rounding.Up);
 
         _withdraw(msg.sender, tokenId, receiver, assets, shares);
 
@@ -794,9 +813,6 @@ contract SpiceFiNFT4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        // compute fee
-        uint256 fees = convertToAssets(shares) - assets;
-
         if (!_revealed) {
             revert WithdrawBeforeReveal();
         }
@@ -816,15 +832,9 @@ contract SpiceFiNFT4626 is
 
         IERC20Upgradeable currency = IERC20Upgradeable(_asset);
         uint256 balance = currency.balanceOf(address(this));
-        if (balance < fees + assets) {
+        if (balance < assets) {
             // withdraw from vaults
-            _withdrawFromVaults(fees + assets - balance);
-        }
-
-        if (fees > 0) {
-            uint256 half = fees / 2;
-            currency.safeTransfer(multisig, half);
-            currency.safeTransfer(feeRecipient, fees - half);
+            _withdrawFromVaults(assets - balance);
         }
 
         emit Withdraw(caller, tokenId, receiver, assets, shares);
@@ -864,6 +874,44 @@ contract SpiceFiNFT4626 is
         totalShares += shares;
 
         emit Deposit(caller, tokenId, assets, shares);
+    }
+
+    function _takeFees() internal {
+        (uint256 _totalAssets, uint256 interestEarned) = _interestEarned();
+
+        if (interestEarned > 0) {
+            IERC20Upgradeable currency = IERC20Upgradeable(asset());
+
+            uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            uint256 half = fees / 2;
+            currency.safeTransfer(multisig, half);
+            currency.safeTransfer(feeRecipient, fees - half);
+
+            _totalAssets -= fees;
+        }
+
+        lastTotalAssets = _totalAssets;
+        lastTotalShares = totalShares;
+    }
+
+    function _interestEarned()
+        internal
+        view
+        returns (uint256 _totalAssets, uint256 interestEarned)
+    {
+        _totalAssets = totalAssets();
+
+        if (lastTotalShares == 0) {
+            interestEarned = _totalAssets > totalShares
+                ? (_totalAssets - totalShares)
+                : 0;
+        } else {
+            uint256 adjusted = (lastTotalAssets * totalShares) /
+                lastTotalShares;
+            interestEarned = _totalAssets > adjusted
+                ? (_totalAssets - adjusted)
+                : 0;
+        }
     }
 
     /// See {IAggregatorVault-deposit}
