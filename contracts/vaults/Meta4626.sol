@@ -371,7 +371,7 @@ contract Meta4626 is
             MathUpgradeable.Rounding.Up
         );
 
-        lpToken.approve(vaultAddress, lpRedeemAmount);
+        lpToken.safeApprove(vaultAddress, lpRedeemAmount);
 
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);

@@ -409,7 +409,7 @@ contract Para4626 is
         // get lp token contract
         IERC20Upgradeable pWETH = IERC20Upgradeable(lpTokenAddress);
 
-        pWETH.approve(poolAddress, assets);
+        pWETH.safeApprove(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`
         IPoolCore(poolAddress).withdraw(WETH, assets, address(this));
