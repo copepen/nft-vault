@@ -38,6 +38,15 @@ abstract contract SpiceFi4626Storage {
 }
 
 /**
+ * @title Storage for SpiceFi4626
+ * @author Spice Finance Inc
+ */
+abstract contract SpiceFi4626StorageV2 {
+    uint256 public lastTotalAssets;
+    uint256 public lastTotalShares;
+}
+
+/**
  * @title SpiceFi4626
  * @author Spice Finance Inc
  */
@@ -48,7 +57,8 @@ contract SpiceFi4626 is
     PausableUpgradeable,
     AccessControlEnumerableUpgradeable,
     ReentrancyGuardUpgradeable,
-    Multicall
+    Multicall,
+    SpiceFi4626StorageV2
 {
     using SafeMathUpgradeable for uint256;
     using MathUpgradeable for uint256;
@@ -121,6 +131,16 @@ contract SpiceFi4626 is
     /// @notice Emitted when fee recipient is updated
     /// @param feeRecipient New fee recipient address
     event FeeRecipientUpdated(address feeRecipient);
+
+    /*************/
+    /* Modifiers */
+    /*************/
+
+    modifier takeFees() {
+        _takeFees();
+
+        _;
+    }
 
     /***************/
     /* Constructor */
@@ -350,51 +370,50 @@ contract SpiceFi4626 is
 
     /// @inheritdoc IERC4626Upgradeable
     function maxWithdraw(address owner) public view override returns (uint256) {
-        uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        return
-            paused()
-                ? 0
-                : (
-                    _convertToAssets(
-                        balanceOf(owner),
-                        MathUpgradeable.Rounding.Down
-                    ).min(balance)
-                ).mulDiv(10_000 - withdrawalFees, 10_000);
+        return paused() ? 0 : previewRedeem(balanceOf(owner));
     }
 
     /// @inheritdoc IERC4626Upgradeable
     function maxRedeem(address owner) public view override returns (uint256) {
-        uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
-        return
-            paused()
-                ? 0
-                : (
-                    balanceOf(owner).min(
-                        _convertToShares(balance, MathUpgradeable.Rounding.Down)
-                    )
-                ).mulDiv(10_000 - withdrawalFees, 10_000);
+        return paused() ? 0 : balanceOf(owner);
     }
 
     /// @inheritdoc IERC4626Upgradeable
     function previewWithdraw(
         uint256 assets
     ) public view override returns (uint256) {
+        (
+            uint256 _totalAssets,
+            uint256 _totalShares,
+            uint256 interestEarned
+        ) = _interestEarned();
         return
-            _convertToShares(
-                assets.mulDiv(10_000, 10_000 - withdrawalFees),
-                MathUpgradeable.Rounding.Up
-            );
+            (assets == 0 || _totalShares == 0)
+                ? assets
+                : assets.mulDiv(
+                    _totalShares,
+                    _totalAssets - interestEarned,
+                    MathUpgradeable.Rounding.Up
+                );
     }
 
     /// @inheritdoc IERC4626Upgradeable
     function previewRedeem(
         uint256 shares
     ) public view override returns (uint256) {
+        (
+            uint256 _totalAssets,
+            uint256 _totalShares,
+            uint256 interestEarned
+        ) = _interestEarned();
         return
-            _convertToAssets(
-                shares.mulDiv(10_000 - withdrawalFees, 10_000),
-                MathUpgradeable.Rounding.Down
-            );
+            _totalShares == 0
+                ? shares
+                : shares.mulDiv(
+                    _totalAssets - interestEarned,
+                    _totalShares,
+                    MathUpgradeable.Rounding.Down
+                );
     }
 
     /******************/
@@ -444,7 +463,14 @@ contract SpiceFi4626 is
         uint256 assets,
         address receiver,
         address owner
-    ) public override whenNotPaused nonReentrant returns (uint256 shares) {
+    )
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        takeFees
+        returns (uint256 shares)
+    {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -452,7 +478,7 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, MathUpgradeable.Rounding.Up);
 
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
@@ -464,7 +490,14 @@ contract SpiceFi4626 is
         uint256 shares,
         address receiver,
         address owner
-    ) public override whenNotPaused nonReentrant returns (uint256 assets) {
+    )
+        public
+        override
+        whenNotPaused
+        nonReentrant
+        takeFees
+        returns (uint256 assets)
+    {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -472,7 +505,8 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, MathUpgradeable.Rounding.Down);
+
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         IERC20Upgradeable(asset()).safeTransfer(receiver, assets);
@@ -521,7 +555,7 @@ contract SpiceFi4626 is
         uint256 assets,
         address receiver,
         address owner
-    ) public whenNotPaused nonReentrant returns (uint256 shares) {
+    ) public whenNotPaused nonReentrant takeFees returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -529,7 +563,7 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, MathUpgradeable.Rounding.Up);
 
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
@@ -544,7 +578,7 @@ contract SpiceFi4626 is
         uint256 shares,
         address receiver,
         address owner
-    ) public whenNotPaused nonReentrant returns (uint256 assets) {
+    ) public whenNotPaused nonReentrant takeFees returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -552,7 +586,8 @@ contract SpiceFi4626 is
             revert InvalidAddress();
         }
 
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, MathUpgradeable.Rounding.Down);
+
         _withdraw(_msgSender(), receiver, owner, assets, shares);
 
         IWETH(asset()).withdraw(assets);
@@ -570,13 +605,10 @@ contract SpiceFi4626 is
         uint256 assets,
         uint256 shares
     ) internal override {
-        uint256 fees = convertToAssets(shares) - assets;
-
-        IERC20Upgradeable currency = IERC20Upgradeable(asset());
-        uint256 balance = currency.balanceOf(address(this));
-        if (balance < fees + assets) {
+        uint256 balance = IERC20Upgradeable(asset()).balanceOf(address(this));
+        if (balance < assets) {
             // withdraw from vaults
-            _withdrawFromVaults(fees + assets - balance);
+            _withdrawFromVaults(assets - balance);
         }
 
         if (caller != owner) {
@@ -584,12 +616,6 @@ contract SpiceFi4626 is
         }
 
         _burn(owner, shares);
-
-        if (fees > 0) {
-            uint256 half = fees / 2;
-            currency.safeTransfer(multisig, half);
-            currency.safeTransfer(feeRecipient, fees - half);
-        }
 
         emit Withdraw(caller, receiver, owner, assets, shares);
     }
@@ -625,6 +651,53 @@ contract SpiceFi4626 is
         _mint(receiver, shares);
 
         emit Deposit(caller, receiver, assets, shares);
+    }
+
+    function _takeFees() internal {
+        (
+            uint256 _totalAssets,
+            uint256 _totalShares,
+            uint256 interestEarned
+        ) = _interestEarned();
+
+        if (interestEarned > 0) {
+            IERC20Upgradeable currency = IERC20Upgradeable(asset());
+
+            uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            uint256 half = fees / 2;
+            currency.safeTransfer(multisig, half);
+            currency.safeTransfer(feeRecipient, fees - half);
+
+            _totalAssets -= fees;
+        }
+
+        lastTotalAssets = _totalAssets;
+        lastTotalShares = _totalShares;
+    }
+
+    function _interestEarned()
+        internal
+        view
+        returns (
+            uint256 _totalAssets,
+            uint256 _totalShares,
+            uint256 interestEarned
+        )
+    {
+        _totalAssets = totalAssets();
+        _totalShares = totalSupply();
+
+        if (lastTotalShares == 0) {
+            interestEarned = _totalAssets > _totalShares
+                ? (_totalAssets - _totalShares)
+                : 0;
+        } else {
+            uint256 adjusted = (lastTotalAssets * _totalShares) /
+                lastTotalShares;
+            interestEarned = _totalAssets > adjusted
+                ? (_totalAssets - adjusted)
+                : 0;
+        }
     }
 
     /// See {IAggregatorVault-deposit}
