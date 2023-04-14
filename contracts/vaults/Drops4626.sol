@@ -106,6 +106,9 @@ contract Drops4626 is
     /// @notice Not enough reward balance
     error NotEnoughRewardBalance();
 
+    /// @notice Withdraw failed
+    error WithdrawFailed();
+
     /***************/
     /* Constructor */
     /***************/
@@ -304,7 +307,7 @@ contract Drops4626 is
         }
         IComptroller(COMPTROLLER).claimComp(address(this));
 
-        DROPS.approve(address(UNISWAP_V2_ROUTER), rewardBalance);
+        DROPS.safeApprove(address(UNISWAP_V2_ROUTER), rewardBalance);
         address[] memory path = new address[](2);
         path[0] = address(DROPS);
         path[1] = WETH;
@@ -426,7 +429,11 @@ contract Drops4626 is
         ICEther cEther = ICEther(lpTokenAddress);
 
         // trade ctokens for eth
-        cEther.redeemUnderlying(assets);
+        uint256 status = cEther.redeemUnderlying(assets);
+
+        if (status != 0) {
+            revert WithdrawFailed();
+        }
 
         // trade eth from weth
         IWETH(WETH).deposit{value: assets}();

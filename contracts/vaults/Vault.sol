@@ -1017,7 +1017,7 @@ contract Vault is
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
         );
         _checkRole(MARKETPLACE_ROLE, spender);
-        _asset.approve(spender, amount);
+        _asset.safeApprove(spender, amount);
     }
 
     /// @notice Transfer NFT out of vault

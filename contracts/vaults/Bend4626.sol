@@ -113,6 +113,9 @@ contract Bend4626 is
     /// @notice Not enough reward balance
     error NotEnoughRewardBalance();
 
+    /// @notice Less withdrawn from the pool
+    error LessWithdrawn();
+
     /***************/
     /* Constructor */
     /***************/
@@ -341,7 +344,7 @@ contract Bend4626 is
             rewardBalance
         );
 
-        BEND.approve(address(UNISWAP_V2_ROUTER), rewardBalance);
+        BEND.safeApprove(address(UNISWAP_V2_ROUTER), rewardBalance);
         address[] memory path = new address[](2);
         path[0] = address(BEND);
         path[1] = WETH;
@@ -353,11 +356,8 @@ contract Bend4626 is
             block.timestamp
         );
 
-        // load weth
-        IWETH weth = IWETH(WETH);
-
         // approve weth deposit into underlying marketplace
-        weth.approve(poolAddress, amounts[1]);
+        IERC20Upgradeable(WETH).safeApprove(poolAddress, amounts[1]);
 
         // deposit into underlying marketplace
         IBendLendPool(poolAddress).deposit(WETH, amounts[1], address(this), 0);
@@ -440,10 +440,14 @@ contract Bend4626 is
         IERC20Upgradeable bToken = IERC20Upgradeable(lpTokenAddress);
 
         // approve AToken's withdraw from the pool
-        bToken.approve(poolAddress, assets);
+        bToken.safeApprove(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`
-        IBendLendPool(poolAddress).withdraw(WETH, assets, receiver);
+        uint256 withdrawn = IBendLendPool(poolAddress).withdraw(WETH, assets, receiver);
+
+        if (assets != withdrawn) {
+            revert LessWithdrawn();
+        }
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
