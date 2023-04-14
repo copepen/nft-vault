@@ -100,6 +100,9 @@ contract Para4626 is
     /// @notice Parameter out of bounds
     error ParameterOutOfBounds();
 
+    /// @notice Less withdrawn from the pool
+    error LessWithdrawn();
+
     /***************/
     /* Constructor */
     /***************/
@@ -412,7 +415,11 @@ contract Para4626 is
         pWETH.safeApprove(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`
-        IPoolCore(poolAddress).withdraw(WETH, assets, address(this));
+        uint256 withdrawn = IPoolCore(poolAddress).withdraw(WETH, assets, address(this));
+
+        if (assets != withdrawn) {
+            revert LessWithdrawn();
+        }
 
         claimAmount = assets;
         beneficiary = receiver;

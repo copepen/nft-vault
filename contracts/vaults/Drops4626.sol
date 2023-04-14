@@ -106,6 +106,9 @@ contract Drops4626 is
     /// @notice Not enough reward balance
     error NotEnoughRewardBalance();
 
+    /// @notice Withdraw failed
+    error WithdrawFailed();
+
     /***************/
     /* Constructor */
     /***************/
@@ -426,7 +429,11 @@ contract Drops4626 is
         ICEther cEther = ICEther(lpTokenAddress);
 
         // trade ctokens for eth
-        cEther.redeemUnderlying(assets);
+        uint256 status = cEther.redeemUnderlying(assets);
+
+        if (status != 0) {
+            revert WithdrawFailed();
+        }
 
         // trade eth from weth
         IWETH(WETH).deposit{value: assets}();

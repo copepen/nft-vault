@@ -113,6 +113,9 @@ contract Bend4626 is
     /// @notice Not enough reward balance
     error NotEnoughRewardBalance();
 
+    /// @notice Less withdrawn from the pool
+    error LessWithdrawn();
+
     /***************/
     /* Constructor */
     /***************/
@@ -440,7 +443,11 @@ contract Bend4626 is
         bToken.safeApprove(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`
-        IBendLendPool(poolAddress).withdraw(WETH, assets, receiver);
+        uint256 withdrawn = IBendLendPool(poolAddress).withdraw(WETH, assets, receiver);
+
+        if (assets != withdrawn) {
+            revert LessWithdrawn();
+        }
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
