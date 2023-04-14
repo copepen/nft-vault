@@ -107,10 +107,19 @@ abstract contract VaultStorageV1 {
 }
 
 /**
+ * @title Storage for Vault
+ * @author Spice Finance Inc
+ */
+abstract contract VaultStorageV2 {
+    uint256 public lastTotalAssets;
+    uint256 public lastTotalShares;
+}
+
+/**
  * @title Storage for Vault, aggregated
  * @author Spice Finance Inc
  */
-abstract contract VaultStorage is VaultStorageV1 {
+abstract contract VaultStorage is VaultStorageV1, VaultStorageV2 {
 
 }
 
@@ -231,6 +240,16 @@ contract Vault is
     /// @param noteToken Note token contract
     /// @param loanId Loan ID
     event LoanLiquidated(address indexed noteToken, uint256 loanId);
+
+    /*************/
+    /* Modifiers */
+    /*************/
+
+    modifier takeFees() {
+        _takeFees();
+
+        _;
+    }
 
     /***************/
     /* Constructor */
@@ -359,16 +378,12 @@ contract Vault is
 
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
-        return
-            _convertToAssets(
-                balanceOf(owner).mulDiv(10_000 - withdrawalFees, 10_000),
-                MathUpgradeable.Rounding.Up
-            );
+        return previewRedeem(balanceOf(owner));
     }
 
     /// @notice See {IERC4626-maxRedeem}
     function maxRedeem(address owner) external view returns (uint256) {
-        return balanceOf(owner).mulDiv(10_000 - withdrawalFees, 10_000);
+        return balanceOf(owner);
     }
 
     /// @notice See {IERC4626-previewDeposit}
@@ -383,20 +398,28 @@ contract Vault is
 
     /// @notice See {IERC4626-previewWithdraw}
     function previewWithdraw(uint256 assets) public view returns (uint256) {
+        (uint256 _totalShares, uint256 interestEarned) = _interestEarned();
         return
-            _convertToShares(
-                assets.mulDiv(10_000, 10_000 - withdrawalFees),
-                MathUpgradeable.Rounding.Up
-            );
+            (assets == 0 || _totalShares == 0)
+                ? assets
+                : assets.mulDiv(
+                    _totalShares,
+                    _totalAssets - interestEarned,
+                    MathUpgradeable.Rounding.Up
+                );
     }
 
     /// @notice See {IERC4626-previewRedeem}
     function previewRedeem(uint256 shares) public view returns (uint256) {
+        (uint256 _totalShares, uint256 interestEarned) = _interestEarned();
         return
-            _convertToAssets(
-                shares.mulDiv(10_000 - withdrawalFees, 10_000),
-                MathUpgradeable.Rounding.Down
-            );
+            _totalShares == 0
+                ? shares
+                : shares.mulDiv(
+                    _totalAssets - interestEarned,
+                    _totalShares,
+                    MathUpgradeable.Rounding.Down
+                );
     }
 
     /// @notice Get all note tokens
@@ -580,7 +603,7 @@ contract Vault is
         }
 
         // compute redemption amount
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, MathUpgradeable.Rounding.Down);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
 
@@ -601,7 +624,7 @@ contract Vault is
         }
 
         // compute share amount
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, MathUpgradeable.Rounding.Up);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
 
@@ -671,7 +694,7 @@ contract Vault is
         }
 
         // compute redemption amount
-        assets = previewRedeem(shares);
+        assets = _convertToAssets(shares, MathUpgradeable.Rounding.Down);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
 
@@ -696,7 +719,7 @@ contract Vault is
         }
 
         // compute share amount
-        shares = previewWithdraw(assets);
+        shares = _convertToShares(assets, MathUpgradeable.Rounding.Up);
 
         _withdraw(msg.sender, receiver, owner, assets, shares);
 
@@ -765,8 +788,6 @@ contract Vault is
         uint256 assets,
         uint256 shares
     ) internal {
-        uint256 fees = convertToAssets(shares) - assets;
-
         if (caller != owner) {
             _spendAllowance(owner, caller, shares);
         }
@@ -776,15 +797,47 @@ contract Vault is
 
         _burn(owner, shares);
 
-        if (fees > 0) {
-            uint256 half = fees / 2;
-            _asset.safeTransfer(multisig, half);
-            _asset.safeTransfer(feeRecipient, fees - half);
-        }
-
         _totalAssets = _totalAssets - assets;
 
         emit Withdraw(caller, receiver, owner, assets, shares);
+    }
+
+    function _takeFees() internal {
+        (uint256 _totalShares, uint256 interestEarned) = _interestEarned();
+
+        if (interestEarned > 0) {
+            IERC20Upgradeable currency = IERC20Upgradeable(asset());
+
+            uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            uint256 half = fees / 2;
+            currency.safeTransfer(multisig, half);
+            currency.safeTransfer(feeRecipient, fees - half);
+
+            _totalAssets -= fees;
+        }
+
+        lastTotalAssets = _totalAssets;
+        lastTotalShares = _totalShares;
+    }
+
+    function _interestEarned()
+        internal
+        view
+        returns (uint256 _totalShares, uint256 interestEarned)
+    {
+        _totalShares = totalSupply();
+
+        if (lastTotalShares == 0) {
+            interestEarned = _totalAssets > _totalShares
+                ? (_totalAssets - _totalShares)
+                : 0;
+        } else {
+            uint256 adjusted = (lastTotalAssets * _totalShares) /
+                lastTotalShares;
+            interestEarned = _totalAssets > adjusted
+                ? (_totalAssets - adjusted)
+                : 0;
+        }
     }
 
     /// @dev Store loan info when new note token is received
