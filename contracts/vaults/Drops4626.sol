@@ -4,7 +4,7 @@ pragma solidity ^0.8.17;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/interfaces/IERC4626Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
@@ -53,6 +53,7 @@ contract Drops4626 is
     MoreDrops4626Storage
 {
     using MathUpgradeable for uint256;
+    using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /*************/
     /* Constants */
@@ -388,14 +389,11 @@ contract Drops4626 is
         uint256 shares,
         address receiver
     ) internal {
-        // load weth
-        IWETH weth = IWETH(WETH);
-
         // receive weth from msg.sender
-        weth.transferFrom(msg.sender, address(this), assets);
+        IERC20Upgradeable(WETH).safeTransferFrom(msg.sender, address(this), assets);
 
         // transfer weth to eth
-        weth.withdraw(assets);
+        IWETH(WETH).withdraw(assets);
 
         // get cether contract
         ICEther cEther = ICEther(lpTokenAddress);
@@ -430,14 +428,11 @@ contract Drops4626 is
         // trade ctokens for eth
         cEther.redeemUnderlying(assets);
 
-        // load weth
-        IWETH weth = IWETH(WETH);
-
         // trade eth from weth
-        weth.deposit{value: assets}();
+        IWETH(WETH).deposit{value: assets}();
 
         // transfer weth to receiver
-        weth.transfer(receiver, assets);
+        IERC20Upgradeable(WETH).safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }

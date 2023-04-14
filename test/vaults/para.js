@@ -272,7 +272,7 @@ describe("Para4626", function () {
 
         await expect(
           vault.connect(whale).deposit(assets, whale.address)
-        ).to.be.revertedWithoutReason();
+        ).to.be.revertedWith("SafeERC20: low-level call failed");
       });
 
       it("When balance is not enough", async function () {
@@ -282,7 +282,7 @@ describe("Para4626", function () {
 
         await expect(
           vault.connect(alice).deposit(assets, alice.address)
-        ).to.be.revertedWithoutReason();
+        ).to.be.revertedWith("SafeERC20: low-level call failed");
       });
 
       it("Take assets and mint shares", async function () {
@@ -353,7 +353,7 @@ describe("Para4626", function () {
 
         await expect(
           vault.connect(whale).mint(shares, whale.address)
-        ).to.be.revertedWithoutReason();
+        ).to.be.revertedWith("SafeERC20: low-level call failed");
       });
 
       it("When balance is not enough", async function () {
@@ -363,7 +363,7 @@ describe("Para4626", function () {
 
         await expect(
           vault.connect(alice).mint(shares, alice.address)
-        ).to.be.revertedWithoutReason();
+        ).to.be.revertedWith("SafeERC20: low-level call failed");
       });
 
       it("Take assets and mint shares", async function () {
