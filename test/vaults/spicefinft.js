@@ -413,7 +413,7 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero assets when supply is zero", async function () {
-        expect(await spiceVault.previewWithdraw(9300)).to.be.eq(10000);
+        expect(await spiceVault.previewWithdraw(10000)).to.be.eq(10000);
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
@@ -423,7 +423,7 @@ describe("SpiceFiNFT4626", function () {
           .approve(spiceVault.address, ethers.constants.MaxUint256);
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
 
-        expect(await spiceVault.previewWithdraw(9300)).to.be.eq(10000);
+        expect(await spiceVault.previewWithdraw(10000)).to.be.eq(10000);
       });
     });
 
@@ -433,7 +433,7 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Non-zero shares when supply is zero", async function () {
-        expect(await spiceVault.previewRedeem(10000)).to.be.eq(9300);
+        expect(await spiceVault.previewRedeem(10000)).to.be.eq(10000);
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
@@ -443,7 +443,7 @@ describe("SpiceFiNFT4626", function () {
           .approve(spiceVault.address, ethers.constants.MaxUint256);
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
 
-        expect(await spiceVault.previewRedeem(10000)).to.be.eq(9300);
+        expect(await spiceVault.previewRedeem(10000)).to.be.eq(10000);
       });
     });
 
@@ -491,7 +491,7 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
         expect(await spiceVault.maxWithdraw(whale.address)).to.be.eq(
-          assets.mul(9300).div(10000)
+          assets.mul(10000).div(10000)
         );
       });
     });
@@ -514,7 +514,7 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets.add(mintPrice));
 
         expect(await spiceVault.maxRedeem(whale.address)).to.be.eq(
-          assets.mul(9300).div(10000)
+          assets.mul(10000).div(10000)
         );
       });
     });
@@ -892,7 +892,7 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const assets = ethers.utils.parseEther("100");
+        const assets = ethers.utils.parseEther("101");
         await expect(
           spiceVault
             .connect(whale)
@@ -913,7 +913,7 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const assets = ethers.utils.parseEther("46.5");
+        const assets = ethers.utils.parseEther("50");
         await spiceVault
           .connect(whale)
           ["withdraw(uint256,uint256,address)"](1, assets, alice.address);
@@ -926,13 +926,15 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Split fees properly", async function () {
-        const amount = ethers.utils.parseEther("93");
+        const amount = ethers.utils.parseEther("90");
+        const interest = ethers.utils.parseEther("10");
+        await weth.connect(whale).transfer(spiceVault.address, interest);
         const beforeBalance1 = await weth.balanceOf(
           constants.accounts.Multisig
         );
         const beforeBalance2 = await weth.balanceOf(treasury.address);
         const beforeBalance3 = await weth.balanceOf(alice.address);
-        const fees = amount.mul(700).div(9300);
+        const fees = interest.mul(700).div(10000);
         const fees1 = fees.div(2);
         const fees2 = fees.sub(fees1);
 
@@ -1107,6 +1109,8 @@ describe("SpiceFiNFT4626", function () {
 
       it("Split fees properly", async function () {
         const shares = ethers.utils.parseEther("100");
+        const interest = ethers.utils.parseEther("20");
+        await weth.connect(whale).transfer(spiceVault.address, interest);
         const beforeBalance1 = await weth.balanceOf(
           constants.accounts.Multisig
         );
@@ -1124,7 +1128,7 @@ describe("SpiceFiNFT4626", function () {
             alice.address
           );
 
-        const fees = assets.mul(700).div(9300);
+        const fees = interest.mul(700).div(10000);
         const fees1 = fees.div(2);
         const fees2 = fees.sub(fees1);
 
@@ -1139,7 +1143,7 @@ describe("SpiceFiNFT4626", function () {
           beforeBalance2.add(fees2)
         );
         expect(await weth.balanceOf(alice.address)).to.be.eq(
-          beforeBalance3.add(assets)
+          beforeBalance3.add(shares).add(interest).sub(fees)
         );
         await expect(tx)
           .to.emit(spiceVault, "Withdraw")
@@ -1418,7 +1422,7 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const assets = ethers.utils.parseEther("100");
+        const assets = ethers.utils.parseEther("101");
         await expect(
           spiceVault.connect(alice).withdrawETH(1, assets, bob.address)
         ).to.be.revertedWithCustomError(spiceVault, "InsufficientShareBalance");
@@ -1437,7 +1441,7 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const assets = ethers.utils.parseEther("46.5");
+        const assets = ethers.utils.parseEther("50");
         await spiceVault.connect(alice).withdrawETH(1, assets, bob.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
@@ -1448,13 +1452,15 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("Split fees properly", async function () {
-        const amount = ethers.utils.parseEther("93");
+        const amount = ethers.utils.parseEther("100");
+        const interest = ethers.utils.parseEther("20");
+        await weth.connect(whale).transfer(spiceVault.address, interest);
         const beforeBalance1 = await weth.balanceOf(
           constants.accounts.Multisig
         );
         const beforeBalance2 = await weth.balanceOf(treasury.address);
         const beforeBalance3 = await ethers.provider.getBalance(bob.address);
-        const fees = amount.mul(700).div(9300);
+        const fees = interest.mul(700).div(10000);
         const fees1 = fees.div(2);
         const fees2 = fees.sub(fees1);
 
@@ -1601,6 +1607,8 @@ describe("SpiceFiNFT4626", function () {
 
       it("Split fees properly", async function () {
         const shares = ethers.utils.parseEther("100");
+        const interest = ethers.utils.parseEther("20");
+        await weth.connect(whale).transfer(spiceVault.address, interest);
         const beforeBalance1 = await weth.balanceOf(
           constants.accounts.Multisig
         );
@@ -1614,7 +1622,7 @@ describe("SpiceFiNFT4626", function () {
           .connect(alice)
           .callStatic.redeemETH(1, shares, alice.address);
 
-        const fees = assets.mul(700).div(9300);
+        const fees = interest.mul(700).div(10000);
         const fees1 = fees.div(2);
         const fees2 = fees.sub(fees1);
 
@@ -1629,7 +1637,7 @@ describe("SpiceFiNFT4626", function () {
           beforeBalance2.add(fees2)
         );
         expect(await ethers.provider.getBalance(bob.address)).to.be.eq(
-          beforeBalance3.add(assets)
+          beforeBalance3.add(shares).add(interest).sub(fees)
         );
         await expect(tx)
           .to.emit(spiceVault, "Withdraw")

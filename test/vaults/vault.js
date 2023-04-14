@@ -377,7 +377,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero assets when supply is zero", async function () {
-        expect(await vault.previewWithdraw(9300)).to.be.eq(10000);
+        expect(await vault.previewWithdraw(10000)).to.be.eq(10000);
       });
 
       it("Non-zero assets when supply is non-zero", async function () {
@@ -386,7 +386,7 @@ describe("Vault", function () {
         await weth.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
 
-        expect(await vault.previewWithdraw(9300)).to.be.eq(10000);
+        expect(await vault.previewWithdraw(10000)).to.be.eq(10000);
       });
     });
 
@@ -396,7 +396,7 @@ describe("Vault", function () {
       });
 
       it("Non-zero shares when supply is zero", async function () {
-        expect(await vault.previewRedeem(10000)).to.be.eq(9300);
+        expect(await vault.previewRedeem(10000)).to.be.eq(10000);
       });
 
       it("Non-zero shares when supply is non-zero", async function () {
@@ -405,7 +405,7 @@ describe("Vault", function () {
         await weth.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, bob.address);
 
-        expect(await vault.previewRedeem(10000)).to.be.eq(9300);
+        expect(await vault.previewRedeem(10000)).to.be.eq(10000);
       });
     });
 
@@ -433,7 +433,7 @@ describe("Vault", function () {
         await vault.connect(alice).deposit(assets, alice.address);
 
         expect(await vault.maxWithdraw(alice.address)).to.be.eq(
-          assets.mul(9300).div(10000)
+          assets.mul(10000).div(10000)
         );
       });
     });
@@ -450,7 +450,7 @@ describe("Vault", function () {
         await vault.connect(alice).deposit(assets, alice.address);
 
         expect(await vault.maxRedeem(alice.address)).to.be.eq(
-          assets.mul(9300).div(10000)
+          assets.mul(10000).div(10000)
         );
       });
     });
@@ -778,25 +778,25 @@ describe("Vault", function () {
       });
 
       it("When share balance is not enough", async function () {
-        const assets = ethers.utils.parseEther("100");
+        const assets = ethers.utils.parseEther("101");
 
         await expect(
           vault.connect(alice).withdraw(assets, bob.address, alice.address)
-        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+        ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
       });
 
       it("Withdraw assets", async function () {
         const assets = ethers.utils.parseEther("50");
-        const shares = await vault.previewWithdraw(assets);
-        expect(shares).to.be.eq(assets.mul(10000).div(9300));
-        const fees = shares.sub(await vault.convertToShares(assets));
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(alice).transfer(vault.address, interest);
+        await vault.connect(dev).setTotalAssets((await vault.totalAssets()).add(interest));
 
         const beforeFeeBalance1 = await weth.balanceOf(treasury.address);
         const beforeFeeBalance2 = await weth.balanceOf(
           constants.accounts.Multisig
         );
         const beforeAssetBalance = await weth.balanceOf(bob.address);
-        const beforeShareBalance = await vault.balanceOf(alice.address);
 
         await vault.connect(alice).withdraw(assets, bob.address, alice.address);
 
@@ -805,7 +805,6 @@ describe("Vault", function () {
           constants.accounts.Multisig
         );
         const afterAssetBalance = await weth.balanceOf(bob.address);
-        const afterShareBalance = await vault.balanceOf(alice.address);
 
         expect(afterFeeBalance1).to.be.closeTo(
           beforeFeeBalance1.add(fees.div(2)),
@@ -816,7 +815,6 @@ describe("Vault", function () {
           1
         );
         expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
-        expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
     });
 
@@ -867,14 +865,15 @@ describe("Vault", function () {
 
         await expect(
           vault.connect(alice).redeem(shares, bob.address, alice.address)
-        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+        ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
       });
 
       it("Redeem shares", async function () {
-        const shares = ethers.utils.parseEther("50");
-        const assets = await vault.previewRedeem(shares);
-        expect(assets).to.be.eq(shares.mul(9300).div(10000));
-        const fees = (await vault.convertToAssets(shares)).sub(assets);
+        const shares = ethers.utils.parseEther("100");
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(alice).transfer(vault.address, interest);
+        await vault.connect(dev).setTotalAssets((await vault.totalAssets()).add(interest));
 
         const beforeFeeBalance1 = await weth.balanceOf(treasury.address);
         const beforeFeeBalance2 = await weth.balanceOf(
@@ -900,7 +899,7 @@ describe("Vault", function () {
           beforeFeeBalance2.add(fees.div(2)),
           1
         );
-        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
+        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(shares).add(interest).sub(fees));
         expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
     });
@@ -1172,25 +1171,25 @@ describe("Vault", function () {
       });
 
       it("When share balance is not enough", async function () {
-        const assets = ethers.utils.parseEther("100");
+        const assets = ethers.utils.parseEther("101");
 
         await expect(
           vault.connect(alice).withdrawETH(assets, bob.address, alice.address)
-        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+          ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
       });
 
       it("Withdraw assets", async function () {
         const assets = ethers.utils.parseEther("50");
-        const shares = await vault.previewWithdraw(assets);
-        expect(shares).to.be.eq(assets.mul(10000).div(9300));
-        const fees = shares.sub(await vault.convertToShares(assets));
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(alice).transfer(vault.address, interest);
+        await vault.connect(dev).setTotalAssets((await vault.totalAssets()).add(interest));
 
         const beforeFeeBalance1 = await weth.balanceOf(treasury.address);
         const beforeFeeBalance2 = await weth.balanceOf(
           constants.accounts.Multisig
         );
         const beforeAssetBalance = await ethers.provider.getBalance(bob.address);
-        const beforeShareBalance = await vault.balanceOf(alice.address);
 
         await vault.connect(alice).withdrawETH(assets, bob.address, alice.address);
 
@@ -1199,7 +1198,6 @@ describe("Vault", function () {
           constants.accounts.Multisig
         );
         const afterAssetBalance = await ethers.provider.getBalance(bob.address);
-        const afterShareBalance = await vault.balanceOf(alice.address);
 
         expect(afterFeeBalance1).to.be.closeTo(
           beforeFeeBalance1.add(fees.div(2)),
@@ -1210,7 +1208,6 @@ describe("Vault", function () {
           1
         );
         expect(afterAssetBalance).to.be.closeTo(beforeAssetBalance.add(assets), ethers.utils.parseEther("0.01"));
-        expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
     });
 
@@ -1260,14 +1257,15 @@ describe("Vault", function () {
 
         await expect(
           vault.connect(alice).redeemETH(shares, bob.address, alice.address)
-        ).to.be.revertedWith("ERC20: burn amount exceeds balance");
+          ).to.be.revertedWithCustomError(vault, "InsufficientBalance");
       });
 
       it("Redeem shares", async function () {
-        const shares = ethers.utils.parseEther("50");
-        const assets = await vault.previewRedeem(shares);
-        expect(assets).to.be.eq(shares.mul(9300).div(10000));
-        const fees = (await vault.convertToAssets(shares)).sub(assets);
+        const shares = ethers.utils.parseEther("100");
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(alice).transfer(vault.address, interest);
+        await vault.connect(dev).setTotalAssets((await vault.totalAssets()).add(interest));
 
         const beforeFeeBalance1 = await weth.balanceOf(treasury.address);
         const beforeFeeBalance2 = await weth.balanceOf(
@@ -1293,7 +1291,7 @@ describe("Vault", function () {
           beforeFeeBalance2.add(fees.div(2)),
           1
         );
-        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(assets));
+        expect(afterAssetBalance).to.be.eq(beforeAssetBalance.add(shares).add(interest).sub(fees));
         expect(beforeShareBalance).to.be.eq(afterShareBalance.add(shares));
       });
     });

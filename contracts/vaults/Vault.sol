@@ -594,7 +594,7 @@ contract Vault is
         uint256 shares,
         address receiver,
         address owner
-    ) external whenNotPaused nonReentrant returns (uint256 assets) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 assets) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -615,7 +615,7 @@ contract Vault is
         uint256 assets,
         address receiver,
         address owner
-    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 shares) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -685,7 +685,7 @@ contract Vault is
         uint256 shares,
         address receiver,
         address owner
-    ) external whenNotPaused nonReentrant returns (uint256 assets) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 assets) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -710,7 +710,7 @@ contract Vault is
         uint256 assets,
         address receiver,
         address owner
-    ) external whenNotPaused nonReentrant returns (uint256 shares) {
+    ) external whenNotPaused nonReentrant takeFees returns (uint256 shares) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
