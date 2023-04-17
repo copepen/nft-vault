@@ -399,12 +399,13 @@ contract Vault is
     /// @notice See {IERC4626-previewWithdraw}
     function previewWithdraw(uint256 assets) public view returns (uint256) {
         (uint256 _totalShares, uint256 interestEarned) = _interestEarned();
+        uint256 fees = (interestEarned * withdrawalFees) / 10_000;
         return
             (assets == 0 || _totalShares == 0)
                 ? assets
                 : assets.mulDiv(
                     _totalShares,
-                    _totalAssets - interestEarned,
+                    _totalAssets - fees,
                     MathUpgradeable.Rounding.Up
                 );
     }
@@ -412,11 +413,12 @@ contract Vault is
     /// @notice See {IERC4626-previewRedeem}
     function previewRedeem(uint256 shares) public view returns (uint256) {
         (uint256 _totalShares, uint256 interestEarned) = _interestEarned();
+        uint256 fees = (interestEarned * withdrawalFees) / 10_000;
         return
             _totalShares == 0
                 ? shares
                 : shares.mulDiv(
-                    _totalAssets - interestEarned,
+                    _totalAssets - fees,
                     _totalShares,
                     MathUpgradeable.Rounding.Down
                 );
