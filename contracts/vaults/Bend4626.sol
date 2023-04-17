@@ -344,6 +344,7 @@ contract Bend4626 is
             rewardBalance
         );
 
+        BEND.safeApprove(address(UNISWAP_V2_ROUTER), 0);
         BEND.safeApprove(address(UNISWAP_V2_ROUTER), rewardBalance);
         address[] memory path = new address[](2);
         path[0] = address(BEND);
@@ -357,6 +358,7 @@ contract Bend4626 is
         );
 
         // approve weth deposit into underlying marketplace
+        IERC20Upgradeable(WETH).safeApprove(poolAddress, 0);
         IERC20Upgradeable(WETH).safeApprove(poolAddress, amounts[1]);
 
         // deposit into underlying marketplace
@@ -410,6 +412,7 @@ contract Bend4626 is
         weth.safeTransferFrom(msg.sender, address(this), assets);
 
         // approve weth deposit into underlying marketplace
+        weth.safeApprove(poolAddress, 0);
         weth.safeApprove(poolAddress, assets);
 
         // deposit into underlying marketplace
@@ -440,6 +443,7 @@ contract Bend4626 is
         IERC20Upgradeable bToken = IERC20Upgradeable(lpTokenAddress);
 
         // approve AToken's withdraw from the pool
+        bToken.safeApprove(poolAddress, 0);
         bToken.safeApprove(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`

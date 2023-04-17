@@ -307,6 +307,7 @@ contract Drops4626 is
         }
         IComptroller(COMPTROLLER).claimComp(address(this));
 
+        DROPS.safeApprove(address(UNISWAP_V2_ROUTER), 0);
         DROPS.safeApprove(address(UNISWAP_V2_ROUTER), rewardBalance);
         address[] memory path = new address[](2);
         path[0] = address(DROPS);
