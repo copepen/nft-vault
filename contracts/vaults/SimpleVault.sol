@@ -713,6 +713,7 @@ contract SimpleVault is
                 hasRole(DEFAULT_ADMIN_ROLE, msg.sender)
         );
         _checkRole(MARKETPLACE_ROLE, spender);
+        _asset.safeApprove(spender, 0);
         _asset.safeApprove(spender, amount);
     }
 

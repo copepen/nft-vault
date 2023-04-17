@@ -366,6 +366,10 @@ contract SpiceLending is
 
         IERC20Upgradeable(_terms.currency).safeApprove(
             _terms.collateralAddress,
+            0
+        );
+        IERC20Upgradeable(_terms.currency).safeApprove(
+            _terms.collateralAddress,
             _terms.loanAmount
         );
         ISpiceFiNFT4626(_terms.collateralAddress).deposit(
@@ -444,6 +448,10 @@ contract SpiceLending is
             );
             IERC20Upgradeable(_terms.currency).safeApprove(
                 _terms.collateralAddress,
+                0
+            );
+            IERC20Upgradeable(_terms.currency).safeApprove(
+                _terms.collateralAddress,
                 additionalTransfer
             );
             ISpiceFiNFT4626(_terms.collateralAddress).deposit(
@@ -467,6 +475,10 @@ contract SpiceLending is
             msg.sender,
             address(this),
             _amount
+        );
+        IERC20Upgradeable(data.terms.currency).safeApprove(
+            data.terms.collateralAddress,
+            0
         );
         IERC20Upgradeable(data.terms.currency).safeApprove(
             data.terms.collateralAddress,

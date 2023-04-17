@@ -380,6 +380,7 @@ contract Para4626 is
         weth.safeTransferFrom(msg.sender, address(this), assets);
 
         // approve weth deposit into underlying marketplace
+        weth.safeApprove(poolAddress, 0);
         weth.safeApprove(poolAddress, assets);
 
         // deposit into underlying marketplace
@@ -412,6 +413,7 @@ contract Para4626 is
         // get lp token contract
         IERC20Upgradeable pWETH = IERC20Upgradeable(lpTokenAddress);
 
+        pWETH.safeApprove(poolAddress, 0);
         pWETH.safeApprove(poolAddress, assets);
 
         // withdraw weth from the pool and send it to `receiver`

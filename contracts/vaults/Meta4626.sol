@@ -332,6 +332,7 @@ contract Meta4626 is
         weth.safeTransferFrom(msg.sender, address(this), assets);
 
         // approve weth deposit into underlying marketplace
+        weth.safeApprove(vaultAddress, 0);
         weth.safeApprove(vaultAddress, assets);
 
         // deposit into underlying marketplace
@@ -371,6 +372,7 @@ contract Meta4626 is
             MathUpgradeable.Rounding.Up
         );
 
+        lpToken.safeApprove(vaultAddress, 0);
         lpToken.safeApprove(vaultAddress, lpRedeemAmount);
 
         // load weth
