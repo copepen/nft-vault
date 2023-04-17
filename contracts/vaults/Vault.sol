@@ -848,35 +848,35 @@ contract Vault is
         INoteAdapter noteAdapter = _noteAdapters[noteToken];
 
         // Get loan info
-        INoteAdapter.LoanInfo memory loanInfo = noteAdapter.getLoanInfo(
-            noteTokenId
-        );
+        try noteAdapter.getLoanInfo(noteTokenId) returns (
+            INoteAdapter.LoanInfo memory loanInfo
+        ) {
+            _loanToNoteTokenIds[noteToken][loanInfo.loanId] = noteTokenId;
 
-        _loanToNoteTokenIds[noteToken][loanInfo.loanId] = noteTokenId;
+            // Store loan state
+            Loan storage loan = _loans[noteToken][loanInfo.loanId];
+            if (loan.status != LoanStatus.Uninitialized) {
+                revert LoanAlreadyTracked();
+            }
+            loan.status = LoanStatus.Active;
+            loan.maturity = loanInfo.maturity;
+            loan.duration = loanInfo.duration;
+            loan.collateralToken = IERC721(loanInfo.collateralToken);
+            loan.collateralTokenId = loanInfo.collateralTokenId;
+            loan.principal = loanInfo.principal;
+            loan.repayment = loanInfo.repayment;
 
-        // Store loan state
-        Loan storage loan = _loans[noteToken][loanInfo.loanId];
-        if (loan.status != LoanStatus.Uninitialized) {
-            revert LoanAlreadyTracked();
-        }
-        loan.status = LoanStatus.Active;
-        loan.maturity = loanInfo.maturity;
-        loan.duration = loanInfo.duration;
-        loan.collateralToken = IERC721(loanInfo.collateralToken);
-        loan.collateralTokenId = loanInfo.collateralTokenId;
-        loan.principal = loanInfo.principal;
-        loan.repayment = loanInfo.repayment;
+            // Store note
+            Note storage note = _notes[loanInfo.collateralToken][
+                loanInfo.collateralTokenId
+            ];
+            note.noteToken = noteToken;
+            note.noteTokenId = noteTokenId;
+            note.loanId = loanInfo.loanId;
 
-        // Store note
-        Note storage note = _notes[loanInfo.collateralToken][
-            loanInfo.collateralTokenId
-        ];
-        note.noteToken = noteToken;
-        note.noteTokenId = noteTokenId;
-        note.loanId = loanInfo.loanId;
-
-        // Add loan to pending loan ids
-        _pendingLoans[noteToken].add(loanInfo.loanId);
+            // Add loan to pending loan ids
+            _pendingLoans[noteToken].add(loanInfo.loanId);
+        } catch {}
     }
 
     /***********/
