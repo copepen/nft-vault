@@ -425,6 +425,20 @@ describe("SpiceFiNFT4626", function () {
 
         expect(await spiceVault.previewWithdraw(10000)).to.be.eq(10000);
       });
+
+      it("Consider interest fees", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
+
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(whale).transfer(spiceVault.address, interest);
+
+        expect(await spiceVault.previewWithdraw(amount)).to.be.closeTo(amount.mul(amount).div(amount.add(interest).sub(fees)), 1);
+      });
     });
 
     describe("previewRedeem", function () {
@@ -444,6 +458,20 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, assets);
 
         expect(await spiceVault.previewRedeem(10000)).to.be.eq(10000);
+      });
+
+      it("Consider interest fees", async function () {
+        const amount = ethers.utils.parseEther("100");
+        await weth
+          .connect(whale)
+          .approve(spiceVault.address, ethers.constants.MaxUint256);
+        await spiceVault.connect(whale)["deposit(uint256,uint256)"](0, amount.add(mintPrice));
+
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(whale).transfer(spiceVault.address, interest);
+
+        expect(await spiceVault.previewRedeem(amount)).to.be.closeTo(amount.mul(amount.add(interest).sub(fees)).div(amount), 1);
       });
     });
 
@@ -901,9 +929,13 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When vault balance is not enough", async function () {
+        const interest = ethers.utils.parseEther("50"); // fees: 3.5 ETH
+        await weth.connect(whale).transfer(spiceVault.address, interest);
+
+        // keeps 2 ETH in the vault, 1.5 ETH will be withdrawn
         await depositToVaults(
           [vault.address, bend.address],
-          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+          [ethers.utils.parseEther("20"), ethers.utils.parseEther("128")]
         );
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
@@ -920,7 +952,7 @@ describe("SpiceFiNFT4626", function () {
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
         expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
-          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          beforeBendDeposit.sub(ethers.utils.parseEther("31.5")), // 50 - (20 - 1.5) = 31.5
           ethers.utils.parseEther("0.00001")
         );
       });
@@ -1083,9 +1115,13 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When vault balance is not enough", async function () {
+        const interest = ethers.utils.parseEther("50"); // fees: 3.5 ETH
+        await weth.connect(whale).transfer(spiceVault.address, interest);
+
+        // keeps 2 ETH in the vault, 1.5 ETH will be withdrawn
         await depositToVaults(
           [vault.address, bend.address],
-          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+          [ethers.utils.parseEther("20"), ethers.utils.parseEther("128")]
         );
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
@@ -1095,14 +1131,14 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const shares = ethers.utils.parseEther("50");
+        const shares = ethers.utils.parseEther("50"); // 73.25 ETH will be withdrawn
         await spiceVault
           .connect(whale)
           ["redeem(uint256,uint256,address)"](1, shares, alice.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
         expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
-          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          beforeBendDeposit.sub(ethers.utils.parseEther("54.75")), // 73.25 - (20 - 1.5) = 54.75
           ethers.utils.parseEther("0.00001")
         );
       });
@@ -1429,9 +1465,13 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When vault balance is not enough", async function () {
+        const interest = ethers.utils.parseEther("50"); // fees: 3.5 ETH
+        await weth.connect(whale).transfer(spiceVault.address, interest);
+
+        // keeps 2 ETH in the vault, 1.5 ETH will be withdrawn
         await depositToVaults(
           [vault.address, bend.address],
-          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+          [ethers.utils.parseEther("20"), ethers.utils.parseEther("128")]
         );
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
@@ -1446,7 +1486,7 @@ describe("SpiceFiNFT4626", function () {
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
         expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
-          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          beforeBendDeposit.sub(ethers.utils.parseEther("31.5")), // 50 - (20 - 1.5) = 31.5
           ethers.utils.parseEther("0.00001")
         );
       });
@@ -1583,9 +1623,13 @@ describe("SpiceFiNFT4626", function () {
       });
 
       it("When vault balance is not enough", async function () {
+        const interest = ethers.utils.parseEther("50"); // fees: 3.5 ETH
+        await weth.connect(whale).transfer(spiceVault.address, interest);
+
+        // keeps 2 ETH in the vault, 1.5 ETH will be withdrawn
         await depositToVaults(
           [vault.address, bend.address],
-          [ethers.utils.parseEther("10"), ethers.utils.parseEther("80")]
+          [ethers.utils.parseEther("20"), ethers.utils.parseEther("128")]
         );
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.gt(0);
@@ -1595,12 +1639,12 @@ describe("SpiceFiNFT4626", function () {
         await spiceVault.setBaseURI("uri://");
         await spiceVault.setWithdrawable(true);
 
-        const shares = ethers.utils.parseEther("50");
+        const shares = ethers.utils.parseEther("50"); // 73.25 ETH will be withdrawn
         await spiceVault.connect(alice).redeemETH(1, shares, alice.address);
 
         expect(await vault.maxWithdraw(spiceVault.address)).to.be.eq(0);
         expect(await bend.maxWithdraw(spiceVault.address)).to.be.closeTo(
-          beforeBendDeposit.sub(ethers.utils.parseEther("30")),
+          beforeBendDeposit.sub(ethers.utils.parseEther("54.75")), // 73.25 - (20 - 1.5) = 54.75
           ethers.utils.parseEther("0.00001")
         );
       });

@@ -467,12 +467,13 @@ contract SpiceFiNFT4626 is
         uint256 assets
     ) public view override returns (uint256) {
         (uint256 _totalAssets, uint256 interestEarned) = _interestEarned();
+        uint256 fees = (interestEarned * withdrawalFees) / 10_000;
         return
             (assets == 0 || totalShares == 0)
                 ? assets
                 : assets.mulDiv(
                     totalShares,
-                    _totalAssets - interestEarned,
+                    _totalAssets - fees,
                     MathUpgradeable.Rounding.Up
                 );
     }
@@ -482,11 +483,12 @@ contract SpiceFiNFT4626 is
         uint256 shares
     ) public view override returns (uint256) {
         (uint256 _totalAssets, uint256 interestEarned) = _interestEarned();
+        uint256 fees = (interestEarned * withdrawalFees) / 10_000;
         return
             totalShares == 0
                 ? shares
                 : shares.mulDiv(
-                    _totalAssets - interestEarned,
+                    _totalAssets - fees,
                     totalShares,
                     MathUpgradeable.Rounding.Down
                 );
@@ -882,7 +884,12 @@ contract SpiceFiNFT4626 is
         if (interestEarned > 0) {
             IERC20Upgradeable currency = IERC20Upgradeable(asset());
 
+            uint256 balance = currency.balanceOf(address(this));
             uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            if (balance < fees) {
+                // withdraw from vaults
+                _withdrawFromVaults(fees - balance);
+            }
             uint256 half = fees / 2;
             currency.safeTransfer(multisig, half);
             currency.safeTransfer(feeRecipient, fees - half);

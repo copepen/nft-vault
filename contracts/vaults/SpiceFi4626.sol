@@ -387,12 +387,13 @@ contract SpiceFi4626 is
             uint256 _totalShares,
             uint256 interestEarned
         ) = _interestEarned();
+        uint256 fees = (interestEarned * withdrawalFees) / 10_000;
         return
             (assets == 0 || _totalShares == 0)
                 ? assets
                 : assets.mulDiv(
                     _totalShares,
-                    _totalAssets - interestEarned,
+                    _totalAssets - fees,
                     MathUpgradeable.Rounding.Up
                 );
     }
@@ -406,11 +407,12 @@ contract SpiceFi4626 is
             uint256 _totalShares,
             uint256 interestEarned
         ) = _interestEarned();
+        uint256 fees = (interestEarned * withdrawalFees) / 10_000;
         return
             _totalShares == 0
                 ? shares
                 : shares.mulDiv(
-                    _totalAssets - interestEarned,
+                    _totalAssets - fees,
                     _totalShares,
                     MathUpgradeable.Rounding.Down
                 );
@@ -663,7 +665,12 @@ contract SpiceFi4626 is
         if (interestEarned > 0) {
             IERC20Upgradeable currency = IERC20Upgradeable(asset());
 
+            uint256 balance = currency.balanceOf(address(this));
             uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            if (balance < fees) {
+                // withdraw from vaults
+                _withdrawFromVaults(fees - balance);
+            }
             uint256 half = fees / 2;
             currency.safeTransfer(multisig, half);
             currency.safeTransfer(feeRecipient, fees - half);
