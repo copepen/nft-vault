@@ -211,7 +211,7 @@ describe("Bend4626", function () {
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
 
-        expect(await vault.totalAssets()).to.be.eq(assets);
+        expect(await vault.totalAssets()).to.be.closeTo(assets, 1);
       });
     });
   });

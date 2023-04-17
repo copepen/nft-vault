@@ -388,6 +388,20 @@ describe("Vault", function () {
 
         expect(await vault.previewWithdraw(10000)).to.be.eq(10000);
       });
+
+      it("Consider interest fees", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+        const amount = ethers.utils.parseEther("100");
+        await weth.connect(alice).approve(vault.address, amount);
+        await vault.connect(alice).deposit(amount, bob.address);
+
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(alice).transfer(vault.address, interest);
+        await vault.connect(dev).setTotalAssets((await vault.totalAssets()).add(interest));
+
+        expect(await vault.previewWithdraw(amount)).to.be.closeTo(amount.mul(amount).div(amount.add(interest).sub(fees)), 1);
+      });
     });
 
     describe("previewRedeem", function () {
@@ -406,6 +420,20 @@ describe("Vault", function () {
         await vault.connect(alice).deposit(assets, bob.address);
 
         expect(await vault.previewRedeem(10000)).to.be.eq(10000);
+      });
+
+      it("Consider interest fees", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+        const amount = ethers.utils.parseEther("100");
+        await weth.connect(alice).approve(vault.address, amount);
+        await vault.connect(alice).deposit(amount, bob.address);
+
+        const interest = ethers.utils.parseEther("10");
+        const fees = interest.mul(700).div(10000);
+        await weth.connect(alice).transfer(vault.address, interest);
+        await vault.connect(dev).setTotalAssets((await vault.totalAssets()).add(interest));
+
+        expect(await vault.previewRedeem(amount)).to.be.closeTo(amount.mul(amount.add(interest).sub(fees)).div(amount), 1);
       });
     });
 
