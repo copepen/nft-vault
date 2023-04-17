@@ -884,7 +884,12 @@ contract SpiceFiNFT4626 is
         if (interestEarned > 0) {
             IERC20Upgradeable currency = IERC20Upgradeable(asset());
 
+            uint256 balance = currency.balanceOf(address(this));
             uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            if (balance < fees) {
+                // withdraw from vaults
+                _withdrawFromVaults(fees - balance);
+            }
             uint256 half = fees / 2;
             currency.safeTransfer(multisig, half);
             currency.safeTransfer(feeRecipient, fees - half);

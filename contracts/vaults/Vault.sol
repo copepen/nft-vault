@@ -808,12 +808,12 @@ contract Vault is
         (uint256 _totalShares, uint256 interestEarned) = _interestEarned();
 
         if (interestEarned > 0) {
-            IERC20Upgradeable currency = IERC20Upgradeable(asset());
-
             uint256 fees = (interestEarned * withdrawalFees) / 10_000;
+            if (_asset.balanceOf(address(this)) < fees)
+                revert InsufficientBalance();
             uint256 half = fees / 2;
-            currency.safeTransfer(multisig, half);
-            currency.safeTransfer(feeRecipient, fees - half);
+            _asset.safeTransfer(multisig, half);
+            _asset.safeTransfer(feeRecipient, fees - half);
 
             _totalAssets -= fees;
         }
