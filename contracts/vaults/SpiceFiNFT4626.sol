@@ -886,15 +886,17 @@ contract SpiceFiNFT4626 is
 
             uint256 balance = currency.balanceOf(address(this));
             uint256 fees = (interestEarned * withdrawalFees) / 10_000;
-            if (balance < fees) {
-                // withdraw from vaults
-                _withdrawFromVaults(fees - balance);
-            }
-            uint256 half = fees / 2;
-            currency.safeTransfer(multisig, half);
-            currency.safeTransfer(feeRecipient, fees - half);
+            if (fees > 0) {
+                if (balance < fees) {
+                    // withdraw from vaults
+                    _withdrawFromVaults(fees - balance);
+                }
+                uint256 half = fees / 2;
+                currency.safeTransfer(multisig, half);
+                currency.safeTransfer(feeRecipient, fees - half);
 
-            _totalAssets -= fees;
+                _totalAssets -= fees;
+            }
         }
 
         lastTotalAssets = _totalAssets;
