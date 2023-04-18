@@ -25,6 +25,33 @@ import "../interfaces/IWETH.sol";
  * @author Spice Finance Inc
  */
 abstract contract VaultStorageV1 {
+    /// @dev Asset token
+    IERC20Upgradeable internal _asset;
+
+    /// @dev Token decimals;
+    uint8 internal _decimals;
+
+    /// @dev withdrawal fees per 10_000 units
+    uint256 public withdrawalFees;
+
+    /// @notice Spice dev wallet
+    address public dev;
+
+    /// @notice Spice Multisig address
+    address public multisig;
+
+    /// @notice Fee recipient address
+    address public feeRecipient;
+
+    /// @dev Total assets value
+    uint256 internal _totalAssets;
+}
+
+/**
+ * @title Storage for Vault
+ * @author Spice Finance Inc
+ */
+abstract contract VaultStorageV2 {
     /**************/
     /* Structures */
     /**************/
@@ -65,27 +92,6 @@ abstract contract VaultStorageV1 {
     /* State */
     /*********/
 
-    /// @dev Asset token
-    IERC20Upgradeable internal _asset;
-
-    /// @dev Token decimals;
-    uint8 internal _decimals;
-
-    /// @dev withdrawal fees per 10_000 units
-    uint256 public withdrawalFees;
-
-    /// @notice Spice dev wallet
-    address public dev;
-
-    /// @notice Spice Multisig address
-    address public multisig;
-
-    /// @notice Fee recipient address
-    address public feeRecipient;
-
-    /// @dev Total assets value
-    uint256 internal _totalAssets;
-
     /// @dev Note list
     EnumerableSetUpgradeable.AddressSet internal _noteTokens;
 
@@ -104,13 +110,7 @@ abstract contract VaultStorageV1 {
     /// @dev Mapping of note token contract to loan ID to note token ID
     mapping(address => mapping(uint256 => uint256))
         internal _loanToNoteTokenIds;
-}
 
-/**
- * @title Storage for Vault
- * @author Spice Finance Inc
- */
-abstract contract VaultStorageV2 {
     uint256 public lastTotalAssets;
     uint256 public lastTotalShares;
 }
@@ -119,7 +119,7 @@ abstract contract VaultStorageV2 {
  * @title Storage for Vault, aggregated
  * @author Spice Finance Inc
  */
-abstract contract VaultStorage is VaultStorageV1, VaultStorageV2 {
+abstract contract VaultStorage is VaultStorageV1 {
 
 }
 
@@ -129,6 +129,7 @@ abstract contract VaultStorage is VaultStorageV1, VaultStorageV2 {
  */
 contract Vault is
     IVault,
+    VaultStorage,
     Initializable,
     ERC20Upgradeable,
     IERC4626Upgradeable,
@@ -136,7 +137,7 @@ contract Vault is
     PausableUpgradeable,
     ReentrancyGuardUpgradeable,
     IERC721Receiver,
-    VaultStorage
+    VaultStorageV2
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
     using MathUpgradeable for uint256;
