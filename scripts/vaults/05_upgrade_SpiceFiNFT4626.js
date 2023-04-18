@@ -16,7 +16,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: '0x1CbeB970912f7F5a5252D3DEAE09dd56b7b664C4',
+        address: "0x133233691EC1Bb91A1813681E6CcEBAF277224Ac",
         contract: "contracts/vaults/SpiceFiNFT4626.sol:SpiceFiNFT4626",
         constructorArguments: [],
       });

@@ -5,7 +5,7 @@ async function main() {
 
   // const beacon = await deployments.get("Para4626");
   // const Para4626 = await ethers.getContractFactory("Para4626");
-  // const vault = await upgrades.upgradeBeacon(beacon.address, Para4626);
+  // const vault = await upgrades.upgradeBeacon(beacon.address, Para4626, {'timeout': 0});
   // await vault.deployed();
 // 
   // console.log("Para4626 successfully upgraded!");
@@ -13,7 +13,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0x968D4f25997095e33D5C115Fa2c7AE273f2c0d4C",
+        address: "0x4cD6cCa4b5a52dE0D5C262770224b68a338FD1c3",
         contract: "contracts/vaults/Para4626.sol:Para4626",
         constructorArguments: [],
       });

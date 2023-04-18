@@ -14,7 +14,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0x3147B737Dc589e7345a16947Dcb58C9E123905D7",
+        address: "",
         contract: "contracts/vaults/Vault.sol:Vault",
         constructorArguments: [],
       });
