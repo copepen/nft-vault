@@ -810,13 +810,15 @@ contract Vault is
 
         if (interestEarned > 0) {
             uint256 fees = (interestEarned * withdrawalFees) / 10_000;
-            if (_asset.balanceOf(address(this)) < fees)
-                revert InsufficientBalance();
-            uint256 half = fees / 2;
-            _asset.safeTransfer(multisig, half);
-            _asset.safeTransfer(feeRecipient, fees - half);
+            if (fees > 0) {
+                if (_asset.balanceOf(address(this)) < fees)
+                    revert InsufficientBalance();
+                uint256 half = fees / 2;
+                _asset.safeTransfer(multisig, half);
+                _asset.safeTransfer(feeRecipient, fees - half);
 
-            _totalAssets -= fees;
+                _totalAssets -= fees;
+            }
         }
 
         lastTotalAssets = _totalAssets;
