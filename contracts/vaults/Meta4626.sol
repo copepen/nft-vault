@@ -129,7 +129,9 @@ contract Meta4626 is
 
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() public view returns (uint256) {
-        return _totalAssets;
+        return
+            _totalAssets +
+            IMetaLp(lpTokenAddress).redemptions(address(this)).pending;
     }
 
     /// @notice See {IERC4626-convertToShares}
@@ -369,12 +371,20 @@ contract Meta4626 is
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
-        // withdraw weth from the pool and send it to `receiver`
-        IMetaVault(vaultAddress).redeem(
-            IMetaVault.TrancheId.Junior,
-            lpRedeemAmount
+        if (IMetaLp(lpTokenAddress).redemptions(address(this)).pending == 0) {
+            // withdraw weth from the pool and send it to `receiver`
+            IMetaVault(vaultAddress).redeem(
+                IMetaVault.TrancheId.Junior,
+                lpRedeemAmount
+            );
+        }
+        (, , , , uint256 processedRedemptionQueue, , ) = IMetaVault(
+            vaultAddress
+        ).trancheState(IMetaVault.TrancheId.Junior);
+        uint256 available = IMetaLp(lpTokenAddress).redemptionAvailable(
+            address(this),
+            processedRedemptionQueue
         );
-        uint256 available = IMetaLp(lpTokenAddress).redemptionAvailable(address(this), type(uint256).max);
         shares = shares.mulDiv(available, assets, MathUpgradeable.Rounding.Up);
         assets = available;
 
@@ -388,30 +398,10 @@ contract Meta4626 is
         // Decrease total assets value of vault
         _totalAssets = _totalAssets - assets;
 
-        IMetaVault(vaultAddress).withdraw(
-            IMetaVault.TrancheId.Junior,
-            assets
-        );
+        IMetaVault(vaultAddress).withdraw(IMetaVault.TrancheId.Junior, assets);
 
         weth.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /***********/
-    /* Setters */
-    /***********/
-
-    /// @notice Set total assets
-    ///
-    /// Emits a {TotalAssets} event.
-    ///
-    /// @param totalAssets_ New total assets value
-    function setTotalAssets(
-        uint256 totalAssets_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _totalAssets = totalAssets_;
-
-        emit TotalAssets(totalAssets_);
     }
 }
