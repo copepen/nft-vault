@@ -46,6 +46,9 @@ contract Meta4626 is
     /// @notice WETH address
     address public constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
+    /// @notice Whitelist role
+    bytes32 public constant WHITELIST_ROLE = keccak256("WHITELIST_ROLE");
+
     /**********/
     /* Events */
     /**********/
@@ -197,7 +200,7 @@ contract Meta4626 is
     function deposit(
         uint256 assets,
         address receiver
-    ) external nonReentrant returns (uint256 shares) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 shares) {
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
@@ -217,7 +220,7 @@ contract Meta4626 is
     function mint(
         uint256 shares,
         address receiver
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 assets) {
         if (shares == 0) {
             revert ParameterOutOfBounds();
         }
@@ -239,7 +242,7 @@ contract Meta4626 is
         uint256 assets,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 shares) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 shares) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -261,7 +264,7 @@ contract Meta4626 is
         uint256 shares,
         address receiver,
         address owner
-    ) external nonReentrant returns (uint256 assets) {
+    ) external nonReentrant onlyRole(WHITELIST_ROLE) returns (uint256 assets) {
         if (receiver == address(0)) {
             revert InvalidAddress();
         }
@@ -353,36 +356,39 @@ contract Meta4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        // get lp token contract
-        IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
-
-        uint256 redemptionSharePrice = _redemptionSharePrice();
-        uint256 lpRedeemAmount = assets.mulDiv(
-            1e18,
-            redemptionSharePrice,
-            MathUpgradeable.Rounding.Up
-        );
-
-        lpToken.safeApprove(vaultAddress, 0);
-        lpToken.safeApprove(vaultAddress, lpRedeemAmount);
-
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
         if (IMetaLp(lpTokenAddress).redemptions(address(this)).pending == 0) {
+            // get lp token contract
+            IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
+
+            uint256 redemptionSharePrice = _redemptionSharePrice();
+            uint256 lpRedeemAmount = assets.mulDiv(
+                1e18,
+                redemptionSharePrice,
+                MathUpgradeable.Rounding.Up
+            );
+
+            lpToken.safeApprove(vaultAddress, 0);
+            lpToken.safeApprove(vaultAddress, lpRedeemAmount);
+
             // withdraw weth from the pool and send it to `receiver`
             IMetaVault(vaultAddress).redeem(
                 IMetaVault.TrancheId.Junior,
                 lpRedeemAmount
             );
         }
+
         (, , , , uint256 processedRedemptionQueue, , ) = IMetaVault(
             vaultAddress
         ).trancheState(IMetaVault.TrancheId.Junior);
+
         uint256 available = IMetaLp(lpTokenAddress).redemptionAvailable(
             address(this),
             processedRedemptionQueue
         );
+        
         shares = shares.mulDiv(available, assets, MathUpgradeable.Rounding.Up);
         assets = available;
 

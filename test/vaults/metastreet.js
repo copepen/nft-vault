@@ -10,6 +10,7 @@ describe("Meta4626", function () {
   let admin, alice, bob;
   let whale;
   let snapshotId;
+  let whitelistRole;
 
   const name = "Spice interest bearing WETH";
   const symbol = "spiceETH";
@@ -37,6 +38,8 @@ describe("Meta4626", function () {
       symbol,
       constants.contracts.MetaPool,
     ]);
+
+    whitelistRole = await vault.WHITELIST_ROLE();
   });
 
   beforeEach(async () => {
@@ -156,6 +159,8 @@ describe("Meta4626", function () {
       });
 
       it("When balance is non-zero", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
@@ -172,6 +177,8 @@ describe("Meta4626", function () {
       });
 
       it("When balance is non-zero", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
@@ -188,6 +195,8 @@ describe("Meta4626", function () {
       });
 
       it("When there is deposit", async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
@@ -199,6 +208,22 @@ describe("Meta4626", function () {
 
   describe("User Actions", function () {
     describe("Deposit", function () {
+      beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          vault.connect(whale).deposit(assets, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
+      });
+
       it("When deposits 0 assets", async function () {
         await expect(
           vault.connect(whale).deposit(0, whale.address)
@@ -264,6 +289,22 @@ describe("Meta4626", function () {
     });
 
     describe("Mint", function () {
+      beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("100");
+        await expect(
+          vault.connect(whale).mint(assets, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
+      });
+
       it("When mints 0 shares", async function () {
         await expect(
           vault.connect(whale).mint(0, whale.address)
@@ -330,9 +371,23 @@ describe("Meta4626", function () {
 
     describe("Withdraw", function () {
       beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("50");
+        await expect(
+          vault.connect(whale).withdraw(assets, bob.address, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
       });
 
       it("When receiver is 0x0", async function () {
@@ -371,7 +426,7 @@ describe("Meta4626", function () {
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
+        await vault.connect(whale).withdraw(beforeAssetBalance, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
@@ -388,9 +443,23 @@ describe("Meta4626", function () {
 
     describe("Redeem", function () {
       beforeEach(async function () {
+        await vault.connect(admin).grantRole(whitelistRole, whale.address);
+        await vault.connect(admin).grantRole(whitelistRole, alice.address);
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
+      });
+
+      it("When caller is not whitelisted", async function () {
+        await vault.connect(admin).revokeRole(whitelistRole, whale.address);
+
+        const assets = ethers.utils.parseEther("50");
+        await expect(
+          vault.connect(whale).redeem(assets, bob.address, whale.address)
+        ).to.be.revertedWith(
+          `AccessControl: account ${whale.address.toLowerCase()} is missing role ${whitelistRole}`
+        );
       });
 
       it("When receiver is 0x0", async function () {
@@ -429,7 +498,7 @@ describe("Meta4626", function () {
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).redeem(shares, bob.address, whale.address);
+        await vault.connect(whale).redeem(beforeShareBalance, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);

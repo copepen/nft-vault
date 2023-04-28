@@ -215,12 +215,19 @@ async function main() {
   await spiceNFTVault.grantRole(spiceRoleNFT, spiceAdmin.address);
   await checkRole(spiceNFTVault, spiceAdmin.address, spiceRoleNFT, true);
 
-  // set up para space wrappr
+  // set up para space wrapper
   whitelistRolePara = await para.WHITELIST_ROLE();
   await para.grantRole(whitelistRolePara, spiceVault.address);
   await para.grantRole(whitelistRolePara, spiceNFTVault.address);
   await checkRole(para, spiceVault.address, whitelistRolePara, true);
   await checkRole(para, spiceNFTVault.address, whitelistRolePara, true);
+
+  // set up para space wrapper
+  whitelistRoleMeta = await meta.WHITELIST_ROLE();
+  await meta.grantRole(whitelistRoleMeta, spiceVault.address);
+  await meta.grantRole(whitelistRoleMeta, spiceNFTVault.address);
+  await checkRole(meta, spiceVault.address, whitelistRoleMeta, true);
+  await checkRole(meta, spiceNFTVault.address, whitelistRoleMeta, true);
 
   // deposit initial funds into spice vault
   async function depositfunds() {
