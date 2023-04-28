@@ -23,9 +23,6 @@ abstract contract Meta4626Storage {
 
     /// @notice LpToken address
     address public lpTokenAddress;
-
-    /// @dev Total assets value
-    uint256 internal _totalAssets;
 }
 
 /**
@@ -130,7 +127,11 @@ contract Meta4626 is
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() public view returns (uint256) {
         return
-            _totalAssets +
+            IERC20Upgradeable(lpTokenAddress).balanceOf(address(this)).mulDiv(
+                _redemptionSharePrice(),
+                1e18,
+                MathUpgradeable.Rounding.Down
+            ) +
             IMetaLp(lpTokenAddress).redemptions(address(this)).pending;
     }
 
@@ -325,9 +326,6 @@ contract Meta4626 is
         uint256 shares,
         address receiver
     ) internal {
-        // Increase total assets value of vault
-        _totalAssets += assets;
-
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
@@ -394,9 +392,6 @@ contract Meta4626 is
 
         // Burn receipt tokens from owner
         _burn(owner, shares);
-
-        // Decrease total assets value of vault
-        _totalAssets = _totalAssets - assets;
 
         IMetaVault(vaultAddress).withdraw(IMetaVault.TrancheId.Junior, assets);
 
