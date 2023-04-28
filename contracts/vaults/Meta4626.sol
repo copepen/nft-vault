@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/IMetaVault.sol";
+import "../interfaces/IMetaLp.sol";
 
 /**
  * @title Storage for Meta4626
@@ -352,16 +353,6 @@ contract Meta4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        if (caller != owner) {
-            _spendAllowance(owner, caller, shares);
-        }
-
-        // Burn receipt tokens from owner
-        _burn(owner, shares);
-
-        // Decrease total assets value of vault
-        _totalAssets = _totalAssets - assets;
-
         // get lp token contract
         IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
 
@@ -383,6 +374,20 @@ contract Meta4626 is
             IMetaVault.TrancheId.Junior,
             lpRedeemAmount
         );
+        uint256 available = IMetaLp(lpTokenAddress).redemptionAvailable(address(this), type(uint256).max);
+        shares = shares.mulDiv(available, assets, MathUpgradeable.Rounding.Up);
+        assets = available;
+
+        if (caller != owner) {
+            _spendAllowance(owner, caller, shares);
+        }
+
+        // Burn receipt tokens from owner
+        _burn(owner, shares);
+
+        // Decrease total assets value of vault
+        _totalAssets = _totalAssets - assets;
+
         IMetaVault(vaultAddress).withdraw(
             IMetaVault.TrancheId.Junior,
             assets
