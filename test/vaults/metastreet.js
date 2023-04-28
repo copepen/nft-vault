@@ -426,7 +426,7 @@ describe("Meta4626", function () {
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).withdraw(beforeAssetBalance, bob.address, whale.address);
+        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
