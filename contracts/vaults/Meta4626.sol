@@ -11,6 +11,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 
 import "../interfaces/IWETH.sol";
 import "../interfaces/IMetaVault.sol";
+import "../interfaces/IMetaLp.sol";
 
 /**
  * @title Storage for Meta4626
@@ -22,9 +23,6 @@ abstract contract Meta4626Storage {
 
     /// @notice LpToken address
     address public lpTokenAddress;
-
-    /// @dev Total assets value
-    uint256 internal _totalAssets;
 }
 
 /**
@@ -128,7 +126,13 @@ contract Meta4626 is
 
     /// @notice See {IERC4626-totalAssets}
     function totalAssets() public view returns (uint256) {
-        return _totalAssets;
+        return
+            IERC20Upgradeable(lpTokenAddress).balanceOf(address(this)).mulDiv(
+                _redemptionSharePrice(),
+                1e18,
+                MathUpgradeable.Rounding.Down
+            ) +
+            IMetaLp(lpTokenAddress).redemptions(address(this)).pending;
     }
 
     /// @notice See {IERC4626-convertToShares}
@@ -322,9 +326,6 @@ contract Meta4626 is
         uint256 shares,
         address receiver
     ) internal {
-        // Increase total assets value of vault
-        _totalAssets += assets;
-
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
@@ -352,16 +353,6 @@ contract Meta4626 is
         uint256 assets,
         uint256 shares
     ) internal {
-        if (caller != owner) {
-            _spendAllowance(owner, caller, shares);
-        }
-
-        // Burn receipt tokens from owner
-        _burn(owner, shares);
-
-        // Decrease total assets value of vault
-        _totalAssets = _totalAssets - assets;
-
         // get lp token contract
         IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
 
@@ -378,35 +369,34 @@ contract Meta4626 is
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
-        // withdraw weth from the pool and send it to `receiver`
-        IMetaVault(vaultAddress).redeem(
-            IMetaVault.TrancheId.Junior,
-            lpRedeemAmount
+        if (IMetaLp(lpTokenAddress).redemptions(address(this)).pending == 0) {
+            // withdraw weth from the pool and send it to `receiver`
+            IMetaVault(vaultAddress).redeem(
+                IMetaVault.TrancheId.Junior,
+                lpRedeemAmount
+            );
+        }
+        (, , , , uint256 processedRedemptionQueue, , ) = IMetaVault(
+            vaultAddress
+        ).trancheState(IMetaVault.TrancheId.Junior);
+        uint256 available = IMetaLp(lpTokenAddress).redemptionAvailable(
+            address(this),
+            processedRedemptionQueue
         );
-        IMetaVault(vaultAddress).withdraw(
-            IMetaVault.TrancheId.Junior,
-            assets
-        );
+        shares = shares.mulDiv(available, assets, MathUpgradeable.Rounding.Up);
+        assets = available;
+
+        if (caller != owner) {
+            _spendAllowance(owner, caller, shares);
+        }
+
+        // Burn receipt tokens from owner
+        _burn(owner, shares);
+
+        IMetaVault(vaultAddress).withdraw(IMetaVault.TrancheId.Junior, assets);
 
         weth.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-    }
-
-    /***********/
-    /* Setters */
-    /***********/
-
-    /// @notice Set total assets
-    ///
-    /// Emits a {TotalAssets} event.
-    ///
-    /// @param totalAssets_ New total assets value
-    function setTotalAssets(
-        uint256 totalAssets_
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        _totalAssets = totalAssets_;
-
-        emit TotalAssets(totalAssets_);
     }
 }

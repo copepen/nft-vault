@@ -29,7 +29,9 @@ interface IMetaVault {
      * @param trancheId Tranche
      * @return Redemption share price in UD60x18
      */
-    function redemptionSharePrice(TrancheId trancheId) external view returns (uint256);
+    function redemptionSharePrice(
+        TrancheId trancheId
+    ) external view returns (uint256);
 
     /**
      * @notice Deposit currency into a tranche in exchange for LP tokens
@@ -62,4 +64,30 @@ interface IMetaVault {
      * @param maxAmount Maximum amount of currency tokens to withdraw
      */
     function withdraw(TrancheId trancheId, uint256 maxAmount) external;
+
+    /**
+     * @notice Get tranche state
+     * @param trancheId Tranche
+     * @return realizedValue Realized value
+     * @return estimatedValue Estimated value
+     * @return pendingRedemptions Pending redemptions
+     * @return redemptionQueue Current redemption queue
+     * @return processedRedemptionQueue Processed redemption queue
+     * @return depositSharePrice Deposit share price in UD60x18
+     * @return redemptionSharePrice_ Redemption share price in UD60x18
+     */
+    function trancheState(
+        TrancheId trancheId
+    )
+        external
+        view
+        returns (
+            uint256 realizedValue,
+            uint256 estimatedValue,
+            uint256 pendingRedemptions,
+            uint256 redemptionQueue,
+            uint256 processedRedemptionQueue,
+            uint256 depositSharePrice,
+            uint256 redemptionSharePrice_
+        );
 }
