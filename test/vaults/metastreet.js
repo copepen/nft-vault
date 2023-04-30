@@ -201,7 +201,10 @@ describe("Meta4626", function () {
         await weth.connect(whale).approve(vault.address, assets);
         await vault.connect(whale).deposit(assets, whale.address);
 
-        expect(await vault.totalAssets()).to.be.closeTo(assets, ethers.utils.parseEther("0.6"));
+        expect(await vault.totalAssets()).to.be.closeTo(
+          assets,
+          ethers.utils.parseEther("0.6")
+        );
       });
     });
   });
@@ -421,23 +424,21 @@ describe("Meta4626", function () {
       });
 
       it("Withdraw assets", async function () {
-        const assets = ethers.utils.parseEther("50");
+        const assets = await vault.maxWithdraw(whale.address);
 
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).withdraw(beforeAssetBalance, bob.address, whale.address);
+        await vault.connect(whale).withdraw(assets, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
 
-        const shares = await vault.previewWithdraw(assets);
-
-        expect(afterAssetBalance).to.be.closeTo(beforeAssetBalance.add(assets), 1);
-        expect(beforeShareBalance).to.be.closeTo(
-          afterShareBalance.add(shares),
-          5
+        expect(afterAssetBalance).to.be.closeTo(
+          beforeAssetBalance.add(assets),
+          1
         );
+        expect(afterShareBalance).to.be.closeTo(0, 1);
       });
     });
 
@@ -493,23 +494,21 @@ describe("Meta4626", function () {
       });
 
       it("Redeem shares", async function () {
-        const shares = ethers.utils.parseEther("50");
-
         const beforeAssetBalance = await weth.balanceOf(bob.address);
         const beforeShareBalance = await vault.balanceOf(whale.address);
 
-        await vault.connect(whale).redeem(beforeShareBalance, bob.address, whale.address);
+        await vault
+          .connect(whale)
+          .redeem(beforeShareBalance, bob.address, whale.address);
 
         const afterAssetBalance = await weth.balanceOf(bob.address);
         const afterShareBalance = await vault.balanceOf(whale.address);
 
-        const assets = await vault.previewRedeem(shares);
-
         expect(afterAssetBalance).to.be.closeTo(
-          beforeAssetBalance.add(assets),
-          5
+          beforeAssetBalance.add(ethers.utils.parseEther("100")),
+          ethers.utils.parseEther("0.6")
         );
-        expect(beforeShareBalance).to.be.closeTo(afterShareBalance.add(shares), 1);
+        expect(afterShareBalance).to.be.eq(0);
       });
     });
   });

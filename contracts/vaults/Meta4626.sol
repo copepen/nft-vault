@@ -12,6 +12,7 @@ import "@openzeppelin/contracts-upgradeable/utils/math/MathUpgradeable.sol";
 import "../interfaces/IWETH.sol";
 import "../interfaces/IMetaVault.sol";
 import "../interfaces/IMetaLp.sol";
+import "hardhat/console.sol";
 
 /**
  * @title Storage for Meta4626
@@ -134,8 +135,7 @@ contract Meta4626 is
                 _redemptionSharePrice(),
                 1e18,
                 MathUpgradeable.Rounding.Down
-            ) +
-            IMetaLp(lpTokenAddress).redemptions(address(this)).pending;
+            ) + IMetaLp(lpTokenAddress).redemptions(address(this)).pending;
     }
 
     /// @notice See {IERC4626-convertToShares}
@@ -359,12 +359,14 @@ contract Meta4626 is
         // load weth
         IERC20Upgradeable weth = IERC20Upgradeable(WETH);
 
-        if (IMetaLp(lpTokenAddress).redemptions(address(this)).pending == 0) {
+        IMetaLp.Redemption memory redemption = IMetaLp(lpTokenAddress).redemptions(address(this));
+        uint256 missingAmount = assets <= redemption.pending ? 0 : assets - redemption.pending;
+        if (missingAmount != 0) {
             // get lp token contract
             IERC20Upgradeable lpToken = IERC20Upgradeable(lpTokenAddress);
 
             uint256 redemptionSharePrice = _redemptionSharePrice();
-            uint256 lpRedeemAmount = assets.mulDiv(
+            uint256 lpRedeemAmount = missingAmount.mulDiv(
                 1e18,
                 redemptionSharePrice,
                 MathUpgradeable.Rounding.Up
@@ -388,8 +390,15 @@ contract Meta4626 is
             address(this),
             processedRedemptionQueue
         );
-        
-        shares = shares.mulDiv(available, assets, MathUpgradeable.Rounding.Up);
+
+        shares = shares.mulDiv(
+            available,
+            assets,
+            MathUpgradeable.Rounding.Down
+        );
+        if (available == assets + 1) {
+            --shares;
+        }
         assets = available;
 
         if (caller != owner) {
