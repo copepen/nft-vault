@@ -28,6 +28,10 @@ interface ISpiceLending {
     /// @param loanRatio New loan ratio
     event LoanRatioUpdated(uint256 loanRatio);
 
+    /// @notice Emitted when protect fee is updated
+    /// @param protectFee New protect fee
+    event ProtectFeeUpdated(uint256 protectFee);
+
     /// @notice Emitted when a new loan is started
     /// @param loanId Loan Id
     /// @param borrower Borrower address
@@ -114,6 +118,12 @@ interface ISpiceLending {
     /// @param _loanId The loan ID
     /// @param _payment Repayment amount
     function partialRepay(uint256 _loanId, uint256 _payment) external;
+
+    /// @notice Partialy repay the loan
+    /// @dev Only protectors can call this function
+    /// @param _loanId The loan ID
+    /// @param _payment Repayment amount
+    function protect(uint256 _loanId, uint256 _payment) external;
 
     /// @notice Repay the loan
     /// @dev Emits {LoanRepaid} event

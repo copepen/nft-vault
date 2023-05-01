@@ -16,11 +16,11 @@ describe("Spice Lending", function () {
   let lenderNote, borrowerNote;
   let nft, nft1;
   let weth;
-  let admin, alice, bob, treasury, signer, spiceAdmin;
+  let admin, alice, bob, treasury, signer, spiceAdmin, protector;
   let whale, dev;
   let snapshotId;
 
-  let defaultAdminRole, spiceRole, signerRole, spiceNftRole;
+  let defaultAdminRole, spiceRole, signerRole, spiceNftRole, protectorRole;
 
   const mintPrice = ethers.utils.parseEther("0.08");
 
@@ -55,7 +55,7 @@ describe("Spice Lending", function () {
   }
 
   before("Deploy", async function () {
-    [admin, alice, bob, treasury, signer, spiceAdmin] =
+    [admin, alice, bob, treasury, signer, spiceAdmin, protector] =
       await ethers.getSigners();
     await impersonateAccount(constants.accounts.Whale);
     whale = await ethers.getSigner(constants.accounts.Whale);
@@ -206,6 +206,7 @@ describe("Spice Lending", function () {
     spiceRole = await lending.SPICE_ROLE();
     signerRole = await lending.SIGNER_ROLE();
     spiceNftRole = await lending.SPICE_NFT_ROLE();
+    protectorRole = await lending.PROTECTOR_ROLE();
 
     const SpiceFiNFT4626 = await ethers.getContractFactory("SpiceFiNFT4626");
     beacon = await upgrades.deployBeacon(SpiceFiNFT4626, {
@@ -240,6 +241,7 @@ describe("Spice Lending", function () {
 
     await lending.connect(admin).grantRole(spiceRole, spiceAdmin.address);
     await lending.connect(admin).grantRole(spiceNftRole, nft.address);
+    await lending.connect(admin).grantRole(protectorRole, protector.address);
 
     await lenderNote.initialize(lending.address, true);
     await borrowerNote.initialize(lending.address, false);
@@ -317,7 +319,7 @@ describe("Spice Lending", function () {
 
   describe("Setters", function () {
     describe("Set Liquidation Fee Ratio", function () {
-      it("Only admin call call", async function () {
+      it("Only admin can call", async function () {
         await expect(
           lending.connect(alice).setLiquidationFeeRatio(1500)
         ).to.be.revertedWith(
@@ -338,7 +340,7 @@ describe("Spice Lending", function () {
     });
 
     describe("Set Loan Ratio", function () {
-      it("Only admin call call", async function () {
+      it("Only admin can call", async function () {
         await expect(
           lending.connect(alice).setLoanRatio(5000)
         ).to.be.revertedWith(
@@ -353,7 +355,7 @@ describe("Spice Lending", function () {
     });
 
     describe("Set Interest Fee", function () {
-      it("Only admin call call", async function () {
+      it("Only admin can call", async function () {
         await expect(
           lending.connect(alice).setInterestFee(1000)
         ).to.be.revertedWith(
@@ -375,7 +377,7 @@ describe("Spice Lending", function () {
     });
 
     describe("Set Liquidation Ratio", function () {
-      it("Only admin call call", async function () {
+      it("Only admin can call", async function () {
         await expect(
           lending.connect(alice).setLiquidationRatio(7000)
         ).to.be.revertedWith(
@@ -395,6 +397,25 @@ describe("Spice Lending", function () {
         await expect(tx)
           .to.emit(lending, "LiquidationRatioUpdated")
           .withArgs(7000);
+      });
+    });
+
+    describe("Set Protect Fee", function () {
+      it("Only admin can call", async function () {
+        await expect(
+          lending.connect(alice).setProtectFee(ethers.utils.parseEther("0.05"))
+        ).to.be.revertedWith(
+          `AccessControl: account ${alice.address.toLowerCase()} is missing role ${defaultAdminRole}`
+        );
+      });
+
+      it("Should set new interest fee", async function () {
+        const protectFee = ethers.utils.parseEther("0.05");
+        const tx = await lending.connect(admin).setProtectFee(protectFee);
+        expect(await lending.protectFee()).to.equal(protectFee);
+        await expect(tx)
+          .to.emit(lending, "ProtectFeeUpdated")
+          .withArgs(protectFee);
       });
     });
   });
@@ -968,6 +989,122 @@ describe("Spice Lending", function () {
     });
   });
 
+  describe("Protect", function () {
+    let loanId1, loanId2;
+    let protectFee;
+
+    beforeEach(async function () {
+      loanId1 = await initiateTestLoan(alice, 1, false);
+      loanId2 = await initiateTestLoan(bob, 2, true);
+
+      protectFee = ethers.utils.parseEther("0.05");
+      await lending.connect(admin).setProtectFee(protectFee);
+    });
+
+    it("Only protector can call", async function () {
+      const payment = ethers.utils.parseEther("5");
+      await expect(
+        lending.connect(alice).protect(loanId1, payment)
+      ).to.be.revertedWith(
+        `AccessControl: account ${alice.address.toLowerCase()} is missing role ${protectorRole}`
+      );
+    });
+
+    it("When loan does not exist", async function () {
+      const payment = ethers.utils.parseEther("5");
+      await expect(lending.connect(alice).partialRepay(100, payment))
+        .to.be.revertedWithCustomError(lending, "InvalidState")
+        .withArgs(0);
+    });
+
+    it("When loan is not active", async function () {
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+      await lending.connect(alice).repay(loanId1);
+
+      const payment = ethers.utils.parseEther("5");
+      await expect(lending.connect(protector).protect(loanId1, payment))
+        .to.be.revertedWithCustomError(lending, "InvalidState")
+        .withArgs(2);
+    });
+
+    it("When protecting for Spice NFT loan", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(bob)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await weth.balanceOf(bob.address);
+      const beforeProtectorBalance = await weth.balanceOf(protector.address);
+      let shares = await nft.tokenShares(2);
+      const beforeWithdrawable = await nft.previewRedeem(shares);
+
+      const payment = ethers.utils.parseEther("5");
+      const tx = await lending.connect(protector).protect(loanId2, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId2);
+      expect(await weth.balanceOf(bob.address)).to.be.eq(beforeBalance);
+      expect(await weth.balanceOf(protector.address)).to.be.eq(beforeProtectorBalance.add(protectFee));
+      expect(await weth.balanceOf(treasury.address)).to.be.gt(0);
+
+      shares = await nft.tokenShares(2);
+      const afterWithdrawable = await nft.previewRedeem(shares);
+      expect(beforeWithdrawable).to.be.eq(afterWithdrawable.add(payment));
+    });
+
+    it("When protecting small payment", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await nft.tokenShares(1);
+      const beforeProtectorBalance = await weth.balanceOf(protector.address);
+
+      const payment = ethers.utils.parseEther("1");
+      const tx = await lending.connect(protector).protect(loanId1, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+      expect(await nft.tokenShares(1)).to.be.eq(beforeBalance.sub(payment));
+      expect(await weth.balanceOf(protector.address)).to.be.eq(beforeProtectorBalance.add(protectFee));
+      expect(await weth.balanceOf(treasury.address)).to.be.gt(0);
+    });
+
+    it("When protecting full payment", async function () {
+      await increaseTime(24 * 3600);
+
+      await weth
+        .connect(alice)
+        .approve(lending.address, ethers.constants.MaxUint256);
+
+      const beforeBalance = await nft.tokenShares(1);
+      const beforeProtectorBalance = await weth.balanceOf(protector.address);
+
+      const payment = ethers.utils.parseEther("11");
+      const tx = await lending.connect(protector).protect(loanId1, payment);
+
+      await expect(tx).to.emit(lending, "LoanRepaid").withArgs(loanId1);
+      expect(await nft.tokenShares(1)).to.be.gt(beforeBalance.sub(payment));
+      expect(await weth.balanceOf(protector.address)).to.be.eq(beforeProtectorBalance.add(protectFee));
+      expect(await weth.balanceOf(treasury.address)).to.be.gt(0);
+
+      const loanData = await lending.getLoanData(loanId1);
+      expect(loanData.state).to.be.eq(2);
+      expect(loanData.interestAccrued).to.be.eq(0);
+
+      expect(await nft.ownerOf(1)).to.be.eq(alice.address);
+      await expect(lenderNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+      await expect(borrowerNote.ownerOf(loanId1)).to.be.revertedWith(
+        "ERC721: invalid token ID"
+      );
+    });
+  });
+
   describe("Repay", function () {
     let loanId1, loanId2;
 
@@ -1184,7 +1321,10 @@ describe("Spice Lending", function () {
       const loanAmount = ethers.utils.parseEther("10");
       const interest = loanAmount.mul(500).mul(5).div(10000).div(365);
       const repayAmount = loanAmount.add(interest);
-      expect(await lending.repayAmount(loanId)).to.be.closeTo(repayAmount, ethers.utils.parseEther("0.0001"));
+      expect(await lending.repayAmount(loanId)).to.be.closeTo(
+        repayAmount,
+        ethers.utils.parseEther("0.0001")
+      );
     });
 
     it("When loan is expired", async function () {
@@ -1350,7 +1490,10 @@ describe("Spice Lending", function () {
       const afterBalance = await ethers.provider.getBalance(alice.address);
       expect(shares).to.be.eq(amount);
       expect(beforeShares).to.be.eq(afterShares.add(shares));
-      expect(afterBalance).to.be.closeTo(beforeBalance.add(amount), ethers.utils.parseEther("0.01"));
+      expect(afterBalance).to.be.closeTo(
+        beforeBalance.add(amount),
+        ethers.utils.parseEther("0.01")
+      );
     });
   });
 });
