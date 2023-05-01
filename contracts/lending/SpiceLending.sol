@@ -721,7 +721,8 @@ contract SpiceLending is
         }
         if (protectFee > 0) {
             currency.safeTransfer(msg.sender, protectFee);
-        } else if (_payment - fee > protectFee) {
+        }
+        if (_payment - fee > protectFee) {
             currency.safeTransfer(lender, _payment - fee - protectFee);
         }
 
