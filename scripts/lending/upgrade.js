@@ -1,3 +1,4 @@
+const { ValidationsCacheOutdated } = require("@openzeppelin/hardhat-upgrades/dist/utils");
 const hre = require("hardhat");
 
 async function main() {
@@ -15,7 +16,7 @@ async function main() {
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0x30f0675931037f80Da8dd7fe9De6c28d90AEA77c",
+        address: "0xa0ede416AC5fa661F5f8B8bc18F0d440Af4ff873",
         contract: "contracts/lending/SpiceLending.sol:SpiceLending",
         constructorArguments: [],
       });
