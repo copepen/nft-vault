@@ -86,6 +86,9 @@ abstract contract SpiceLendingStorage {
 
     /// @notice Borrower => List of loan ids
     mapping(address => EnumerableSetUpgradeable.UintSet) internal activeLoans;
+
+    /// @notice Protect fee
+    uint256 public protectFee;
 }
 
 /**
@@ -118,6 +121,9 @@ contract SpiceLending is
 
     /// @notice Signer role
     bytes32 public constant SIGNER_ROLE = keccak256("SIGNER_ROLE");
+
+    /// @notice Protector role
+    bytes32 public constant PROTECTOR_ROLE = keccak256("PROTECTOR_ROLE");
 
     /// @notice Interest denominator
     uint256 public constant DENOMINATOR = 10000;
@@ -165,6 +171,9 @@ contract SpiceLending is
 
     /// @notice Signer not enabled
     error SignerNotEnabled();
+
+    /// @notice Payment too less
+    error PaymentTooLess();
 
     /***************/
     /* Constructor */
@@ -292,6 +301,19 @@ contract SpiceLending is
         loanRatio = _loanRatio;
 
         emit LoanRatioUpdated(_loanRatio);
+    }
+
+    /// @notice Set the protect fee
+    ///
+    /// Emits a {ProtectFeeUpdated} event.
+    ///
+    /// @param _protectFee Protect fee
+    function setProtectFee(
+        uint256 _protectFee
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        protectFee = _protectFee;
+
+        emit ProtectFeeUpdated(_protectFee);
     }
 
     /******************/
@@ -618,6 +640,91 @@ contract SpiceLending is
 
         uint256 fee = (interestPayment * interestFee) / DENOMINATOR;
         currency.safeTransfer(lender, _payment - fee);
+
+        address feesAddr = getRoleMember(SPICE_ROLE, 0);
+        if (feesAddr != address(0)) {
+            currency.safeTransfer(feesAddr, fee);
+        }
+
+        // if loan is fully repaid
+        if (_payment == totalAmountToPay) {
+            data.state = LibLoan.LoanState.Repaid;
+
+            // burn notes
+            lenderNote.burn(_loanId);
+            borrowerNote.burn(_loanId);
+
+            activeLoans[borrower].remove(_loanId);
+
+            collateralToLoanId[data.terms.collateralAddress][
+                data.terms.collateralId
+            ] = 0;
+
+            // return collateral NFT to borrower
+            IERC721Upgradeable(data.terms.collateralAddress).safeTransferFrom(
+                address(this),
+                borrower,
+                data.terms.collateralId
+            );
+        }
+
+        emit LoanRepaid(_loanId);
+    }
+
+    /// @notice See {ISpiceLending-project}
+    function protect(
+        uint256 _loanId,
+        uint256 _payment
+    ) external nonReentrant onlyRole(PROTECTOR_ROLE) {
+        LibLoan.LoanData storage data = loans[_loanId];
+        if (data.state != LibLoan.LoanState.Active) {
+            revert InvalidState(data.state);
+        }
+
+        address lender = lenderNote.ownerOf(_loanId);
+        address borrower = data.terms.borrower;
+
+        // calc total interest to pay
+        uint256 interestToPay = _calcInterest(data);
+        uint256 totalAmountToPay = data.balance + interestToPay;
+
+        if (_payment > totalAmountToPay) {
+            _payment = totalAmountToPay;
+        }
+
+        uint256 interestPayment;
+        if (_payment > interestToPay) {
+            interestPayment = interestToPay;
+            data.balance -= _payment - interestToPay;
+            data.interestAccrued = 0;
+        } else {
+            interestPayment = _payment;
+            data.interestAccrued = interestToPay - _payment;
+        }
+
+        // update loan data
+        data.updatedAt = block.timestamp;
+
+        IERC20Upgradeable currency = IERC20Upgradeable(data.terms.currency);
+
+        _transferRepayment(
+            data.terms.collateralAddress,
+            data.terms.collateralId,
+            address(currency),
+            borrower,
+            _payment
+        );
+
+        uint256 fee = (interestPayment * interestFee) / DENOMINATOR;
+        if (_payment - fee < protectFee) {
+            revert PaymentTooLess();
+        }
+        if (protectFee > 0) {
+            currency.safeTransfer(msg.sender, protectFee);
+        }
+        if (_payment - fee > protectFee) {
+            currency.safeTransfer(lender, _payment - fee - protectFee);
+        }
 
         address feesAddr = getRoleMember(SPICE_ROLE, 0);
         if (feesAddr != address(0)) {
