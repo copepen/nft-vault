@@ -318,6 +318,9 @@ contract Blur4626 is
         if (assets == 0) {
             revert ParameterOutOfBounds();
         }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
+        }
 
         // Compute number of shares to mint from current vault share price
         shares = previewDeposit(assets);
@@ -340,6 +343,9 @@ contract Blur4626 is
         // Validate amount
         if (shares == 0) {
             revert ParameterOutOfBounds();
+        }
+        if (receiver == address(0)) {
+            revert InvalidAddress();
         }
 
         if (msg.value < assets) {
@@ -499,8 +505,16 @@ contract Blur4626 is
         // Burn receipt tokens from owner
         _burn(owner, shares);
 
+        _totalAssets -= assets;
+
         IERC20Upgradeable(WETH).safeTransferFrom(bidder, address(this), assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
+
+    /*************/
+    /* Fallbacks */
+    /*************/
+
+    receive() external payable {}
 }

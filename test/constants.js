@@ -3,6 +3,7 @@ module.exports = {
     Whale: "0x8EB8a3b98659Cce290402893d0123abb75E3ab28",
     Dev: "0xC5a05570Da594f8edCc9BEaA2385c69411c28CBe",
     Multisig: "0x7B15f2B26C25e1815Dc4FB8957cE76a0C5319582",
+    BlurBidder: "0xabF3bCC256C1E0d8B5110083AC20DAEE5054aEE8",
   },
   tokens: {
     BendWETH: "0xed1840223484483c0cb050e6fc344d1ebf0778a9",
