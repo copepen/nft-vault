@@ -152,7 +152,7 @@ contract Blur4626 is
     /// @notice See {IERC4626-maxWithdraw}
     function maxWithdraw(address owner) external view returns (uint256) {
         return
-            MathUpgradeable.max(
+            MathUpgradeable.min(
                 _convertToAssets(
                     balanceOf(owner),
                     MathUpgradeable.Rounding.Down
@@ -164,7 +164,7 @@ contract Blur4626 is
     /// @notice See {IERC4626-maxRedeem}
     function maxRedeem(address owner) external view returns (uint256) {
         return
-            MathUpgradeable.max(
+            MathUpgradeable.min(
                 balanceOf(owner),
                 _convertToShares(
                     IERC20Upgradeable(WETH).balanceOf(bidder),
