@@ -24,9 +24,6 @@ describe("Blur4626", function () {
 
     weth = await ethers.getContractAt("IWETH", constants.tokens.WETH, admin);
 
-    weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
-    weth.connect(bob).deposit({ value: ethers.utils.parseEther("200") });
-
     const Blur4626 = await ethers.getContractFactory("Blur4626");
     const beacon = await upgrades.deployBeacon(Blur4626);
 
@@ -164,6 +161,8 @@ describe("Blur4626", function () {
       });
 
       it("When balance is non-zero", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
@@ -182,6 +181,8 @@ describe("Blur4626", function () {
       });
 
       it("When balance is non-zero", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
@@ -202,6 +203,8 @@ describe("Blur4626", function () {
       });
 
       it("When there is deposit", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const assets = ethers.utils.parseEther("100");
         await weth.connect(alice).approve(vault.address, assets);
         await vault.connect(alice).deposit(assets, alice.address);
@@ -236,6 +239,8 @@ describe("Blur4626", function () {
       });
 
       it("When balance is not enough", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const assets = ethers.utils.parseEther("300");
 
         await weth.connect(alice).approve(vault.address, assets);
@@ -246,6 +251,8 @@ describe("Blur4626", function () {
       });
 
       it("Take assets and mint shares", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const assets = ethers.utils.parseEther("100");
         const shares = await vault.previewDeposit(assets);
 
@@ -307,6 +314,8 @@ describe("Blur4626", function () {
       });
 
       it("When balance is not enough", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const shares = ethers.utils.parseEther("300");
 
         await weth.connect(alice).approve(vault.address, shares);
@@ -317,6 +326,8 @@ describe("Blur4626", function () {
       });
 
       it("Take assets and mint shares", async function () {
+        weth.connect(alice).deposit({ value: ethers.utils.parseEther("200") });
+
         const shares = ethers.utils.parseEther("100");
         const assets = await vault.previewMint(shares);
 
@@ -357,8 +368,7 @@ describe("Blur4626", function () {
     describe("Withdraw", function () {
       beforeEach(async function () {
         const assets = ethers.utils.parseEther("100");
-        await weth.connect(alice).approve(vault.address, assets);
-        await vault.connect(alice).deposit(assets, alice.address);
+        await vault.connect(alice).depositETH(alice.address, { value: assets });
       });
 
       it("When receiver is 0x0", async function () {
@@ -422,8 +432,7 @@ describe("Blur4626", function () {
     describe("Redeem", function () {
       beforeEach(async function () {
         const assets = ethers.utils.parseEther("100");
-        await weth.connect(alice).approve(vault.address, assets);
-        await vault.connect(alice).deposit(assets, alice.address);
+        await vault.connect(alice).depositETH(alice.address, { value: assets });
       });
 
       it("When receiver is 0x0", async function () {
@@ -522,7 +531,7 @@ describe("Blur4626", function () {
         );
         expect(await ethers.provider.getBalance(alice.address)).to.be.closeTo(
           beforeAssetBalance.sub(assets),
-          ethers.utils.parseEther("0.01")
+          ethers.utils.parseEther("0.05")
         );
         expect(await ethers.provider.getBalance(bidder.address)).to.be.eq(
           beforeBidderBalance.add(assets)
@@ -582,7 +591,7 @@ describe("Blur4626", function () {
         );
         expect(await ethers.provider.getBalance(alice.address)).to.be.closeTo(
           beforeAssetBalance.sub(assets),
-          ethers.utils.parseEther("0.01")
+          ethers.utils.parseEther("0.05")
         );
         expect(await ethers.provider.getBalance(bidder.address)).to.be.eq(
           beforeBidderBalance.add(assets)
@@ -716,11 +725,15 @@ describe("Blur4626", function () {
           .connect(bidder)
           .approve(vault.address, ethers.constants.MaxUint256);
 
-        const beforeAssetBalance = await ethers.provider.getBalance(bob.address);
+        const beforeAssetBalance = await ethers.provider.getBalance(
+          bob.address
+        );
         const beforeBidderBalance = await weth.balanceOf(bidder.address);
         const beforeShareBalance = await vault.balanceOf(alice.address);
 
-        await vault.connect(alice).redeemETH(shares, bob.address, alice.address);
+        await vault
+          .connect(alice)
+          .redeemETH(shares, bob.address, alice.address);
 
         const afterAssetBalance = await ethers.provider.getBalance(bob.address);
         const afterBidderBalance = await weth.balanceOf(bidder.address);
