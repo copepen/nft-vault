@@ -171,7 +171,7 @@ describe("Blur4626", function () {
         const bidderBalance = await weth.balanceOf(bidder.address);
 
         expect(await vault.maxWithdraw(alice.address)).to.be.eq(
-          bidderBalance.gt(assets) ? bidderBalance : assets
+          bidderBalance.lt(assets) ? bidderBalance : assets
         );
       });
     });
@@ -190,7 +190,7 @@ describe("Blur4626", function () {
 
         expect(await vault.maxRedeem(alice.address)).to.be.eq(
           await vault.convertToShares(
-            bidderBalance.gt(assets) ? bidderBalance : assets
+            bidderBalance.lt(assets) ? bidderBalance : assets
           )
         );
       });
