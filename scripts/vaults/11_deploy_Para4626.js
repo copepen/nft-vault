@@ -8,6 +8,7 @@ async function main() {
     "spWETH",
     "0x638a98BBB92a7582d07C52ff407D49664DC8b3Ee", // para pool
     "0xaA4b6506493582f169C9329AC0Da99fff23c2911", // pWETH
+    "0x59B72FdB45B3182c8502cC297167FE4f821f332d",
   ];
 
   const Para4626 = await ethers.getContractFactory("Para4626");

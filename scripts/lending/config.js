@@ -9,6 +9,11 @@ const config = {
     lending: "0xb0F1Cd55CA8897306aEb53f671dD87125f5dBF0d", // "0x37f8bBE2A9fc816AF6b6843eA0E2DA86289b81DE", // "0xE222fCC0BD432df3d46039931aBC8e96EA799155", // "0x6a3F93048661192aEd72cd8472414eE8502a14A4",
     weth: "0xB4FBF271143F4FBf7B91A5ded31805e42b2208d6",
   },
+  11155111: {
+    prologue: "",
+    lending: "",
+    weth: "0xf531b8f309be94191af87605cfbf600d71c2cfe0",
+  }
 };
 
 module.exports = config;

@@ -9,7 +9,9 @@ async function main() {
     "0x70b97A0da65C15dfb0FFA02aEE6FA36e507C2762",
     hre.network.name === "mainnet"
       ? "0xed1840223484483c0cb050e6fc344d1ebf0778a9"
-      : "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6",
+      : hre.network.name === "goerli"
+      ? "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6"
+      : "0xf531b8f309be94191af87605cfbf600d71c2cfe0",
   ];
 
   const Bend4626 = await ethers.getContractFactory("Bend4626");

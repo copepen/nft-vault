@@ -12,15 +12,13 @@ async function main() {
 
   const Note = await ethers.getContractFactory("Note");
 
-  // const lenderNote = await Note.deploy(...lenderNoteArgs);
-  // await lenderNote.deployed();
-  // console.log(`LenderNote deployed to ${lenderNote.address}`);
-  const lenderNote = Note.attach('0x91Cbd2ad678ad3B955e4C1f78eceD151871F84cc');
+  const lenderNote = await Note.deploy(...lenderNoteArgs);
+  await lenderNote.deployed();
+  console.log(`LenderNote deployed to ${lenderNote.address}`);
 
-  // const borrowerNote = await Note.deploy(...borrowerNoteArgs);
-  // await borrowerNote.deployed();
-  // console.log(`BorrowerNote deployed to ${borrowerNote.address}`);
-  const borrowerNote = Note.attach('0xfa852E8Adc3d36Ca4187c0D177Fcc9013861fA8f');
+  const borrowerNote = await Note.deploy(...borrowerNoteArgs);
+  await borrowerNote.deployed();
+  console.log(`BorrowerNote deployed to ${borrowerNote.address}`);
 
   const SpiceLending = await ethers.getContractFactory("SpiceLending");
   const beacon = await upgrades.deployBeacon(SpiceLending);
