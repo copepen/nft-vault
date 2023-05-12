@@ -585,7 +585,7 @@ describe("Spice Lending", function () {
 
       terms = {
         lender: signer.address,
-        loanAmount: ethers.utils.parseEther("12"),
+        loanAmount: ethers.utils.parseEther("20"),
         interestRate: 550,
         duration: 12 * 24 * 3600, // 12 days
         collateralAddress: nft.address,
@@ -639,10 +639,21 @@ describe("Spice Lending", function () {
       ).to.be.revertedWithCustomError(lending, "LoanTermsExpired");
     });
 
-    it("When loan amount exceeds limit", async function () {
+    it("When loan amount exceeds limit 1", async function () {
       const collateral = await nft.tokenShares(1);
       terms.loanAmount = collateral.mul(15000).div(10000).add(1);
       const signature = await signLoanTerms(signer, lending.address, terms);
+      await expect(
+        lending.connect(alice).updateLoan(loanId, terms, signature)
+      ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
+    });
+
+    it("When loan amount exceeds limit 2", async function () {
+      let signature = await signLoanTerms(signer, lending.address, terms);
+      await lending.connect(alice).updateLoan(loanId, terms, signature);
+
+      terms.loanAmount = ethers.utils.parseEther("175");
+      signature = await signLoanTerms(signer, lending.address, terms);
       await expect(
         lending.connect(alice).updateLoan(loanId, terms, signature)
       ).to.be.revertedWithCustomError(lending, "LoanAmountExceeded");
@@ -837,7 +848,7 @@ describe("Spice Lending", function () {
 
       await weth
         .connect(signer)
-        .transfer(bob.address, ethers.utils.parseEther("5"));
+        .transfer(bob.address, ethers.utils.parseEther("10"));
       await weth
         .connect(bob)
         .approve(lending.address, ethers.constants.MaxUint256);

@@ -439,8 +439,21 @@ contract SpiceLending is
             _terms.collateralAddress,
             _terms.collateralId
         );
-        if (_terms.loanAmount > (collateral * loanRatio) / DENOMINATOR) {
-            revert LoanAmountExceeded();
+        if (loanRatio < ((DENOMINATOR * 9) / 10)) {
+            if (
+                _terms.loanAmount >
+                ((collateral - interestAccrued) * loanRatio) / DENOMINATOR
+            ) {
+                revert LoanAmountExceeded();
+            }
+        } else {
+            if (
+                _terms.loanAmount >
+                ((collateral - (data.balance + interestAccrued)) * loanRatio) /
+                    DENOMINATOR
+            ) {
+                revert LoanAmountExceeded();
+            }
         }
 
         // check if signature is used
