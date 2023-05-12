@@ -848,7 +848,7 @@ describe("Spice Lending", function () {
 
       await weth
         .connect(signer)
-        .transfer(bob.address, ethers.utils.parseEther("5"));
+        .transfer(bob.address, ethers.utils.parseEther("10"));
       await weth
         .connect(bob)
         .approve(lending.address, ethers.constants.MaxUint256);
