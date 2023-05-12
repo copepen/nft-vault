@@ -10,13 +10,13 @@ async function main() {
   // const SpiceLending = await ethers.getContractFactory("SpiceLending");
   // const vault = await upgrades.upgradeBeacon(beacon, SpiceLending, {'timeout': 0});
   // await vault.deployed();
-// 
+
   // console.log("SpiceLending successfully upgraded!");
 
   if (hre.network.name !== "localhost" && hre.network.name !== "hardhat") {
     try {
       await hre.run("verify:verify", {
-        address: "0xa0ede416AC5fa661F5f8B8bc18F0d440Af4ff873",
+        address: "0x1515Ea51b170190a88B32F4498948B24cd8ff719",
         contract: "contracts/lending/SpiceLending.sol:SpiceLending",
         constructorArguments: [],
       });
