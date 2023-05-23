@@ -13,7 +13,7 @@ async function main() {
   let bend;
   let drops;
   let para;
-  let meta;
+  // let meta;
   let spiceVault;
   let spiceNFTVault;
 
@@ -29,8 +29,8 @@ async function main() {
   const dropsVaultSymbol = "SCEther";
   const paraVaultName = "Spice pWETH";
   const paraVaultSymbol = "spWETH";
-  const metaVaultName = "Spice mWETH";
-  const metaVaultSymbol = "smWETH";
+  // const metaVaultName = "Spice mWETH";
+  // const metaVaultSymbol = "smWETH";
 
   async function checkRole(contract, user, role, check) {
     expect(await contract.hasRole(role, user)).to.equal(check);
@@ -101,14 +101,14 @@ async function main() {
     "0x59B72FdB45B3182c8502cC297167FE4f821f332d"
   ]);
 
-  const Meta4626 = await ethers.getContractFactory("Meta4626");
-  beacon = await upgrades.deployBeacon(Meta4626);
-
-  meta = await upgrades.deployBeaconProxy(beacon, Meta4626, [
-    metaVaultName,
-    metaVaultSymbol,
-    constants.contracts.MetaPool,
-  ]);
+  // const Meta4626 = await ethers.getContractFactory("Meta4626");
+  // beacon = await upgrades.deployBeacon(Meta4626);
+// 
+  // meta = await upgrades.deployBeaconProxy(beacon, Meta4626, [
+    // metaVaultName,
+    // metaVaultSymbol,
+    // constants.contracts.MetaPool,
+  // ]);
 
   const SpiceFi4626 = await ethers.getContractFactory("SpiceFi4626");
   beacon = await upgrades.deployBeacon(SpiceFi4626, {
@@ -149,7 +149,7 @@ async function main() {
     bend: bend.address,
     drops: drops.address,
     para: para.address,
-    meta: meta.address,
+    // meta: meta.address,
     spiceVault: spiceVault.address,
     spiceNFTVault: spiceNFTVault.address,
   };
@@ -178,14 +178,14 @@ async function main() {
   await spiceVault.grantRole(vaultRole, bend.address);
   await spiceVault.grantRole(vaultRole, drops.address);
   await spiceVault.grantRole(vaultRole, para.address);
-  await spiceVault.grantRole(vaultRole, meta.address);
+  // await spiceVault.grantRole(vaultRole, meta.address);
   await spiceVault.grantRole(userRole, whale.address);
   await checkRole(spiceVault, strategist.address, strategistRole, true);
   await checkRole(spiceVault, vault.address, vaultRole, true);
   await checkRole(spiceVault, bend.address, vaultRole, true);
   await checkRole(spiceVault, drops.address, vaultRole, true);
   await checkRole(spiceVault, para.address, vaultRole, true);
-  await checkRole(spiceVault, meta.address, vaultRole, true);
+  // await checkRole(spiceVault, meta.address, vaultRole, true);
   await checkRole(spiceVault, whale.address, userRole, true);
 
   await spiceVault.grantRole(spiceRole, spiceAdmin.address);
@@ -204,13 +204,13 @@ async function main() {
   await spiceNFTVault.grantRole(vaultRoleNFT, bend.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, drops.address);
   await spiceNFTVault.grantRole(vaultRoleNFT, para.address);
-  await spiceNFTVault.grantRole(vaultRoleNFT, meta.address);
+  // await spiceNFTVault.grantRole(vaultRoleNFT, meta.address);
   await checkRole(spiceNFTVault, strategist.address, strategistRoleNFT, true);
   await checkRole(spiceNFTVault, vault.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, bend.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, drops.address, vaultRoleNFT, true);
   await checkRole(spiceNFTVault, para.address, vaultRoleNFT, true);
-  await checkRole(spiceNFTVault, meta.address, vaultRoleNFT, true);
+  // await checkRole(spiceNFTVault, meta.address, vaultRoleNFT, true);
 
   await spiceNFTVault.grantRole(spiceRoleNFT, spiceAdmin.address);
   await checkRole(spiceNFTVault, spiceAdmin.address, spiceRoleNFT, true);
@@ -222,12 +222,12 @@ async function main() {
   await checkRole(para, spiceVault.address, whitelistRolePara, true);
   await checkRole(para, spiceNFTVault.address, whitelistRolePara, true);
 
-  // set up para space wrapper
-  whitelistRoleMeta = await meta.WHITELIST_ROLE();
-  await meta.grantRole(whitelistRoleMeta, spiceVault.address);
-  await meta.grantRole(whitelistRoleMeta, spiceNFTVault.address);
-  await checkRole(meta, spiceVault.address, whitelistRoleMeta, true);
-  await checkRole(meta, spiceNFTVault.address, whitelistRoleMeta, true);
+  // set up meta wrapper
+  // whitelistRoleMeta = await meta.WHITELIST_ROLE();
+  // await meta.grantRole(whitelistRoleMeta, spiceVault.address);
+  // await meta.grantRole(whitelistRoleMeta, spiceNFTVault.address);
+  // await checkRole(meta, spiceVault.address, whitelistRoleMeta, true);
+  // await checkRole(meta, spiceNFTVault.address, whitelistRoleMeta, true);
 
   // deposit initial funds into spice vault
   async function depositfunds() {
